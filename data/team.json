@@ -1,0 +1,98 @@
+[
+  {
+    "id": "m1",
+    "name": "Israel Cárdenas",
+    "role": "Director",
+    "status": "Activo",
+    "type": "Full-time"
+  },
+  {
+    "id": "m2",
+    "name": "Laura Amelia Guzmán",
+    "role": "Directora",
+    "status": "Activo",
+    "type": "Full-time"
+  },
+  {
+    "id": "m3",
+    "name": "Rafael E. Muñoz",
+    "role": "Productor",
+    "status": "Activo",
+    "type": "Full-time"
+  },
+  {
+    "id": "m4",
+    "name": "Jordi Gassó",
+    "role": "Gerente de producción",
+    "status": "Activo",
+    "type": "Full-time"
+  },
+  {
+    "id": "m5",
+    "name": "Sarah",
+    "role": "Line producer",
+    "status": "Activo",
+    "type": "Part-time"
+  },
+  {
+    "id": "m6",
+    "name": "Fede Berón",
+    "role": "AI Project Manager QA",
+    "status": "Activo",
+    "type": "Full-time"
+  },
+  {
+    "id": "m7",
+    "name": "Cindy Toribio",
+    "role": "AI Project Manager Assistant / Asset Manager",
+    "status": "Activo",
+    "type": "Full-time"
+  },
+  {
+    "id": "m8",
+    "name": "Diego Amando",
+    "role": "AI Artist Head",
+    "status": "Activo",
+    "type": "Full-time"
+  },
+  {
+    "id": "m9",
+    "name": "José Luis",
+    "role": "Data & System Engineer",
+    "status": "Activo",
+    "type": "Part-time",
+    "notes": "En prueba"
+  },
+  {
+    "id": "m10",
+    "name": "Miguel de Mena",
+    "role": "Research Head",
+    "status": "Inactivo",
+    "type": "Part-time",
+    "notes": "No se ha incorporado oficialmente"
+  },
+  {
+    "id": "m11",
+    "name": "Maia",
+    "role": "Research Assistant",
+    "status": "Inactivo",
+    "type": "Part-time",
+    "notes": "No se ha incorporado oficialmente"
+  },
+  {
+    "id": "m12",
+    "name": "Juliano",
+    "role": "AD",
+    "status": "Inactivo",
+    "type": "Full-time",
+    "notes": "No se ha incorporado oficialmente"
+  },
+  {
+    "id": "m13",
+    "name": "Valerie",
+    "role": "Casting Director",
+    "status": "Inactivo",
+    "type": "Part-time",
+    "notes": "Nuevo en Diciembre"
+  }
+]

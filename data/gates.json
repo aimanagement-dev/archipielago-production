@@ -1,0 +1,52 @@
+[
+  {
+    "id": "g1",
+    "name": "Gate 1",
+    "week": "Semanas 5-6",
+    "deliverables": ["Deck V1", "Workflow V1", "Crew V1", "Casting preliminar"],
+    "responsible": "Todo el equipo",
+    "criteria": "Aprobación para continuar pre-producción",
+    "status": "Pendiente",
+    "date": "2025-12-15"
+  },
+  {
+    "id": "g2",
+    "name": "Gate 2",
+    "week": "Semanas 9-10",
+    "deliverables": ["Casting final", "Guión técnico", "Storyboard", "Workflow V2", "Plan de ejecución"],
+    "responsible": "Todo el equipo",
+    "criteria": "GO/NO-GO para inicio de producción",
+    "status": "Pendiente",
+    "date": "2026-01-15"
+  },
+  {
+    "id": "g3",
+    "name": "Gate 3",
+    "week": "Semana 16",
+    "deliverables": ["Corto 1 completado"],
+    "responsible": "Directores, AI Artists",
+    "criteria": "Calidad aprobada para continuar",
+    "status": "Pendiente",
+    "date": "2026-03-15"
+  },
+  {
+    "id": "g4",
+    "name": "Gate 4",
+    "week": "Semana 26",
+    "deliverables": ["Toda generación completada"],
+    "responsible": "Todo el equipo",
+    "criteria": "100% contenido generado con calidad",
+    "status": "Pendiente",
+    "date": "2026-05-30"
+  },
+  {
+    "id": "g5",
+    "name": "Gate 5",
+    "week": "Semana 32",
+    "deliverables": ["Película finalizada"],
+    "responsible": "Directores, Productores",
+    "criteria": "Entrega aprobada para DGCINE",
+    "status": "Pendiente",
+    "date": "2026-07-31"
+  }
+]

@@ -1,0 +1,302 @@
+[
+  {
+    "id": "t1",
+    "title": "Guión V1 completado",
+    "area": "Guión",
+    "week": "Semanas 3-4",
+    "responsible": ["Israel Cárdenas"],
+    "status": "En Progreso",
+    "notes": "Primera versión completa del guión",
+    "month": "Dic"
+  },
+  {
+    "id": "t2",
+    "title": "Finalizar investigación documental",
+    "area": "Investigación",
+    "week": "Semanas 3-4",
+    "responsible": ["Israel", "Laura", "Cindy"],
+    "status": "Pendiente",
+    "notes": "Profundización en material histórico",
+    "month": "Dic"
+  },
+  {
+    "id": "t3",
+    "title": "Inicio de previs",
+    "area": "Pre-visualización",
+    "week": "Semanas 3-4",
+    "responsible": ["AI Artist", "Israel", "Laura"],
+    "status": "En Progreso",
+    "notes": "Primeras pruebas visuales",
+    "month": "Dic"
+  },
+  {
+    "id": "t4",
+    "title": "Reunión de producción",
+    "area": "Crew",
+    "week": "Semanas 3-4",
+    "responsible": ["Producción"],
+    "status": "Pendiente",
+    "notes": "",
+    "month": "Dic"
+  },
+  {
+    "id": "t5",
+    "title": "Reporte de progreso DGCINE",
+    "area": "Reporting",
+    "week": "Semanas 3-4",
+    "responsible": ["Cindy"],
+    "status": "Pendiente",
+    "notes": "Reporte quincenal obligatorio",
+    "month": "Dic"
+  },
+  {
+    "id": "t6",
+    "title": "Inicio de casting",
+    "area": "Casting",
+    "week": "Semanas 3-4",
+    "responsible": ["Valerie"],
+    "status": "Pendiente",
+    "notes": "Búsqueda y selección de actores",
+    "month": "Dic"
+  },
+  {
+    "id": "t7",
+    "title": "Deck V1",
+    "area": "Pre-visualización",
+    "week": "Semanas 5-6",
+    "responsible": ["Israel", "Laura", "Cindy"],
+    "status": "Pendiente",
+    "notes": "Primera versión presentación completa",
+    "month": "Dic"
+  },
+  {
+    "id": "t8",
+    "title": "Definir workflow V1",
+    "area": "Técnico",
+    "week": "Semanas 5-6",
+    "responsible": ["Fede", "Cindy"],
+    "status": "Pendiente",
+    "notes": "Flujo de trabajo definitivo",
+    "month": "Dic"
+  },
+  {
+    "id": "t9",
+    "title": "Definir crew V1",
+    "area": "Crew",
+    "week": "Semanas 5-6",
+    "responsible": ["Producción"],
+    "status": "Pendiente",
+    "notes": "Equipo completo confirmado",
+    "month": "Dic"
+  },
+  {
+    "id": "t10",
+    "title": "Presentación de casting preliminar",
+    "area": "Casting",
+    "week": "Semanas 5-6",
+    "responsible": ["Valerie"],
+    "status": "Pendiente",
+    "notes": "Propuestas de actores principales",
+    "month": "Dic"
+  },
+  {
+    "id": "t11",
+    "title": "Pruebas de integración de actores - LoRA",
+    "area": "Técnico",
+    "week": "Semanas 7-8",
+    "responsible": ["Fede", "Cindy", "AI Artist"],
+    "status": "Pendiente",
+    "notes": "Entrenamiento de modelos con rostros actores",
+    "month": "Ene"
+  },
+  {
+    "id": "t12",
+    "title": "Pruebas lip-sync",
+    "area": "Técnico",
+    "week": "Semanas 7-8",
+    "responsible": ["Fede", "Cindy", "AI Artist"],
+    "status": "Pendiente",
+    "notes": "Sincronización labial con audio",
+    "month": "Ene"
+  },
+  {
+    "id": "t13",
+    "title": "Pruebas mocap (opcional)",
+    "area": "Técnico",
+    "week": "Semanas 7-8",
+    "responsible": ["Fede", "Cindy", "AI Artist"],
+    "status": "Pendiente",
+    "notes": "Captura de movimiento si necesario",
+    "month": "Ene"
+  },
+  {
+    "id": "t14",
+    "title": "Pruebas green screen",
+    "area": "Técnico",
+    "week": "Semanas 7-8",
+    "responsible": ["Fede", "Cindy", "AI Artist"],
+    "status": "Pendiente",
+    "notes": "Integración con fondos generados",
+    "month": "Ene"
+  },
+  {
+    "id": "t15",
+    "title": "Plataforma de flujos y datos funcional",
+    "area": "Técnico",
+    "week": "Semanas 7-8",
+    "responsible": ["José Luis"],
+    "status": "Pendiente",
+    "notes": "Sistema completo operativo",
+    "month": "Ene"
+  },
+  {
+    "id": "t16",
+    "title": "Casting definitivo",
+    "area": "Casting",
+    "week": "Semanas 9-10",
+    "responsible": ["Valerie"],
+    "status": "Pendiente",
+    "notes": "Actores confirmados y contratados",
+    "month": "Ene"
+  },
+  {
+    "id": "t17",
+    "title": "Guión técnico definitivo",
+    "area": "Guión",
+    "week": "Semanas 9-10",
+    "responsible": ["Israel", "Laura"],
+    "status": "Pendiente",
+    "notes": "Versión final con especificaciones técnicas",
+    "month": "Ene"
+  },
+  {
+    "id": "t18",
+    "title": "Storyboard definitivo",
+    "area": "Pre-visualización",
+    "week": "Semanas 9-10",
+    "responsible": ["AI Artist", "Directores"],
+    "status": "Pendiente",
+    "notes": "Planos y secuencias finales",
+    "month": "Ene"
+  },
+  {
+    "id": "t19",
+    "title": "Workflow V2",
+    "area": "Técnico",
+    "week": "Semanas 9-10",
+    "responsible": ["Fede", "Cindy"],
+    "status": "Pendiente",
+    "notes": "Flujo optimizado post-pruebas",
+    "month": "Ene"
+  },
+  {
+    "id": "t20",
+    "title": "Plan de ejecución definitivo / RODAJE",
+    "area": "Planificación",
+    "week": "Semanas 9-10",
+    "responsible": ["Fede"],
+    "status": "Pendiente",
+    "notes": "Calendario y logística de generación",
+    "month": "Ene"
+  },
+  {
+    "id": "t21",
+    "title": "Inicio Generación Corto 1",
+    "area": "Producción",
+    "week": "Semanas 11-12",
+    "responsible": ["Todo el equipo"],
+    "status": "Pendiente",
+    "notes": "Primera pieza audiovisual",
+    "month": "Feb"
+  },
+  {
+    "id": "t22",
+    "title": "Activación agent/skill continuista",
+    "area": "Técnico",
+    "week": "Semanas 11-12",
+    "responsible": ["José Luis"],
+    "status": "Pendiente",
+    "notes": "Herramienta de consistencia",
+    "month": "Feb"
+  },
+  {
+    "id": "t23",
+    "title": "Pipeline activo: prompts → generación → revisión → aprobación",
+    "area": "Pipeline",
+    "week": "Semanas 11-12",
+    "responsible": ["AI Artists", "Directores"],
+    "status": "Pendiente",
+    "notes": "Flujo de producción operativo",
+    "month": "Feb"
+  },
+  {
+    "id": "t24",
+    "title": "Integración de prompt army",
+    "area": "Técnico",
+    "week": "Semanas 11-12",
+    "responsible": ["Diego Amando", "Fede"],
+    "status": "Pendiente",
+    "notes": "Sistema de generación masiva",
+    "month": "Feb"
+  },
+  {
+    "id": "t25",
+    "title": "Generación Cortos",
+    "area": "Producción",
+    "week": "Semanas 15-18",
+    "responsible": ["Todo el equipo"],
+    "status": "Pendiente",
+    "notes": "Múltiples piezas en paralelo",
+    "month": "Mar"
+  },
+  {
+    "id": "t26",
+    "title": "Generación Cortos finales",
+    "area": "Producción",
+    "week": "Semanas 27-28",
+    "responsible": ["Todo el equipo"],
+    "status": "Pendiente",
+    "notes": "Últimas piezas",
+    "month": "Jun"
+  },
+  {
+    "id": "t27",
+    "title": "Inicio de montaje y edición",
+    "area": "Post-producción",
+    "week": "Semanas 31-32",
+    "responsible": ["Editor", "Directores"],
+    "status": "Pendiente",
+    "notes": "Ensamblaje de piezas",
+    "month": "Jul"
+  },
+  {
+    "id": "t28",
+    "title": "Inicio de trabajo de sonido",
+    "area": "Post-producción",
+    "week": "Semanas 31-32",
+    "responsible": ["Sonidista", "Músico"],
+    "status": "Pendiente",
+    "notes": "Diseño sonoro y música",
+    "month": "Jul"
+  },
+  {
+    "id": "t29",
+    "title": "Finalización de película",
+    "area": "Post-producción",
+    "week": "Semanas 33-34",
+    "responsible": ["Todo el equipo post"],
+    "status": "Pendiente",
+    "notes": "Versión final",
+    "month": "Ago"
+  },
+  {
+    "id": "t30",
+    "title": "Color grading final",
+    "area": "Post-producción",
+    "week": "Semanas 33-34",
+    "responsible": ["DoP", "Colorista"],
+    "status": "Pendiente",
+    "notes": "Look definitivo",
+    "month": "Ago"
+  }
+]
