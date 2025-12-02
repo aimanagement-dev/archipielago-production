@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Bot, X, Send, Sparkles, Loader2 } from 'lucide-react';
+import { Bot, X, Send, Sparkles, Loader2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useStore } from '@/lib/store';
+import { sendMessageToGemini, type GeminiContext } from '@/lib/gemini';
 
 interface Message {
     id: string;
@@ -19,7 +20,7 @@ export default function AIAssistant() {
         {
             id: '1',
             role: 'assistant',
-            content: 'Hello! I am your AI Production Assistant. How can I help you with the Archipiélago project today?',
+            content: '¡Hola! Soy tu Asistente de IA para Producción. ¿En qué puedo ayudarte con el proyecto Archipiélago hoy?',
             timestamp: new Date(),
         },
     ]);
@@ -28,7 +29,7 @@ export default function AIAssistant() {
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Access store to provide context-aware answers
-    const { tasks, getStats } = useStore();
+    const { tasks, gates, team, getStats } = useStore();
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -37,7 +38,7 @@ export default function AIAssistant() {
     }, [messages, isOpen]);
 
     const handleSend = async () => {
-        if (!input.trim()) return;
+        if (!input.trim() || isTyping) return;
 
         const userMsg: Message = {
             id: Date.now().toString(),
@@ -47,29 +48,22 @@ export default function AIAssistant() {
         };
 
         setMessages((prev) => [...prev, userMsg]);
+        const userInput = input;
         setInput('');
         setIsTyping(true);
 
-        // Simulate AI processing with context
-        setTimeout(() => {
-            let response = "I'm processing your request...";
-            const lowerInput = userMsg.content.toLowerCase();
+        try {
+            // Construir contexto del proyecto
             const stats = getStats();
+            const context: GeminiContext = {
+                tasks,
+                gates,
+                team,
+                stats,
+            };
 
-            if (lowerInput.includes('status') || lowerInput.includes('report')) {
-                response = `Here is the current project status:\n\n• Total Tasks: ${stats.totalTasks}\n• Completed: ${stats.completed}\n• Pending: ${stats.pending}\n• Blocked: ${stats.blocked}\n\nWe are currently tracking ${stats.totalGates} milestones.`;
-            } else if (lowerInput.includes('blocked') || lowerInput.includes('problem')) {
-                const blockedTasks = tasks.filter(t => t.status === 'Bloqueado');
-                if (blockedTasks.length > 0) {
-                    response = `I found ${blockedTasks.length} blocked tasks that need attention:\n${blockedTasks.map(t => `• ${t.title}`).join('\n')}`;
-                } else {
-                    response = "Good news! There are currently no blocked tasks in the pipeline.";
-                }
-            } else if (lowerInput.includes('schedule') || lowerInput.includes('calendar')) {
-                response = "I can help you manage the schedule. Would you like me to draft a new shooting day or review upcoming deadlines?";
-            } else {
-                response = "I've noted that. Is there anything specific regarding the production timeline or budget you'd like me to analyze?";
-            }
+            // Enviar mensaje a Gemini
+            const response = await sendMessageToGemini(userInput, context);
 
             const aiMsg: Message = {
                 id: (Date.now() + 1).toString(),
@@ -79,8 +73,20 @@ export default function AIAssistant() {
             };
 
             setMessages((prev) => [...prev, aiMsg]);
+        } catch (error: any) {
+            console.error('Error al comunicarse con Gemini:', error);
+            
+            const errorMsg: Message = {
+                id: (Date.now() + 1).toString(),
+                role: 'assistant',
+                content: `❌ Lo siento, hubo un error al procesar tu solicitud.\n\n${error.message || 'Error desconocido'}\n\nPor favor, verifica que la API key de Gemini esté configurada correctamente.`,
+                timestamp: new Date(),
+            };
+
+            setMessages((prev) => [...prev, errorMsg]);
+        } finally {
             setIsTyping(false);
-        }, 1500);
+        }
     };
 
     return (
@@ -99,8 +105,8 @@ export default function AIAssistant() {
                                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
                                     <Bot className="w-6 h-6 text-primary" />
                                 </div>
-                                <div>
-                                    <h3 className="font-bold text-foreground">Production AI</h3>
+                                    <div>
+                                    <h3 className="font-bold text-foreground">Production AI (Gemini)</h3>
                                     <div className="flex items-center gap-1.5">
                                         <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                                         <span className="text-xs text-muted-foreground">Online</span>
@@ -159,7 +165,7 @@ export default function AIAssistant() {
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                                    placeholder="Ask about schedule, budget, or tasks..."
+                                    placeholder="Pregunta sobre el proyecto, tareas, gates, equipo..."
                                     className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground/50"
                                 />
                                 <button

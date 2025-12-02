@@ -149,6 +149,14 @@ Los datos se guardan en localStorage:
 - `clsx`: Utilidades CSS
 - `tailwindcss-animate`: Animaciones Tailwind
 
+### 🔗 Integraciones
+
+- **Google Calendar (one-way)**: botón "Sync Google Calendar" en `Tasks` envía tareas programadas al calendario configurado. Requiere variables de entorno:
+  - `GOOGLE_SERVICE_ACCOUNT_EMAIL`
+  - `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` (usa `\n` para saltos de línea)
+  - `GOOGLE_CALENDAR_ID` (ID del calendario destino)
+  - `GOOGLE_CALENDAR_TIMEZONE` (opcional, ej. `America/New_York`)
+
 ---
 
 **Versión**: 2.5.0  

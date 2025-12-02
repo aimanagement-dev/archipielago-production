@@ -16,6 +16,9 @@ export default function TasksPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>(undefined);
   const [groupBy, setGroupBy] = useState<GroupBy>('month');
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const { tasks, addTask, updateTask, deleteTask } = useStore();
 
@@ -50,6 +53,53 @@ export default function TasksPage() {
   const handleClose = () => {
     setIsModalOpen(false);
     setEditingTask(undefined);
+  };
+
+  const handleSyncCalendar = async () => {
+    setSyncing(true);
+    setSyncMessage(null);
+    setSyncError(null);
+
+    const payload = tasks
+      .filter((task) => task.isScheduled && task.scheduledDate)
+      .map((task) => ({
+        id: task.id,
+        title: task.title,
+        scheduledDate: task.scheduledDate,
+        scheduledTime: task.scheduledTime,
+        responsible: task.responsible,
+        area: task.area,
+        status: task.status,
+        notes: task.notes,
+      }));
+
+    if (payload.length === 0) {
+      setSyncMessage('No hay tareas programadas para enviar a Google Calendar.');
+      setSyncing(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/google/calendar/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tasks: payload }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || 'No se pudo sincronizar con Google Calendar.');
+      }
+
+      setSyncMessage(
+        `Calendario actualizado: ${data.created} creadas, ${data.updated} actualizadas, ${data.skipped} omitidas.`
+      );
+    } catch (error: any) {
+      setSyncError(error?.message || 'Error al sincronizar con Google Calendar.');
+    } finally {
+      setSyncing(false);
+    }
   };
 
   // Group tasks
@@ -89,16 +139,32 @@ export default function TasksPage() {
           <h1 className="text-3xl font-bold text-foreground">Gestión de Tareas</h1>
           <p className="text-muted-foreground">Organiza y monitorea todas las tareas del proyecto</p>
         </div>
-        <button
-          onClick={() => {
-            setEditingTask(undefined);
-            setIsModalOpen(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-[0_0_20px_rgba(245,158,11,0.3)]"
-        >
-          <Plus className="w-5 h-5" />
-          Nueva Tarea
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleSyncCalendar}
+            disabled={syncing}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-lg font-medium border border-white/10 transition-colors',
+              syncing
+                ? 'bg-white/10 text-muted-foreground cursor-not-allowed'
+                : 'bg-white/5 hover:bg-white/10 text-foreground'
+            )}
+          >
+            <Calendar className="w-5 h-5" />
+            {syncing ? 'Sincronizando...' : 'Sync Google Calendar'}
+          </button>
+
+          <button
+            onClick={() => {
+              setEditingTask(undefined);
+              setIsModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-[0_0_20px_rgba(245,158,11,0.3)]"
+          >
+            <Plus className="w-5 h-5" />
+            Nueva Tarea
+          </button>
+        </div>
       </div>
 
       {/* View Options */}
@@ -170,6 +236,17 @@ export default function TasksPage() {
           </div>
         </div>
       </div>
+
+      {(syncMessage || syncError) && (
+        <div
+          className={cn(
+            'rounded-lg border px-4 py-3 text-sm',
+            syncError ? 'border-red-500/40 bg-red-500/10 text-red-200' : 'border-primary/40 bg-primary/10 text-primary-foreground'
+          )}
+        >
+          {syncError || syncMessage}
+        </div>
+      )}
 
       <TaskFilters filters={filters} setFilters={setFilters} />
 
