@@ -130,3 +130,4 @@ npm install -D eslint-config-next prettier
 
 **Última actualización:** 2025-12-02
 
+

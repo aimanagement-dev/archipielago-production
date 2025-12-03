@@ -74,7 +74,7 @@
     "title": "Definir workflow V1",
     "area": "Técnico",
     "week": "Semanas 5-6",
-    "responsible": ["Fede", "Cindy"],
+    "responsible": ["AI Management", "Cindy"],
     "status": "Pendiente",
     "notes": "Flujo de trabajo definitivo",
     "month": "Dic"
@@ -104,7 +104,7 @@
     "title": "Pruebas de integración de actores - LoRA",
     "area": "Técnico",
     "week": "Semanas 7-8",
-    "responsible": ["Fede", "Cindy", "AI Artist"],
+    "responsible": ["AI Management", "Cindy", "AI Artist"],
     "status": "Pendiente",
     "notes": "Entrenamiento de modelos con rostros actores",
     "month": "Ene"
@@ -114,7 +114,7 @@
     "title": "Pruebas lip-sync",
     "area": "Técnico",
     "week": "Semanas 7-8",
-    "responsible": ["Fede", "Cindy", "AI Artist"],
+    "responsible": ["AI Management", "Cindy", "AI Artist"],
     "status": "Pendiente",
     "notes": "Sincronización labial con audio",
     "month": "Ene"
@@ -124,7 +124,7 @@
     "title": "Pruebas mocap (opcional)",
     "area": "Técnico",
     "week": "Semanas 7-8",
-    "responsible": ["Fede", "Cindy", "AI Artist"],
+    "responsible": ["AI Management", "Cindy", "AI Artist"],
     "status": "Pendiente",
     "notes": "Captura de movimiento si necesario",
     "month": "Ene"
@@ -134,7 +134,7 @@
     "title": "Pruebas green screen",
     "area": "Técnico",
     "week": "Semanas 7-8",
-    "responsible": ["Fede", "Cindy", "AI Artist"],
+    "responsible": ["AI Management", "Cindy", "AI Artist"],
     "status": "Pendiente",
     "notes": "Integración con fondos generados",
     "month": "Ene"
@@ -184,7 +184,7 @@
     "title": "Workflow V2",
     "area": "Técnico",
     "week": "Semanas 9-10",
-    "responsible": ["Fede", "Cindy"],
+    "responsible": ["AI Management", "Cindy"],
     "status": "Pendiente",
     "notes": "Flujo optimizado post-pruebas",
     "month": "Ene"
@@ -194,7 +194,7 @@
     "title": "Plan de ejecución definitivo / RODAJE",
     "area": "Planificación",
     "week": "Semanas 9-10",
-    "responsible": ["Fede"],
+    "responsible": ["AI Management"],
     "status": "Pendiente",
     "notes": "Calendario y logística de generación",
     "month": "Ene"
@@ -234,7 +234,7 @@
     "title": "Integración de prompt army",
     "area": "Técnico",
     "week": "Semanas 11-12",
-    "responsible": ["Diego Amando", "Fede"],
+    "responsible": ["Diego Amando", "AI Management"],
     "status": "Pendiente",
     "notes": "Sistema de generación masiva",
     "month": "Feb"
