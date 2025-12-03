@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { Task } from '@/lib/types';
 import TaskList from '@/components/Tasks/TaskList';
@@ -20,7 +20,11 @@ export default function TasksPage() {
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  const { tasks, addTask, updateTask, deleteTask } = useStore();
+  const { tasks, addTask, updateTask, deleteTask, fetchTasks } = useStore();
+
+  useEffect(() => {
+    fetchTasks();
+  }, []);
 
   const filteredTasks = tasks.filter(task => {
     if (filters.area !== 'all' && task.area !== filters.area) return false;

@@ -10,11 +10,14 @@ interface AppState {
   team: TeamMember[];
   gates: Gate[];
   events: CalendarEvent[];
+  isLoading: boolean;
+  error: string | null;
 
   // Task actions
   addTask: (task: Omit<Task, 'id'>) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
+  fetchTasks: () => Promise<void>;
 
   // Gate actions
   addGate: (gate: Omit<Gate, 'id'>) => void;
@@ -38,14 +41,49 @@ import { persist } from 'zustand/middleware';
 export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
-      tasks: tasksData as Task[],
+      tasks: [], // Start empty, fetch from API
       team: teamData as TeamMember[],
       gates: gatesData as Gate[],
       events: [],
+      isLoading: false,
+      error: null,
 
-      addTask: (task) => set((state) => ({
-        tasks: [...state.tasks, { ...task, id: generateId() }]
-      })),
+      fetchTasks: async () => {
+        set({ isLoading: true });
+        try {
+          const response = await fetch('/api/tasks');
+          if (response.ok) {
+            const data = await response.json();
+            set({ tasks: data.tasks, isLoading: false });
+          } else {
+            // Fallback to local data if API fails (e.g. not logged in)
+            console.warn('Failed to fetch from API, using local data');
+            set({ tasks: tasksData as Task[], isLoading: false });
+          }
+        } catch (error) {
+          console.error('Error fetching tasks:', error);
+          set({ tasks: tasksData as Task[], isLoading: false });
+        }
+      },
+
+      addTask: async (task) => {
+        const newTask = { ...task, id: generateId() };
+        // Optimistic update
+        set((state) => ({
+          tasks: [...state.tasks, newTask]
+        }));
+
+        try {
+          await fetch('/api/tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newTask),
+          });
+        } catch (error) {
+          console.error('Failed to sync task to Sheets:', error);
+          // Optionally revert state here
+        }
+      },
 
       updateTask: (id, updates) => set((state) => ({
         tasks: state.tasks.map(t => t.id === id ? { ...t, ...updates } : t)
