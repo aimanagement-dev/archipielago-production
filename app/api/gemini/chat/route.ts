@@ -129,29 +129,15 @@ Cuando el usuario pregunte sobre:
 
 export async function POST(request: NextRequest) {
   try {
-    // Verificar API key - intentar múltiples formas
+    // TEMPORAL: Usar key directamente mientras arreglamos variables de entorno
+    // TODO: Mover a variable de entorno cuando Vercel las aplique correctamente
     const apiKey = process.env.GEMINI_API_KEY || 
-                   process.env.NEXT_PUBLIC_GEMINI_API_KEY ||
-                   '';
-    
-    // Log para debugging (no exponer la key completa)
-    console.log('GEMINI_API_KEY check:', {
-      exists: !!process.env.GEMINI_API_KEY,
-      length: process.env.GEMINI_API_KEY?.length || 0,
-      prefix: process.env.GEMINI_API_KEY?.substring(0, 10) || 'NO_KEY',
-      allEnvKeys: Object.keys(process.env).filter(k => k.includes('GEMINI'))
-    });
+                   'AIzaSyB_tVt4kyRyzO1WaKnk7r9S_wQVt239Q14'; // Fallback temporal
     
     if (!apiKey || apiKey.trim() === '') {
-      console.error('GEMINI_API_KEY no está configurada o está vacía');
+      console.error('GEMINI_API_KEY no está configurada');
       return NextResponse.json(
-        { 
-          error: 'GEMINI_API_KEY no está configurada. Verifica las variables de entorno en Vercel.',
-          debug: {
-            hasEnvVar: !!process.env.GEMINI_API_KEY,
-            envKeys: Object.keys(process.env).filter(k => k.includes('GEMINI'))
-          }
-        },
+        { error: 'GEMINI_API_KEY no está configurada' },
         { status: 500 }
       );
     }
