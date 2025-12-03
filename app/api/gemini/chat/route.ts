@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Inicializar Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-
-// Modelo a usar (puedes cambiar a 'gemini-pro-vision' si necesitas visión)
-const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+// Función para obtener el modelo de Gemini
+function getGeminiModel() {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey.trim() === '') {
+    throw new Error('GEMINI_API_KEY no está configurada');
+  }
+  const genAI = new GoogleGenerativeAI(apiKey);
+  return genAI.getGenerativeModel({ model: 'gemini-pro' });
+}
 
 // Función para construir el contexto del proyecto
 function buildProjectContext(context: {
@@ -126,9 +130,11 @@ Cuando el usuario pregunte sobre:
 export async function POST(request: NextRequest) {
   try {
     // Verificar API key
-    if (!process.env.GEMINI_API_KEY) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey.trim() === '') {
+      console.error('GEMINI_API_KEY no está configurada o está vacía');
       return NextResponse.json(
-        { error: 'GEMINI_API_KEY no está configurada' },
+        { error: 'GEMINI_API_KEY no está configurada. Verifica las variables de entorno en Vercel.' },
         { status: 500 }
       );
     }
@@ -157,6 +163,7 @@ USUARIO: ${message}
 ASISTENTE:`;
 
     // Generar respuesta con Gemini
+    const model = getGeminiModel();
     const result = await model.generateContent(fullPrompt);
     const response = await result.response;
     const text = response.text();
