@@ -9,8 +9,8 @@ import { getRequiredEnv, getOptionalEnv } from "./env";
 export const authOptions: NextAuthOptions = {
     providers: [
         GoogleProvider({
-            clientId: getRequiredEnv('GOOGLE_CLIENT_ID'),
-            clientSecret: getRequiredEnv('GOOGLE_CLIENT_SECRET'),
+            clientId: process.env.GOOGLE_CLIENT_ID || '',
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
             authorization: {
                 params: {
                     prompt: "consent",
@@ -62,7 +62,7 @@ export const authOptions: NextAuthOptions = {
     pages: {
         signIn: '/login',
     },
-    secret: getRequiredEnv('NEXTAUTH_SECRET'),
+    secret: process.env.NEXTAUTH_SECRET || '',
     debug: process.env.NODE_ENV === 'development',
 };
 
