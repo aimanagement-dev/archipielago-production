@@ -78,3 +78,4 @@ Revisa los logs del servidor en la terminal donde ejecutaste `npm run dev` para 
 
 **¿Funcionó?** Si después de reiniciar el servidor aún hay problemas, comparte el error específico que ves.
 
+

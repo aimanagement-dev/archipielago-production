@@ -102,3 +102,4 @@ node scripts/diagnose-oauth.js
 
 **¿Sigue sin funcionar?** Revisa los logs del servidor en la terminal donde ejecutaste `npm run dev` para ver errores específicos.
 
+

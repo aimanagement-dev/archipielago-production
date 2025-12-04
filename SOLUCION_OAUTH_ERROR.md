@@ -122,3 +122,4 @@ Luego intenta iniciar sesión nuevamente.
 **Error común**: Si cambiaste el Client ID en `.env.local`, asegúrate de reiniciar el servidor de desarrollo para que cargue los nuevos valores.
 
 
+
