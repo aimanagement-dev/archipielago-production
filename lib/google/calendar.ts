@@ -130,8 +130,12 @@ async function upsertEvent(
       sendUpdates: 'none',
     });
     return 'updated';
-  } catch (error: any) {
-    if (error?.code === 404 || error?.response?.status === 404) {
+  } catch (error) {
+    const isNotFound = 
+      (error as { code?: number; response?: { status?: number } })?.code === 404 ||
+      (error as { response?: { status?: number } })?.response?.status === 404;
+    
+    if (isNotFound) {
       await calendar.events.insert({
         calendarId,
         requestBody: {
@@ -175,10 +179,11 @@ export async function syncTasksToCalendar(
       const action = await upsertEvent(calendar, calendarId, task, timezone);
       if (action === 'created') result.created += 1;
       if (action === 'updated') result.updated += 1;
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       result.errors.push({
         id: task.id,
-        message: error?.message || 'Error desconocido',
+        message: errorMessage,
       });
     }
   }

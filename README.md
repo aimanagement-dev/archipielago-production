@@ -39,15 +39,14 @@ npm run build
 npm start
 ```
 
-### 🔐 Credenciales de Prueba
+### 🔐 Autenticación
 
-**Admin:**
-- Email: `admin@archipielago.com`
-- Password: `admin123`
+Este proyecto usa **Google OAuth** para autenticación. 
 
-**Usuario:**
-- Email: `user@archipielago.com`
-- Password: `user123`
+**Cuenta autorizada:**
+- Email: `ai.management@archipielagofilm.com`
+
+**Nota:** Solo usuarios con esta cuenta pueden acceder al sistema. La autenticación se realiza a través de Google OAuth.
 
 ### 📁 Estructura del Proyecto
 

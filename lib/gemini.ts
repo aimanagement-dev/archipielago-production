@@ -3,11 +3,13 @@
  * Proporciona funciones helper para construir contexto y hacer llamadas
  */
 
+import { Task, Gate, TeamMember, Stats } from './types';
+
 export interface GeminiContext {
-  tasks: any[];
-  gates: any[];
-  team: any[];
-  stats: any;
+  tasks: Task[];
+  gates: Gate[];
+  team: TeamMember[];
+  stats: Stats;
 }
 
 /**
@@ -37,9 +39,12 @@ export async function sendMessageToGemini(
 
     const data = await response.json();
     return data.message;
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error en sendMessageToGemini:', error);
-    throw error;
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Error desconocido al comunicarse con Gemini');
   }
 }
 

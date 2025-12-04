@@ -161,3 +161,5 @@ Agrega `GEMINI_API_KEY` como variable de entorno en tu plataforma de hosting.
 ¿Necesitas ayuda? Revisa los logs del servidor o contacta al equipo de desarrollo.
 
 
+
+

@@ -8,19 +8,36 @@ import AIAssistant from '@/components/AIAssistant';
 import Header from '@/components/Layout/Header';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, isLoading } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
 
     useEffect(() => {
-        if (!isAuthenticated && pathname !== '/login') {
+        // Solo redirigir si no está cargando y no está autenticado
+        if (!isLoading && !isAuthenticated && pathname !== '/login') {
             router.push('/login');
         }
-    }, [isAuthenticated, pathname, router]);
+        // Si está autenticado y está en /login, redirigir al dashboard
+        if (!isLoading && isAuthenticated && pathname === '/login') {
+            router.push('/');
+        }
+    }, [isAuthenticated, isLoading, pathname, router]);
 
     // Show login page without layout
     if (pathname === '/login') {
         return <>{children}</>;
+    }
+
+    // Show loading while checking authentication
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Cargando...</p>
+                </div>
+            </div>
+        );
     }
 
     // Show loading or redirect for unauthenticated users

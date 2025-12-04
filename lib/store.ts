@@ -14,7 +14,7 @@ interface AppState {
   error: string | null;
 
   // Task actions
-  addTask: (task: Omit<Task, 'id'>) => void;
+  addTask: (task: Omit<Task, 'id'>) => Promise<void>;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   fetchTasks: () => Promise<void>;
@@ -68,20 +68,29 @@ export const useStore = create<AppState>()(
 
       addTask: async (task) => {
         const newTask = { ...task, id: generateId() };
+        const previousTasks = get().tasks;
+        
         // Optimistic update
         set((state) => ({
           tasks: [...state.tasks, newTask]
         }));
 
         try {
-          await fetch('/api/tasks', {
+          const response = await fetch('/api/tasks', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(newTask),
           });
+
+          if (!response.ok) {
+            throw new Error('Failed to sync task to Sheets');
+          }
         } catch (error) {
           console.error('Failed to sync task to Sheets:', error);
-          // Optionally revert state here
+          // Revert optimistic update on error
+          set({ tasks: previousTasks });
+          set({ error: 'Error al sincronizar la tarea. Por favor, inténtalo de nuevo.' });
+          throw error;
         }
       },
 

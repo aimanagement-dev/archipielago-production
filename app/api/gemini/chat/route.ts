@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { Task, Gate, TeamMember, Stats } from '@/lib/types';
+import { checkAuth } from '@/lib/api-auth';
 
 // Función para obtener el modelo de Gemini
 function getGeminiModel() {
@@ -13,10 +15,10 @@ function getGeminiModel() {
 
 // Función para construir el contexto del proyecto
 function buildProjectContext(context: {
-  tasks: any[];
-  gates: any[];
-  team: any[];
-  stats: any;
+  tasks: Task[];
+  gates: Gate[];
+  team: TeamMember[];
+  stats: Stats;
 }) {
   const { tasks, gates, team, stats } = context;
 
@@ -66,16 +68,16 @@ CONTEXTO DEL PROYECTO ARCHIPIÉLAGO:
 - Gates Completados: ${stats.gatesCompleted}
 
 🚨 TAREAS BLOQUEADAS (requieren atención):
-${blockedTasks.length > 0 
-  ? blockedTasks.map(t => `- ${t.title} (${t.area}) - Responsable: ${t.responsible.join(', ')}`).join('\n')
-  : 'No hay tareas bloqueadas actualmente.'
-}
+${blockedTasks.length > 0
+      ? blockedTasks.map(t => `- ${t.title} (${t.area}) - Responsable: ${t.responsible.join(', ')}`).join('\n')
+      : 'No hay tareas bloqueadas actualmente.'
+    }
 
 📅 PRÓXIMAS TAREAS:
 ${upcomingTasks.length > 0
-  ? upcomingTasks.map(t => `- ${t.title} (${t.area}) - Vence: ${t.dueDate} - Estado: ${t.status}`).join('\n')
-  : 'No hay tareas próximas programadas.'
-}
+      ? upcomingTasks.map(t => `- ${t.title} (${t.area}) - Vence: ${t.dueDate} - Estado: ${t.status}`).join('\n')
+      : 'No hay tareas próximas programadas.'
+    }
 
 🎯 GATES:
 - Gates Aprobados: ${gatesByStatus.aprobados}
@@ -91,10 +93,10 @@ ${upcomingGates.length > 0 ? `Próximos Gates:\n${upcomingGates.map(g => `- ${g.
 
 ÁREAS DE TRABAJO:
 ${Array.from(new Set(tasks.map(t => t.area))).map(area => {
-  const areaTasks = tasks.filter(t => t.area === area);
-  const completed = areaTasks.filter(t => t.status === 'Completado').length;
-  return `- ${area}: ${areaTasks.length} tareas (${completed} completadas)`;
-}).join('\n')}
+      const areaTasks = tasks.filter(t => t.area === area);
+      const completed = areaTasks.filter(t => t.status === 'Completado').length;
+      return `- ${area}: ${areaTasks.length} tareas (${completed} completadas)`;
+    }).join('\n')}
 `;
 }
 
@@ -128,16 +130,17 @@ Cuando el usuario pregunte sobre:
 }
 
 export async function POST(request: NextRequest) {
+  const authResponse = await checkAuth();
+  if (authResponse) return authResponse;
+
   try {
-    // TEMPORAL: Usar key directamente mientras arreglamos variables de entorno
-    // TODO: Mover a variable de entorno cuando Vercel las aplique correctamente
-    const apiKey = process.env.GEMINI_API_KEY || 
-                   'AIzaSyB_tVt4kyRyzO1WaKnk7r9S_wQVt239Q14'; // Fallback temporal
-    
+    // Validar que la API key esté configurada
+    const apiKey = process.env.GEMINI_API_KEY;
+
     if (!apiKey || apiKey.trim() === '') {
       console.error('GEMINI_API_KEY no está configurada');
       return NextResponse.json(
-        { error: 'GEMINI_API_KEY no está configurada' },
+        { error: 'GEMINI_API_KEY no está configurada. Por favor, configura la variable de entorno.' },
         { status: 500 }
       );
     }
@@ -176,12 +179,13 @@ ASISTENTE:`;
       success: true,
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error en Gemini API:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
     return NextResponse.json(
-      { 
+      {
         error: 'Error al procesar la solicitud',
-        details: error.message 
+        details: errorMessage
       },
       { status: 500 }
     );

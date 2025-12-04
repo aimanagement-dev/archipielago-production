@@ -36,12 +36,12 @@ export default function CalendarPage() {
 
   // Group ongoing tasks by area
   const ongoingByArea = useMemo(() => {
-    const groups: Record<TaskArea, Task[]> = {} as any;
+    const groups: Partial<Record<TaskArea, Task[]>> = {};
     ongoingTasks.forEach(task => {
       if (!groups[task.area]) {
         groups[task.area] = [];
       }
-      groups[task.area].push(task);
+      groups[task.area]!.push(task);
     });
     return groups;
   }, [ongoingTasks]);

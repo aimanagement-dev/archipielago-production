@@ -20,8 +20,8 @@ export const useAuth = () => {
     // In the future, this should come from the Google Sheet 'Team' tab
     const getRole = (email?: string | null): UserRole => {
         if (!email) return 'viewer';
-        // Add your admin emails here
-        const admins = ['admin@archipielago.com'];
+        // Admin emails - EXCLUSIVAMENTE usar ai.management@archipielagofilm.com
+        const admins = ['ai.management@archipielagofilm.com'];
         if (admins.includes(email)) return 'admin';
         return 'admin'; // Defaulting to admin for development/vibe coding ease!
     };

@@ -157,9 +157,9 @@ Antes de deployar, verifica:
 Tu app estará en:
 https://TU-PROYECTO.vercel.app
 
-Credenciales de prueba:
-Admin: admin@archipielago.com / admin123
-User: user@archipielago.com / user123
+Autenticación:
+Este proyecto usa Google OAuth. La cuenta autorizada es:
+ai.management@archipielagofilm.com
 ```
 
 ### Dominio personalizado (Opcional):

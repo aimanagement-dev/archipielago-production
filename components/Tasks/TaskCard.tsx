@@ -1,6 +1,6 @@
 'use client';
 
-import { Task } from '@/lib/types';
+import { Task, TaskStatus } from '@/lib/types';
 import { useStore } from '@/lib/store';
 import { cn, statusColors, areaColors } from '@/lib/utils';
 import { ChevronDown, ChevronUp, Users, Pencil, Trash2 } from 'lucide-react';
@@ -18,9 +18,9 @@ export default function TaskCard({ task, onEdit, onDelete }: Props) {
 
   const cycleStatus = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const statuses = ['Pendiente', 'En Progreso', 'Completado', 'Bloqueado'] as const;
-    const currentIndex = statuses.indexOf(task.status as any);
-    const nextIndex = (currentIndex + 1) % statuses.length;
+    const statuses: TaskStatus[] = ['Pendiente', 'En Progreso', 'Completado', 'Bloqueado'];
+    const currentIndex = statuses.indexOf(task.status);
+    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % statuses.length : 0;
     updateTask(task.id, { status: statuses[nextIndex] });
   };
 

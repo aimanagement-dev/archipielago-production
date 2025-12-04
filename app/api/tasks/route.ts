@@ -1,18 +1,16 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { GoogleSheetsService } from "@/lib/google-sheets";
-import { GET as handler } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth-config";
 
 export async function GET() {
-    const session = await getServerSession(handler);
+    const session = await getServerSession(authOptions);
 
-    // @ts-ignore
     if (!session || !session.accessToken) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     try {
-        // @ts-ignore
         const service = new GoogleSheetsService(session.accessToken);
         const spreadsheetId = await service.getOrCreateDatabase();
         const tasks = await service.getTasks(spreadsheetId);
@@ -25,16 +23,14 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-    const session = await getServerSession(handler);
+    const session = await getServerSession(authOptions);
 
-    // @ts-ignore
     if (!session || !session.accessToken) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     try {
         const task = await req.json();
-        // @ts-ignore
         const service = new GoogleSheetsService(session.accessToken);
         const spreadsheetId = await service.getOrCreateDatabase();
         await service.addTask(spreadsheetId, task);

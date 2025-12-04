@@ -99,8 +99,9 @@ export default function TasksPage() {
       setSyncMessage(
         `Calendario actualizado: ${data.created} creadas, ${data.updated} actualizadas, ${data.skipped} omitidas.`
       );
-    } catch (error: any) {
-      setSyncError(error?.message || 'Error al sincronizar con Google Calendar.');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error al sincronizar con Google Calendar.';
+      setSyncError(errorMessage);
     } finally {
       setSyncing(false);
     }

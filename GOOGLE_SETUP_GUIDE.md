@@ -17,13 +17,16 @@ En el menú lateral, ve a **APIs & Services** > **Library** y busca y habilita l
 
 1. Ve a **APIs & Services** > **OAuth consent screen**.
 2. Selecciona **External** (o Internal si tienes Google Workspace empresarial).
-3. Rellena los datos básicos (Nombre de la app: "Archipiélago OS", tu email, etc.).
+3. Rellena los datos básicos:
+   - **App name**: "Archipiélago OS"
+   - **User support email**: `ai.management@archipielagofilm.com`
+   - **Developer contact information**: `ai.management@archipielagofilm.com`
 4. En **Scopes**, añade:
    - `.../auth/userinfo.email`
    - `.../auth/userinfo.profile`
    - `.../auth/drive.file` (Para crear y editar archivos creados por la app)
    - `.../auth/spreadsheets` (Para usar Sheets como base de datos)
-5. Añade tu propio correo como **Test User** (si seleccionaste External).
+5. Añade `ai.management@archipielagofilm.com` como **Test User** (si seleccionaste External).
 
 ## Paso 4: Crear Credenciales
 

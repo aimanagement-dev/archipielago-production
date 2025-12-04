@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { syncTasksToCalendar, CalendarTaskPayload } from '@/lib/google/calendar';
+import { checkAdmin } from '@/lib/api-auth';
 
 export async function POST(request: Request) {
+  const authResponse = await checkAdmin();
+  if (authResponse) return authResponse;
+
   try {
     const { tasks } = (await request.json()) as { tasks?: CalendarTaskPayload[] };
 
@@ -15,12 +19,13 @@ export async function POST(request: Request) {
       ok: true,
       ...result,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error syncing Google Calendar', error);
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
     return NextResponse.json(
       {
         ok: false,
-        error: error?.message || 'Error desconocido',
+        error: errorMessage,
       },
       { status: 500 }
     );

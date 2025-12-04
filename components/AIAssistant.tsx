@@ -73,13 +73,14 @@ export default function AIAssistant() {
             };
 
             setMessages((prev) => [...prev, aiMsg]);
-        } catch (error: any) {
+        } catch (error) {
             console.error('Error al comunicarse con Gemini:', error);
             
+            const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
             const errorMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: `❌ Lo siento, hubo un error al procesar tu solicitud.\n\n${error.message || 'Error desconocido'}\n\nPor favor, verifica que la API key de Gemini esté configurada correctamente.`,
+                content: `❌ Lo siento, hubo un error al procesar tu solicitud.\n\n${errorMessage}\n\nPor favor, verifica que la API key de Gemini esté configurada correctamente.`,
                 timestamp: new Date(),
             };
 

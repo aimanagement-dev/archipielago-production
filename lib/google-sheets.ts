@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import { Task, Gate, TeamMember } from './types';
+import { Task, Gate, TeamMember, TaskStatus, TaskArea, Month } from './types';
 
 export class GoogleSheetsService {
     private auth;
@@ -104,19 +104,33 @@ export class GoogleSheetsService {
         const rows = response.data.values;
         if (!rows) return [];
 
-        return rows.map((row) => ({
-            id: row[0],
-            title: row[1],
-            status: row[2] as any,
-            area: row[3] as any,
-            month: row[4] as any,
-            week: row[5] || 'Week 1',
-            responsible: row[6] ? row[6].split(',').map((s: string) => s.trim()) : [],
-            notes: row[7],
-            scheduledDate: row[8] || undefined,
-            scheduledTime: row[9] || undefined,
-            isScheduled: !!row[8],
-        }));
+        return rows
+            .filter((row) => row.length > 0 && row[0]) // Filtrar filas vacías
+            .map((row) => {
+                // Validar y mapear tipos de forma segura
+                const status = row[2] as string;
+                const area = row[3] as string;
+                const month = row[4] as string;
+
+                return {
+                    id: String(row[0] || ''),
+                    title: String(row[1] || ''),
+                    status: (['Pendiente', 'En Progreso', 'Completado', 'Bloqueado'].includes(status) 
+                        ? status : 'Pendiente') as TaskStatus,
+                    area: (area && (['Guión', 'Técnico', 'Casting', 'Reporting', 'Pipeline', 
+                        'Post-producción', 'Investigación', 'Pre-visualización', 'Producción', 
+                        'Planificación', 'Crew'] as TaskArea[]).includes(area as TaskArea)) 
+                        ? (area as TaskArea) : 'Planificación' as TaskArea,
+                    month: (month && ['Nov', 'Dic', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago'].includes(month)
+                        ? month : 'Ene') as Month,
+                    week: String(row[5] || 'Week 1'),
+                    responsible: row[6] ? String(row[6]).split(',').map((s: string) => s.trim()) : [],
+                    notes: String(row[7] || ''),
+                    scheduledDate: row[8] ? String(row[8]) : undefined,
+                    scheduledTime: row[9] ? String(row[9]) : undefined,
+                    isScheduled: !!row[8],
+                } as Task;
+            });
     }
 
     async addTask(spreadsheetId: string, task: Task) {

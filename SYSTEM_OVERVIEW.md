@@ -27,17 +27,14 @@
 - **Better Typography**: Larger headings and improved hierarchy
 - **Role Indicators**: Visual badges showing user roles
 
-## 🔐 Demo Credentials
+## 🔐 Autenticación
 
-### Admin Account
-- **Email**: `admin@archipielago.com`
-- **Password**: `admin123`
-- **Capabilities**: Full access to all features including Admin Panel
+Este proyecto usa **Google OAuth** para autenticación.
 
-### User Account
-- **Email**: `user@archipielago.com`
-- **Password**: `user123`
-- **Capabilities**: View and interact with production data
+**Cuenta autorizada:**
+- **Email**: `ai.management@archipielagofilm.com`
+
+**Nota:** Solo usuarios con esta cuenta pueden acceder al sistema. La autenticación se realiza a través de Google OAuth configurado en Google Cloud Console.
 
 ## 📊 Features by Role
 
