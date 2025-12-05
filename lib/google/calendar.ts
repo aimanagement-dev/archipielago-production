@@ -19,10 +19,11 @@ function getCalendarClient(accessToken: string) {
 }
 
 function sanitizeEventId(id: string) {
-  const clean = id.replace(/[^a-zA-Z0-9_-]/g, '');
-  if (clean) return `arch-${clean}`.slice(0, 1024);
-  const fallback = crypto.createHash('md5').update(id).digest('hex');
-  return `arch-${fallback}`;
+  // Google Calendar event IDs must be 5-1024 chars, only [a-v0-9] (base32hex lowercase)
+  const hash = crypto.createHash('md5').update(id).digest('hex');
+  // Convert hex to base32hex-like (only a-v and 0-9)
+  const base32 = hash.replace(/[w-z]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 22));
+  return `arch${base32}`.toLowerCase().slice(0, 1024);
 }
 
 function addOneHour(dateIso: string) {
@@ -200,8 +201,10 @@ export async function syncTasksToCalendar(
       const action = await upsertEvent(calendar, calendarId, task, timezone);
       if (action === 'created') result.created += 1;
       if (action === 'updated') result.updated += 1;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+    } catch (error: unknown) {
+      console.error('Calendar sync error for task', task.id, error);
+      const err = error as { message?: string; response?: { data?: { error?: { message?: string } } } };
+      const errorMessage = err.response?.data?.error?.message || err.message || 'Error desconocido';
       result.errors.push({
         id: task.id,
         message: errorMessage,
