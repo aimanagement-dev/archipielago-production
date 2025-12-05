@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
 import { syncTasksToCalendar, CalendarTaskPayload } from '@/lib/google/calendar';
-import { checkAdmin } from '@/lib/api-auth';
+import { authOptions } from '@/lib/auth-config';
 
 export async function POST(request: Request) {
-  const authResponse = await checkAdmin();
-  if (authResponse) return authResponse;
+  const session = await getServerSession(authOptions);
+
+  if (!session || !session.accessToken) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   try {
     const { tasks } = (await request.json()) as { tasks?: CalendarTaskPayload[] };
@@ -13,7 +17,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Body inválido, se esperaba { tasks: Task[] }' }, { status: 400 });
     }
 
-    const result = await syncTasksToCalendar(tasks);
+    const result = await syncTasksToCalendar(tasks, session.accessToken);
 
     return NextResponse.json({
       ok: true,

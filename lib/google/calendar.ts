@@ -12,22 +12,9 @@ export interface CalendarTaskPayload {
   notes?: string;
 }
 
-const SCOPES = ['https://www.googleapis.com/auth/calendar'];
-
-function getCalendarClient() {
-  const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n');
-
-  if (!clientEmail || !privateKey) {
-    throw new Error('Faltan GOOGLE_SERVICE_ACCOUNT_EMAIL o GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY');
-  }
-
-  const auth = new google.auth.JWT({
-    email: clientEmail,
-    key: privateKey,
-    scopes: SCOPES,
-  });
-
+function getCalendarClient(accessToken: string) {
+  const auth = new google.auth.OAuth2();
+  auth.setCredentials({ access_token: accessToken });
   return google.calendar({ version: 'v3', auth });
 }
 
@@ -186,15 +173,13 @@ async function deleteEventsNotInTasks(
 
 export async function syncTasksToCalendar(
   tasks: CalendarTaskPayload[],
+  accessToken: string,
   options?: { calendarId?: string; timezone?: string }
 ) {
-  const calendarId = options?.calendarId || process.env.GOOGLE_CALENDAR_ID;
-  if (!calendarId) {
-    throw new Error('Falta GOOGLE_CALENDAR_ID');
-  }
-
-  const timezone = options?.timezone || process.env.GOOGLE_CALENDAR_TIMEZONE || 'UTC';
-  const calendar = getCalendarClient();
+  // Use 'primary' to sync to the user's main calendar
+  const calendarId = options?.calendarId || process.env.GOOGLE_CALENDAR_ID || 'primary';
+  const timezone = options?.timezone || process.env.GOOGLE_CALENDAR_TIMEZONE || 'America/Santo_Domingo';
+  const calendar = getCalendarClient(accessToken);
 
   const result = {
     created: 0,

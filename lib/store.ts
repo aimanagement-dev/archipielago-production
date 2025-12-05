@@ -15,8 +15,8 @@ interface AppState {
 
   // Task actions
   addTask: (task: Omit<Task, 'id'>) => Promise<void>;
-  updateTask: (id: string, updates: Partial<Task>) => void;
-  deleteTask: (id: string) => void;
+  updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
   fetchTasks: () => Promise<void>;
 
   // Gate actions
@@ -114,13 +114,57 @@ export const useStore = create<AppState>()(
         }
       },
 
-      updateTask: (id, updates) => set((state) => ({
-        tasks: state.tasks.map(t => t.id === id ? { ...t, ...updates } : t)
-      })),
+      updateTask: async (id, updates) => {
+        const currentTask = get().tasks.find(t => t.id === id);
+        if (!currentTask) return;
 
-      deleteTask: (id) => set((state) => ({
-        tasks: state.tasks.filter(t => t.id !== id)
-      })),
+        const updatedTask = { ...currentTask, ...updates };
+        const previousTasks = get().tasks;
+
+        // Optimistic update
+        set((state) => ({
+          tasks: state.tasks.map(t => t.id === id ? updatedTask : t)
+        }));
+
+        try {
+          const response = await fetch('/api/tasks', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedTask),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to update task in Sheets');
+          }
+        } catch (error) {
+          console.error('Failed to sync task update to Sheets:', error);
+          // Revert optimistic update on error
+          set({ tasks: previousTasks });
+        }
+      },
+
+      deleteTask: async (id) => {
+        const previousTasks = get().tasks;
+
+        // Optimistic update
+        set((state) => ({
+          tasks: state.tasks.filter(t => t.id !== id)
+        }));
+
+        try {
+          const response = await fetch(`/api/tasks?id=${id}`, {
+            method: 'DELETE',
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to delete task from Sheets');
+          }
+        } catch (error) {
+          console.error('Failed to sync task deletion to Sheets:', error);
+          // Revert optimistic update on error
+          set({ tasks: previousTasks });
+        }
+      },
 
       updateGate: (id, updates) => set((state) => ({
         gates: state.gates.map(g => g.id === id ? { ...g, ...updates } : g)
