@@ -61,3 +61,25 @@ export interface Stats {
   gatesCompleted: number;
   totalGates: number;
 }
+
+export interface DriveFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  iconLink?: string;
+  thumbnailLink?: string;
+  webViewLink?: string;
+  webContentLink?: string;
+  createdTime?: string;
+  modifiedTime?: string;
+  size?: string;
+  parents?: string[];
+  shared?: boolean;
+  owners?: { displayName: string; emailAddress: string }[];
+}
+
+export interface DriveFolder {
+  id: string;
+  name: string;
+  path: string[];
+}

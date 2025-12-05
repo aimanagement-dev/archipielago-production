@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Calendar, CheckSquare, Users, Flag, Settings } from 'lucide-react';
+import { LayoutDashboard, Calendar, CheckSquare, Users, Flag, Settings, HardDrive } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth';
 
@@ -12,6 +12,7 @@ const navigation = [
   { name: 'Tasks', href: '/tasks', icon: CheckSquare },
   { name: 'Team', href: '/team', icon: Users },
   { name: 'Gates', href: '/gates', icon: Flag },
+  { name: 'Drive', href: '/drive', icon: HardDrive },
 ];
 
 const adminNavigation = [

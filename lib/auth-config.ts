@@ -16,19 +16,19 @@ export const authOptions: NextAuthOptions = {
                     prompt: "consent",
                     access_type: "offline",
                     response_type: "code",
-                    scope: "openid email profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets",
+                    scope: "openid email profile https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets",
                 },
             },
         }),
     ],
     callbacks: {
         async signIn({ user, account, profile }) {
-            // Permitir login solo para usuarios con el email autorizado
+            // SOLO permitir login para ai.management@archipielagofilm.com
             if (user?.email === 'ai.management@archipielagofilm.com') {
                 return true;
             }
-            // Por ahora, permitir todos los logins (puedes restringir más adelante)
-            return true;
+            // Rechazar cualquier otro email
+            return false;
         },
         async jwt({ token, account, user }) {
             // Guardar access token cuando se obtiene

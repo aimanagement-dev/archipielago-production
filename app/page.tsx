@@ -14,7 +14,8 @@ import {
   Activity,
   AlertCircle,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  HardDrive,
 } from 'lucide-react';
 import { cn, statusColors, areaColors } from '@/lib/utils';
 import Link from 'next/link';
@@ -251,6 +252,18 @@ export default function Dashboard() {
               <div>
                 <div className="font-medium text-foreground">Gates</div>
                 <div className="text-xs text-muted-foreground">Checkpoints del proyecto</div>
+              </div>
+            </Link>
+            <Link
+              href="/drive"
+              className="flex items-center gap-3 p-3 bg-white/5 border border-white/5 rounded-lg hover:border-primary/30 hover:bg-white/10 transition-all group"
+            >
+              <div className="p-2 bg-orange-500/10 rounded-lg group-hover:bg-orange-500/20 transition-colors">
+                <HardDrive className="w-5 h-5 text-orange-500" />
+              </div>
+              <div>
+                <div className="font-medium text-foreground">Drive</div>
+                <div className="text-xs text-muted-foreground">Archivos del proyecto</div>
               </div>
             </Link>
           </div>
