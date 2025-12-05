@@ -150,6 +150,40 @@ async function upsertEvent(
   }
 }
 
+async function deleteEventsNotInTasks(
+  calendar: calendar_v3.Calendar,
+  calendarId: string,
+  taskIds: string[]
+) {
+  // Obtener todos los eventos creados por arch-pm
+  const response = await calendar.events.list({
+    calendarId,
+    privateExtendedProperty: 'source=arch-pm',
+    maxResults: 2500,
+  });
+
+  const events = response.data.items || [];
+  const deletedCount = { count: 0 };
+
+  // Eliminar eventos que ya no existen en las tareas
+  for (const event of events) {
+    const taskId = event.extendedProperties?.private?.taskId;
+    if (taskId && !taskIds.includes(taskId) && event.id) {
+      try {
+        await calendar.events.delete({
+          calendarId,
+          eventId: event.id,
+        });
+        deletedCount.count += 1;
+      } catch (error) {
+        console.error(`Error deleting event ${event.id}:`, error);
+      }
+    }
+  }
+
+  return deletedCount.count;
+}
+
 export async function syncTasksToCalendar(
   tasks: CalendarTaskPayload[],
   options?: { calendarId?: string; timezone?: string }
@@ -165,10 +199,12 @@ export async function syncTasksToCalendar(
   const result = {
     created: 0,
     updated: 0,
+    deleted: 0,
     skipped: 0,
     errors: [] as { id: string; message: string }[],
   };
 
+  // Primero, crear/actualizar las tareas actuales
   for (const task of tasks) {
     if (!task.scheduledDate) {
       result.skipped += 1;
@@ -186,6 +222,19 @@ export async function syncTasksToCalendar(
         message: errorMessage,
       });
     }
+  }
+
+  // Luego, eliminar eventos que ya no existen en las tareas
+  try {
+    const taskIds = tasks.map(t => t.id);
+    const deletedCount = await deleteEventsNotInTasks(calendar, calendarId, taskIds);
+    result.deleted = deletedCount;
+  } catch (error) {
+    console.error('Error deleting old events:', error);
+    result.errors.push({
+      id: 'cleanup',
+      message: `Error eliminando eventos antiguos: ${error instanceof Error ? error.message : 'Unknown'}`,
+    });
   }
 
   return result;

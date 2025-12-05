@@ -96,8 +96,14 @@ export default function TasksPage() {
         throw new Error(data.error || 'No se pudo sincronizar con Google Calendar.');
       }
 
+      const parts = [];
+      if (data.created > 0) parts.push(`${data.created} creadas`);
+      if (data.updated > 0) parts.push(`${data.updated} actualizadas`);
+      if (data.deleted > 0) parts.push(`${data.deleted} eliminadas`);
+      if (data.skipped > 0) parts.push(`${data.skipped} omitidas`);
+
       setSyncMessage(
-        `Calendario actualizado: ${data.created} creadas, ${data.updated} actualizadas, ${data.skipped} omitidas.`
+        `✅ Sincronización completa: ${parts.join(', ')}.`
       );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Error al sincronizar con Google Calendar.';
