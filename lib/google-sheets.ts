@@ -159,5 +159,96 @@ export class GoogleSheetsService {
         });
     }
 
-    // Similar methods for Gates and Team...
+    async updateTask(spreadsheetId: string, task: Task) {
+        const rowIndex = await this.findTaskRowIndex(spreadsheetId, task.id);
+        if (rowIndex === -1) {
+            throw new Error(`Task with ID ${task.id} not found`);
+        }
+
+        const values = [
+            [
+                task.id,
+                task.title,
+                task.status,
+                task.area,
+                task.month,
+                task.week,
+                task.responsible.join(', '),
+                task.notes || '',
+                task.scheduledDate || '',
+                task.scheduledTime || '',
+            ],
+        ];
+
+        await this.sheets.spreadsheets.values.update({
+            spreadsheetId,
+            range: `Tasks!A${rowIndex}:J${rowIndex}`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: {
+                values,
+            },
+        });
+    }
+
+    async deleteTask(spreadsheetId: string, taskId: string) {
+        const rowIndex = await this.findTaskRowIndex(spreadsheetId, taskId);
+        if (rowIndex === -1) {
+            throw new Error(`Task with ID ${taskId} not found`);
+        }
+
+        const sheetId = await this.getSheetId(spreadsheetId, 'Tasks');
+
+        await this.sheets.spreadsheets.batchUpdate({
+            spreadsheetId,
+            requestBody: {
+                requests: [
+                    {
+                        deleteDimension: {
+                            range: {
+                                sheetId,
+                                dimension: 'ROWS',
+                                startIndex: rowIndex - 1,
+                                endIndex: rowIndex,
+                            },
+                        },
+                    },
+                ],
+            },
+        });
+    }
+
+    private async findTaskRowIndex(spreadsheetId: string, taskId: string): Promise<number> {
+        const response = await this.sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: 'Tasks!A:A',
+        });
+
+        const rows = response.data.values;
+        if (!rows) return -1;
+
+        for (let i = 0; i < rows.length; i++) {
+            if (rows[i][0] === taskId) {
+                return i + 1;
+            }
+        }
+
+        return -1;
+    }
+
+    private async getSheetId(spreadsheetId: string, sheetName: string): Promise<number> {
+        const response = await this.sheets.spreadsheets.get({
+            spreadsheetId,
+            fields: 'sheets.properties',
+        });
+
+        const sheet = response.data.sheets?.find(
+            (s) => s.properties?.title === sheetName
+        );
+
+        if (!sheet?.properties?.sheetId) {
+            throw new Error(`Sheet ${sheetName} not found`);
+        }
+
+        return sheet.properties.sheetId;
+    }
 }
