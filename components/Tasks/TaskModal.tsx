@@ -8,6 +8,7 @@ interface TaskModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (task: Omit<Task, 'id'>) => void;
+    onDelete?: () => void;
     initialData?: Task;
 }
 
@@ -15,7 +16,7 @@ const AREAS: TaskArea[] = ['Guión', 'Técnico', 'Casting', 'Reporting', 'Pipeli
 const STATUSES: TaskStatus[] = ['Pendiente', 'En Progreso', 'Completado', 'Bloqueado'];
 const MONTHS: Month[] = ['Nov', 'Dic', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago'];
 
-export default function TaskModal({ isOpen, onClose, onSave, initialData }: TaskModalProps) {
+export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialData }: TaskModalProps) {
     const [formData, setFormData] = useState<Partial<Task>>({
         title: '',
         area: 'Producción',
@@ -173,20 +174,37 @@ export default function TaskModal({ isOpen, onClose, onSave, initialData }: Task
                         )}
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.3)]"
-                        >
-                            {initialData ? 'Save Changes' : 'Create Task'}
-                        </button>
+                    <div className="flex justify-between items-center gap-3 pt-4">
+                        {onDelete && initialData ? (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (confirm('¿Estás seguro de que quieres eliminar esta tarea?')) {
+                                        onDelete();
+                                    }
+                                }}
+                                className="px-4 py-2 rounded-lg text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+                            >
+                                Eliminar
+                            </button>
+                        ) : (
+                            <div></div>
+                        )}
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.3)]"
+                            >
+                                {initialData ? 'Save Changes' : 'Create Task'}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>

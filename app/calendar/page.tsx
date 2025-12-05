@@ -19,8 +19,9 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
-  const { tasks, gates, addTask, updateTask } = useStore();
+  const { tasks, gates, addTask, updateTask, deleteTask } = useStore();
   const { user } = useAuth();
 
   // Separate scheduled tasks from ongoing tasks
@@ -175,11 +176,17 @@ export default function CalendarPage() {
                   {dayTasks.map((task) => (
                     <div
                       key={task.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedTask(task);
+                        setSelectedDate(null);
+                        setIsModalOpen(true);
+                      }}
                       className={cn(
-                        'text-[8px] px-1.5 py-1 rounded truncate flex items-center gap-1',
+                        'text-[8px] px-1.5 py-1 rounded truncate flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity',
                         areaColors[task.area]
                       )}
-                      title={`${task.scheduledTime || ''} - ${task.title}`}
+                      title={`${task.scheduledTime || ''} - ${task.title} (Click para editar)`}
                     >
                       {task.scheduledTime && (
                         <Clock className="w-2 h-2 flex-shrink-0" />
@@ -232,6 +239,11 @@ export default function CalendarPage() {
                 {dayTasks.map((task) => (
                   <div
                     key={task.id}
+                    onClick={() => {
+                      setSelectedTask(task);
+                      setSelectedDate(null);
+                      setIsModalOpen(true);
+                    }}
                     className="p-2 rounded-lg bg-white/10 border border-white/10 hover:border-primary/30 cursor-pointer transition-all"
                   >
                     {task.scheduledTime && (
@@ -317,7 +329,12 @@ export default function CalendarPage() {
             {dayTasks.map((task) => (
               <div
                 key={task.id}
-                className="p-3 bg-white/5 border border-white/5 rounded-lg hover:border-primary/30 transition-all"
+                onClick={() => {
+                  setSelectedTask(task);
+                  setSelectedDate(null);
+                  setIsModalOpen(true);
+                }}
+                className="p-3 bg-white/5 border border-white/5 rounded-lg hover:border-primary/30 transition-all cursor-pointer"
               >
                 {task.scheduledTime && (
                   <div className="flex items-center gap-2 mb-2">
@@ -500,8 +517,27 @@ export default function CalendarPage() {
 
       <TaskModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={(task) => addTask(task)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedTask(null);
+          setSelectedDate(null);
+        }}
+        onSave={(task) => {
+          if (selectedTask) {
+            updateTask(selectedTask.id, task);
+          } else {
+            addTask(task);
+          }
+          setSelectedTask(null);
+          setSelectedDate(null);
+        }}
+        onDelete={selectedTask ? () => {
+          deleteTask(selectedTask.id);
+          setIsModalOpen(false);
+          setSelectedTask(null);
+          setSelectedDate(null);
+        } : undefined}
+        initialData={selectedTask || undefined}
       />
     </div>
   );
