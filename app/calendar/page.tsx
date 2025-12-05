@@ -18,7 +18,6 @@ export default function CalendarPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const { tasks, gates, addTask, updateTask, deleteTask, syncCalendar, isLoading } = useStore();
@@ -120,7 +119,7 @@ export default function CalendarPage() {
     setCurrentDate(new Date());
   };
 
-  // Render Month View
+  // Render Month View - Click on day navigates to day view
   const renderMonthView = () => {
     const monthStart = startOfMonth(currentDate);
     const firstDayOfWeek = monthStart.getDay();
@@ -174,17 +173,11 @@ export default function CalendarPage() {
                   {dayTasks.map((task) => (
                     <div
                       key={task.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedTask(task);
-                        setSelectedDate(null);
-                        setIsModalOpen(true);
-                      }}
                       className={cn(
-                        'text-[8px] px-1.5 py-1 rounded truncate flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity',
+                        'text-[8px] px-1.5 py-1 rounded truncate flex items-center gap-1',
                         areaColors[task.area]
                       )}
-                      title={`${task.scheduledTime || ''} - ${task.title} (Click para editar)`}
+                      title={`${task.scheduledTime || ''} - ${task.title}`}
                     >
                       {task.scheduledTime && (
                         <Clock className="w-2 h-2 flex-shrink-0" />
@@ -239,7 +232,6 @@ export default function CalendarPage() {
                     key={task.id}
                     onClick={() => {
                       setSelectedTask(task);
-                      setSelectedDate(null);
                       setIsModalOpen(true);
                     }}
                     className="p-2 rounded-lg bg-white/10 border border-white/10 hover:border-primary/30 cursor-pointer transition-all"
@@ -277,7 +269,21 @@ export default function CalendarPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Timeline */}
         <div className="bg-white/5 rounded-lg p-6 border border-white/5">
-          <h3 className="text-lg font-bold text-foreground mb-4">Timeline del Día</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-foreground">Timeline del Día</h3>
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => {
+                  setSelectedTask(null);
+                  setIsModalOpen(true);
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Nueva Tarea
+              </button>
+            )}
+          </div>
           <div className="space-y-2">
             {Array.from({ length: 24 }).map((_, hour) => {
               const hourString = hour.toString().padStart(2, '0');
@@ -294,9 +300,13 @@ export default function CalendarPage() {
                     {tasksInHour.map(task => (
                       <div
                         key={task.id}
+                        onClick={() => {
+                          setSelectedTask(task);
+                          setIsModalOpen(true);
+                        }}
                         className={cn(
-                          'mb-2 p-2 rounded-lg border',
-                          'bg-white/5 border-white/10 hover:border-primary/30 transition-all cursor-pointer'
+                          'mb-2 p-2 rounded-lg border cursor-pointer',
+                          'bg-white/5 border-white/10 hover:border-primary/30 transition-all'
                         )}
                       >
                         <div className="flex items-center gap-2 mb-1">
@@ -329,7 +339,6 @@ export default function CalendarPage() {
                 key={task.id}
                 onClick={() => {
                   setSelectedTask(task);
-                  setSelectedDate(null);
                   setIsModalOpen(true);
                 }}
                 className="p-3 bg-white/5 border border-white/5 rounded-lg hover:border-primary/30 transition-all cursor-pointer"
@@ -421,7 +430,10 @@ export default function CalendarPage() {
                   <RefreshCw className={cn("w-5 h-5", isLoading ? "animate-spin" : "")} />
                 </button>
                 <button
-                  onClick={() => setIsModalOpen(true)}
+                  onClick={() => {
+                    setSelectedTask(null);
+                    setIsModalOpen(true);
+                  }}
                   className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-[0_0_20px_rgba(245,158,11,0.3)]"
                 >
                   <Plus className="w-5 h-5" />
@@ -489,15 +501,15 @@ export default function CalendarPage() {
           </h3>
 
           <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto">
-            {Object.entries(ongoingByArea).map(([area, tasks]) => (
+            {Object.entries(ongoingByArea).map(([area, areaTasks]) => (
               <div key={area} className="space-y-2">
                 <div className="flex items-center justify-between sticky top-0 bg-card/40 backdrop-blur-sm py-2">
                   <span className={cn('text-sm font-bold px-2 py-1 rounded', areaColors[area as TaskArea])}>
                     {area}
                   </span>
-                  <span className="text-xs text-muted-foreground">{tasks.length}</span>
+                  <span className="text-xs text-muted-foreground">{areaTasks.length}</span>
                 </div>
-                {tasks.map(task => (
+                {areaTasks.map(task => (
                   <div
                     key={task.id}
                     className="p-2 bg-white/5 border border-white/5 rounded-lg hover:border-primary/20 transition-all text-xs"
@@ -528,7 +540,6 @@ export default function CalendarPage() {
         onClose={() => {
           setIsModalOpen(false);
           setSelectedTask(null);
-          setSelectedDate(null);
         }}
         onSave={async (task) => {
           if (selectedTask) {
@@ -538,17 +549,15 @@ export default function CalendarPage() {
           }
           // Sincronizar automáticamente con Google Calendar
           syncCalendar();
-
           setSelectedTask(null);
-          setSelectedDate(null);
         }}
         onDelete={selectedTask ? () => {
           deleteTask(selectedTask.id);
           setIsModalOpen(false);
           setSelectedTask(null);
-          setSelectedDate(null);
         } : undefined}
         initialData={selectedTask || undefined}
+        defaultDate={viewMode === 'day' ? currentDate.toISOString().split('T')[0] : undefined}
       />
     </div>
   );

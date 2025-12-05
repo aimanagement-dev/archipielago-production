@@ -10,13 +10,14 @@ interface TaskModalProps {
     onSave: (task: Omit<Task, 'id'>) => void;
     onDelete?: () => void;
     initialData?: Task;
+    defaultDate?: string; // Format: YYYY-MM-DD
 }
 
 const AREAS: TaskArea[] = ['Guión', 'Técnico', 'Casting', 'Reporting', 'Pipeline', 'Post-producción', 'Investigación', 'Pre-visualización', 'Producción', 'Planificación', 'Crew'];
 const STATUSES: TaskStatus[] = ['Pendiente', 'En Progreso', 'Completado', 'Bloqueado'];
 const MONTHS: Month[] = ['Nov', 'Dic', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago'];
 
-export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialData }: TaskModalProps) {
+export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialData, defaultDate }: TaskModalProps) {
     const [formData, setFormData] = useState<Partial<Task>>({
         title: '',
         area: 'Producción',
@@ -39,9 +40,11 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                 week: 'Week 1',
                 notes: '',
                 responsible: [],
+                isScheduled: !!defaultDate,
+                scheduledDate: defaultDate || '',
             });
         }
-    }, [initialData, isOpen]);
+    }, [initialData, isOpen, defaultDate]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
