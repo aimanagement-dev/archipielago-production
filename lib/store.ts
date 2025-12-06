@@ -54,22 +54,41 @@ export const useStore = create<AppState>()(
           const response = await fetch('/api/tasks');
           if (response.ok) {
             const data = await response.json();
-            set({ tasks: data.tasks, isLoading: false });
+            // Si recibimos tareas válidas, actualizamos
+            if (data.tasks && Array.isArray(data.tasks)) {
+              set({ tasks: data.tasks, isLoading: false, error: null });
+            } else {
+              // Si la respuesta es válida pero no tiene tareas (ej. hoja vacía),
+              // respetamos eso, pero podríamos loguearlo.
+              set({ tasks: [], isLoading: false, error: null });
+            }
           } else {
-            // Fallback to local data if API fails (e.g. not logged in)
-            console.warn('Failed to fetch from API, using local data');
-            set({ tasks: tasksData as Task[], isLoading: false });
+            // Si la API falla (401, 500), NO borramos las tareas existentes del estado
+            // Solo marcamos el error y dejamos de cargar
+            console.warn('Failed to fetch from API');
+            set({
+              isLoading: false,
+              error: 'No se pudo sincronizar con Google Sheets. Mostrando datos locales.'
+            });
+            // Opcional: Si no hay tareas cargadas, podríamos cargar mocks
+            if (get().tasks.length === 0) {
+              set({ tasks: tasksData as Task[] });
+            }
           }
         } catch (error) {
           console.error('Error fetching tasks:', error);
-          set({ tasks: tasksData as Task[], isLoading: false });
+          set({
+            isLoading: false,
+            error: 'Error de conexión. Mostrando datos locales.'
+          });
+          // No borramos tareas existentes
         }
       },
 
       addTask: async (task) => {
         const newTask = { ...task, id: generateId() };
         const previousTasks = get().tasks;
-        
+
         // Optimistic update
         set((state) => ({
           tasks: [...state.tasks, newTask]
