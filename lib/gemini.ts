@@ -34,7 +34,7 @@ export async function sendMessageToGemini(
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Error al comunicarse con Gemini');
+      throw new Error(error.details || error.error || 'Error al comunicarse con Gemini');
     }
 
     const data = await response.json();
