@@ -131,10 +131,10 @@ async function upsertEvent(
     });
     return 'updated';
   } catch (error) {
-    const isNotFound = 
+    const isNotFound =
       (error as { code?: number; response?: { status?: number } })?.code === 404 ||
       (error as { response?: { status?: number } })?.response?.status === 404;
-    
+
     if (isNotFound) {
       await calendar.events.insert({
         calendarId,
@@ -158,7 +158,7 @@ async function deleteEventsNotInTasks(
   // Obtener todos los eventos creados por arch-pm
   const response = await calendar.events.list({
     calendarId,
-    privateExtendedProperty: 'source=arch-pm',
+    privateExtendedProperty: ['source=arch-pm'],
     maxResults: 2500,
   });
 
