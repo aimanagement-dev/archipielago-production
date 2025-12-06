@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useStore } from '@/lib/store';
-import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, LayoutGrid, List, Columns, Clock, CheckSquare } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, LayoutGrid, List, Columns, Clock, CheckSquare, RefreshCw } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, addDays, isSameDay, isToday, isSameMonth, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn, statusColors, areaColors } from '@/lib/utils';
@@ -21,7 +21,7 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
-  const { tasks, gates, addTask, updateTask, deleteTask } = useStore();
+  const { tasks, gates, addTask, updateTask, deleteTask, syncCalendar, isLoading } = useStore();
   const { user } = useAuth();
 
   // Separate scheduled tasks from ongoing tasks
@@ -411,13 +411,23 @@ export default function CalendarPage() {
             </div>
 
             {user?.role === 'admin' && (
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-[0_0_20px_rgba(245,158,11,0.3)]"
-              >
-                <Plus className="w-5 h-5" />
-                Evento
-              </button>
+              <>
+                <button
+                  onClick={() => syncCalendar()}
+                  disabled={isLoading}
+                  className="p-2 bg-white/5 text-foreground rounded-lg hover:bg-white/10 transition-colors border border-white/10 disabled:opacity-50 mr-2"
+                  title="Sincronizar con Google Calendar"
+                >
+                  <RefreshCw className={cn("w-5 h-5", isLoading ? "animate-spin" : "")} />
+                </button>
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-[0_0_20px_rgba(245,158,11,0.3)]"
+                >
+                  <Plus className="w-5 h-5" />
+                  Evento
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -520,12 +530,15 @@ export default function CalendarPage() {
           setSelectedTask(null);
           setSelectedDate(null);
         }}
-        onSave={(task) => {
+        onSave={async (task) => {
           if (selectedTask) {
             updateTask(selectedTask.id, task);
           } else {
-            addTask(task);
+            await addTask(task);
           }
+          // Sincronizar automáticamente con Google Calendar
+          syncCalendar();
+
           setSelectedTask(null);
           setSelectedDate(null);
         }}

@@ -34,6 +34,7 @@ interface AppState {
   getTasksByMonth: (month: string) => Task[];
   getTasksByArea: (area: string) => Task[];
   getTasksByStatus: (status: string) => Task[];
+  syncCalendar: () => Promise<void>;
 }
 
 import { persist } from 'zustand/middleware';
@@ -168,6 +169,32 @@ export const useStore = create<AppState>()(
 
       getTasksByStatus: (status) => {
         return get().tasks.filter(t => t.status === status);
+      },
+
+      syncCalendar: async () => {
+        const { tasks } = get();
+        set({ isLoading: true });
+        try {
+          const response = await fetch('/api/google/calendar/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tasks }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Error syncing calendar');
+          }
+
+          set({ isLoading: false });
+          // Podríamos mostrar un toast de éxito aquí si tuviéramos un sistema de notificaciones
+        } catch (error) {
+          console.error('Error syncing calendar:', error);
+          set({
+            isLoading: false,
+            error: `Error al sincronizar calendario: ${error instanceof Error ? error.message : 'Unknown'}`
+          });
+        }
       },
     }),
     {
