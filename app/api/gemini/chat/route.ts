@@ -1,17 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { Task, Gate, TeamMember, Stats } from '@/lib/types';
 import { checkAuth } from '@/lib/api-auth';
-
-// Función para obtener el modelo de Gemini
-function getGeminiModel() {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || apiKey.trim() === '') {
-    throw new Error('GEMINI_API_KEY no está configurada');
-  }
-  const genAI = new GoogleGenerativeAI(apiKey);
-  return genAI.getGenerativeModel({ model: 'gemini-1.5-flash-001' });
-}
 
 // Función para construir el contexto del proyecto
 function buildProjectContext(context: {
@@ -168,11 +157,34 @@ USUARIO: ${message}
 
 ASISTENTE:`;
 
-    // Generar respuesta con Gemini
-    const model = getGeminiModel();
-    const result = await model.generateContent(fullPrompt);
-    const response = await result.response;
-    const text = response.text();
+    // Llamada directa a la API REST de Gemini
+    // Usamos gemini-1.5-flash que es el modelo actual y rápido
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    const geminiResponse = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: fullPrompt
+          }]
+        }]
+      })
+    });
+
+    if (!geminiResponse.ok) {
+      const errorData = await geminiResponse.json();
+      console.error('Error de Gemini API:', errorData);
+      throw new Error(errorData.error?.message || 'Error al comunicarse con Gemini API');
+    }
+
+    const data = await geminiResponse.json();
+
+    // Extraer el texto de la respuesta
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No se pudo generar una respuesta.';
 
     return NextResponse.json({
       message: text,
