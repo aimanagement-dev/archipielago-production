@@ -148,10 +148,8 @@ export default function CalendarPage() {
             <div
               key={day.toISOString()}
               onClick={() => {
-                setSelectedDate(day);
-                if (user?.role === 'admin') {
-                  setIsModalOpen(true);
-                }
+                setCurrentDate(day);
+                setViewMode('day');
               }}
               className={cn(
                 'aspect-square p-2 rounded-lg border transition-all cursor-pointer',
