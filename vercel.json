@@ -8,6 +8,7 @@
     "GOOGLE_CLIENT_SECRET": "@google-client-secret",
     "NEXTAUTH_URL": "@nextauth-url",
     "NEXTAUTH_SECRET": "@nextauth-secret",
-    "GEMINI_API_KEY": "@gemini-api-key"
+    "GEMINI_API_KEY": "@gemini-api-key",
+    "GOOGLE_CALENDAR_ID": "c_bdf98f008cbfa6e2a73e78b3b92d70dd4dae68b03bc688be3cb2bea5428e4554@group.calendar.google.com"
   }
 }
