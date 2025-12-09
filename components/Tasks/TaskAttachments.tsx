@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Task, Attachment, VisibilityLevel } from '@/lib/types';
-import { Paperclip, Link as LinkIcon, X, Upload, Lock, Users, Globe, Trash2 } from 'lucide-react';
+import { Paperclip, Link as LinkIcon, X, Lock, Users, Globe } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 
 interface TaskAttachmentsProps {

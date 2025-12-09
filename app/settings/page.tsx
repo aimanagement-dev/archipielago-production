@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/lib/auth';
-import { Settings as SettingsIcon, Bell, Lock, Palette, Globe } from 'lucide-react';
+import { Bell, Lock, Palette, Globe } from 'lucide-react';
 import { useState } from 'react';
 
 export default function SettingsPage() {
