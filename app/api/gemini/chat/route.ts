@@ -158,8 +158,8 @@ USUARIO: ${message}
 ASISTENTE:`;
 
     // Llamada directa a la API REST de Gemini
-    // Usamos gemini-pro que es el modelo estable
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+    // Usamos gemini-2.0-flash que está disponible en la API
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
     const geminiResponse = await fetch(url, {
       method: 'POST',
