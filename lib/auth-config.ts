@@ -86,6 +86,7 @@ export const authOptions: NextAuthOptions = {
     debug: process.env.NODE_ENV === 'development',
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function refreshAccessToken(token: any) {
     try {
         // Asegura que la app no corra con configuración incompleta

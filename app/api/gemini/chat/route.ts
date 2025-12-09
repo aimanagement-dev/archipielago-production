@@ -11,6 +11,7 @@ function buildProjectContext(context: {
   gates: Gate[];
   team: TeamMember[];
   stats: Stats;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   events?: any[];
 }) {
   const { tasks, gates, team, stats, events = [] } = context;

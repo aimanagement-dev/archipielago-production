@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Task, TaskArea, TaskStatus, Month } from '@/lib/types';
-import { areaColors } from '@/lib/utils';
+
 
 interface TaskModalProps {
     isOpen: boolean;

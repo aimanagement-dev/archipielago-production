@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { TeamMember } from '@/lib/types';
-import { Plus, Mail, Phone, Users, Pencil, Trash2, Search } from 'lucide-react';
+import { Plus, Mail, Users, Pencil, Trash2, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth';
 import TeamModal from '@/components/Team/TeamModal';

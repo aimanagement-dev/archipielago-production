@@ -6,7 +6,7 @@ import { Task } from '@/lib/types';
 import TaskList from '@/components/Tasks/TaskList';
 import TaskFilters from '@/components/Tasks/TaskFilters';
 import TaskModal from '@/components/Tasks/TaskModal';
-import { Plus, LayoutGrid, List, Calendar, RefreshCw, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, LayoutGrid, Calendar, ArrowUp, ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type GroupBy = 'none' | 'month' | 'week' | 'area' | 'status';
@@ -25,7 +25,7 @@ export default function TasksPage() {
 
   useEffect(() => {
     fetchTasks();
-  }, []);
+  }, [fetchTasks]);
 
   const filteredTasks = tasks.filter(task => {
     if (filters.area !== 'all' && task.area !== filters.area) return false;

@@ -2,8 +2,8 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useStore } from '@/lib/store';
-import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, LayoutGrid, List, Columns, Clock, CheckSquare, RefreshCw } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, addDays, isSameDay, isToday, isSameMonth, parseISO } from 'date-fns';
+import { ChevronLeft, ChevronRight, Plus, LayoutGrid, List, Columns, Clock, CheckSquare, RefreshCw } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, addDays, isSameDay, isToday, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn, statusColors, areaColors } from '@/lib/utils';
 import TaskModal from '@/components/Tasks/TaskModal';
@@ -23,7 +23,7 @@ export default function CalendarPage() {
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  const { tasks, gates, addTask, updateTask, deleteTask, syncCalendar, fetchCalendarEvents, events, isLoading, fetchTasks } = useStore();
+  const { tasks, addTask, updateTask, deleteTask, fetchCalendarEvents, events, isLoading, fetchTasks } = useStore();
   const { user } = useAuth();
 
   // Cargar tareas + eventos de Calendar al montar el componente

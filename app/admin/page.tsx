@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/lib/auth';
-import { Users, Shield, Mail, Calendar, Activity } from 'lucide-react';
+import { Users, Shield, Calendar, Activity } from 'lucide-react';
 import { useStore } from '@/lib/store';
 
 export default function AdminPage() {
@@ -97,8 +97,8 @@ export default function AdminPage() {
                             </div>
                             <div className="flex items-center gap-3">
                                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${member.status === 'Activo'
-                                        ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                                        : 'bg-red-500/10 text-red-500 border border-red-500/20'
+                                    ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                                    : 'bg-red-500/10 text-red-500 border border-red-500/20'
                                     }`}>
                                     {member.status}
                                 </span>

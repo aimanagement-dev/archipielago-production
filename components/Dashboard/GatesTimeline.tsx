@@ -1,7 +1,7 @@
 'use client';
 
 import { useStore } from '@/lib/store';
-import { cn, statusColors } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { Flag, CheckCircle, Clock } from 'lucide-react';
 
 export default function GatesTimeline() {

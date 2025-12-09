@@ -469,8 +469,7 @@ export async function createCalendarEventWithAttendees(
 export async function getCalendarEvents(
   accessToken: string,
   timeMin?: string,
-  timeMax?: string,
-  calendarId: string = 'primary' // kept for backward compatibility signature, but we'll try to fetch all
+  timeMax?: string
 ) {
   const calendar = getCalendarClient(accessToken);
 

@@ -7,7 +7,6 @@ import { es } from 'date-fns/locale';
 import {
   Calendar,
   CheckCircle,
-  Clock,
   TrendingUp,
   Users,
   Flag,
@@ -62,10 +61,7 @@ export default function Dashboard() {
   // Get upcoming gates
   const upcomingGates = gates.filter(g => g.status === 'Pendiente').slice(0, 3);
 
-  // Get recent activity
-  const recentActivity = tasks
-    .filter(t => t.status === 'Completado')
-    .slice(0, 4);
+
 
   return (
     <div className="space-y-6">

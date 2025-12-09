@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import { Task, Gate, TeamMember, TaskStatus, TaskArea, Month } from './types';
+import { Task, TaskStatus, TaskArea, Month } from './types';
 
 export class GoogleSheetsService {
     private auth;
@@ -115,11 +115,11 @@ export class GoogleSheetsService {
                 return {
                     id: String(row[0] || ''),
                     title: String(row[1] || ''),
-                    status: (['Pendiente', 'En Progreso', 'Completado', 'Bloqueado'].includes(status) 
+                    status: (['Pendiente', 'En Progreso', 'Completado', 'Bloqueado'].includes(status)
                         ? status : 'Pendiente') as TaskStatus,
-                    area: (area && (['Guión', 'Técnico', 'Casting', 'Reporting', 'Pipeline', 
-                        'Post-producción', 'Investigación', 'Pre-visualización', 'Producción', 
-                        'Planificación', 'Crew'] as TaskArea[]).includes(area as TaskArea)) 
+                    area: (area && (['Guión', 'Técnico', 'Casting', 'Reporting', 'Pipeline',
+                        'Post-producción', 'Investigación', 'Pre-visualización', 'Producción',
+                        'Planificación', 'Crew'] as TaskArea[]).includes(area as TaskArea))
                         ? (area as TaskArea) : 'Planificación' as TaskArea,
                     month: (month && ['Nov', 'Dic', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago'].includes(month)
                         ? month : 'Ene') as Month,
