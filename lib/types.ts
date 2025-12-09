@@ -6,6 +6,19 @@ export type GateStatus = 'Pendiente' | 'En Progreso' | 'Completado' | 'Aprobado'
 export type EventType = 'task' | 'gate' | 'deadline' | 'meeting';
 export type Month = 'Nov' | 'Dic' | 'Ene' | 'Feb' | 'Mar' | 'Abr' | 'May' | 'Jun' | 'Jul' | 'Ago';
 
+export type VisibilityLevel = 'all' | 'department' | 'individual';
+export type Department = 'Guión' | 'Técnico' | 'Casting' | 'Reporting' | 'Pipeline' | 'Post-producción' | 'Investigación' | 'Pre-visualización' | 'Producción' | 'Planificación' | 'Crew';
+
+export interface Attachment {
+  id: string;
+  name: string;
+  type: 'file' | 'link';
+  url: string;
+  addedBy: string;
+  addedAt: string;
+  size?: number; // in bytes, for files
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -20,6 +33,9 @@ export interface Task {
   scheduledTime?: string; // Time string 'HH:MM'
   isScheduled?: boolean; // Flag to indicate if task has specific date/time
   isGoogleEvent?: boolean; // Flag to indicate if task is from Google Calendar
+  attachments?: Attachment[]; // Documents and links attached to task
+  visibility?: VisibilityLevel; // Who can see this task
+  visibleTo?: string[]; // Specific emails/departments if visibility is restricted
 }
 
 export interface TeamMember {

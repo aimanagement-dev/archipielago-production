@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Task, TaskArea, TaskStatus, Month } from '@/lib/types';
+import TaskAttachments from './TaskAttachments';
 
 
 interface TaskModalProps {
@@ -26,6 +27,9 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
         week: 'Week 1',
         notes: '',
         responsible: [],
+        attachments: [],
+        visibility: 'all',
+        visibleTo: [],
     });
 
     useEffect(() => {
@@ -176,6 +180,12 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                             </div>
                         )}
                     </div>
+
+                    {/* Attachments and Permissions */}
+                    <TaskAttachments
+                        task={formData}
+                        onChange={(updates) => setFormData({ ...formData, ...updates })}
+                    />
 
                     <div className="flex justify-between items-center gap-3 pt-4">
                         {onDelete && initialData ? (

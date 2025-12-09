@@ -72,7 +72,7 @@ export default function Dashboard() {
           <div className="flex items-start justify-between mb-4">
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-amber-200 bg-clip-text text-transparent mb-2">
-                {getGreeting()}, {user?.name}! 👋
+                {getGreeting()}, {user?.email === 'ai.management@archipielagofilm.com' ? 'Cindy/Fede' : user?.name}!
               </h1>
               <p className="text-lg text-muted-foreground">
                 Bienvenido al centro de comando de Archipiélago

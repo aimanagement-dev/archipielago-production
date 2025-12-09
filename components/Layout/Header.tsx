@@ -3,9 +3,11 @@
 import { useAuth } from '@/lib/auth';
 import { LogOut, Settings, User, Shield } from 'lucide-react';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Header() {
     const { user, logout } = useAuth();
+    const router = useRouter();
     const [showMenu, setShowMenu] = useState(false);
 
     if (!user) return null;
@@ -14,7 +16,7 @@ export default function Header() {
         <header className="h-16 border-b border-white/10 bg-card/30 backdrop-blur-xl px-6 flex items-center justify-between sticky top-0 z-20">
             <div>
                 <h2 className="text-sm font-medium text-muted-foreground">Welcome back,</h2>
-                <h1 className="text-lg font-bold text-foreground">{user.name}</h1>
+                <h1 className="text-lg font-bold text-foreground">{user.email === 'ai.management@archipielagofilm.com' ? 'Cindy/Fede' : user.name}</h1>
             </div>
 
             <div className="relative">
@@ -50,14 +52,20 @@ export default function Header() {
                             <div className="p-2">
                                 <button
                                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors text-left"
-                                    onClick={() => setShowMenu(false)}
+                                    onClick={() => {
+                                        router.push('/profile');
+                                        setShowMenu(false);
+                                    }}
                                 >
                                     <User className="w-4 h-4 text-muted-foreground" />
                                     <span className="text-sm text-foreground">Profile</span>
                                 </button>
                                 <button
                                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors text-left"
-                                    onClick={() => setShowMenu(false)}
+                                    onClick={() => {
+                                        router.push('/settings');
+                                        setShowMenu(false);
+                                    }}
                                 >
                                     <Settings className="w-4 h-4 text-muted-foreground" />
                                     <span className="text-sm text-foreground">Settings</span>
