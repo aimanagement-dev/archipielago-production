@@ -13,7 +13,7 @@ export const authOptions: NextAuthOptions = {
             clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
             authorization: {
                 params: {
-                    prompt: "consent",
+                    prompt: "select_account consent",
                     access_type: "offline",
                     response_type: "code",
                     scope: "openid email profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar",
@@ -23,12 +23,18 @@ export const authOptions: NextAuthOptions = {
     ],
     callbacks: {
         async signIn({ user, account, profile }) {
-            // Permitir login solo para usuarios con el email autorizado
-            if (user?.email === 'ai.management@archipielagofilm.com') {
+            // Lista de usuarios autorizados
+            const authorizedUsers = [
+                'ai.management@archipielagofilm.com',
+                'ai.lantica@lanticastudio.com',
+            ];
+
+            if (user?.email && authorizedUsers.includes(user.email)) {
                 return true;
             }
-            // Por ahora, permitir todos los logins (puedes restringir más adelante)
-            return true;
+
+            // Bloquear usuarios no autorizados
+            return false;
         },
         async jwt({ token, account, user }) {
             // Guardar access token cuando se obtiene
