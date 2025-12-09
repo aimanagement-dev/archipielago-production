@@ -1,6 +1,6 @@
-import NextAuth, { NextAuthOptions } from "next-auth";
+import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import { getRequiredEnv, getOptionalEnv } from "./env";
+import { getRequiredEnv, validateEnv } from "@/lib/env";
 
 /**
  * Configuración compartida de NextAuth
@@ -9,8 +9,8 @@ import { getRequiredEnv, getOptionalEnv } from "./env";
 export const authOptions: NextAuthOptions = {
     providers: [
         GoogleProvider({
-            clientId: process.env.GOOGLE_CLIENT_ID || '',
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+            clientId: getRequiredEnv("GOOGLE_CLIENT_ID"),
+            clientSecret: getRequiredEnv("GOOGLE_CLIENT_SECRET"),
             authorization: {
                 params: {
                     prompt: "select_account consent",
@@ -22,19 +22,23 @@ export const authOptions: NextAuthOptions = {
         }),
     ],
     callbacks: {
-        async signIn({ user, account, profile }) {
-            // Lista de usuarios autorizados
-            const authorizedUsers = [
-                'ai.management@archipielagofilm.com',
-                'ai.lantica@lanticastudio.com',
-            ];
+        async signIn({ user }) {
+            // Limitar quién puede iniciar sesión
+            const allowedEmails = (process.env.ALLOWED_LOGIN_EMAILS ||
+                'ai.management@archipielagofilm.com,ia.lantica@lanticastudios.com')
+                .split(',')
+                .map((email) => email.trim().toLowerCase())
+                .filter(Boolean);
 
-            if (user?.email && authorizedUsers.includes(user.email)) {
-                return true;
+            const email = user?.email?.toLowerCase();
+            const isAllowed = email ? allowedEmails.includes(email) : false;
+
+            if (!isAllowed) {
+                console.warn('Intento de login bloqueado para', user?.email);
+                return false;
             }
 
-            // Bloquear usuarios no autorizados
-            return false;
+            return true;
         },
         async jwt({ token, account, user }) {
             // Initial sign in
@@ -78,12 +82,15 @@ export const authOptions: NextAuthOptions = {
     pages: {
         signIn: '/login',
     },
-    secret: process.env.NEXTAUTH_SECRET || '',
+    secret: getRequiredEnv("NEXTAUTH_SECRET"),
     debug: process.env.NODE_ENV === 'development',
 };
 
 async function refreshAccessToken(token: any) {
     try {
+        // Asegura que la app no corra con configuración incompleta
+        validateEnv();
+
         const url = "https://oauth2.googleapis.com/token";
         const response = await fetch(url, {
             headers: {
@@ -91,8 +98,8 @@ async function refreshAccessToken(token: any) {
             },
             method: "POST",
             body: new URLSearchParams({
-                client_id: process.env.GOOGLE_CLIENT_ID!,
-                client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+                client_id: getRequiredEnv("GOOGLE_CLIENT_ID"),
+                client_secret: getRequiredEnv("GOOGLE_CLIENT_SECRET"),
                 grant_type: "refresh_token",
                 refresh_token: token.refreshToken,
             }),
