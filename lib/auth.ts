@@ -23,7 +23,7 @@ export const useAuth = () => {
         // Admin emails - EXCLUSIVAMENTE usar ai.management@archipielagofilm.com
         const admins = ['ai.management@archipielagofilm.com'];
         if (admins.includes(email)) return 'admin';
-        return 'admin'; // Defaulting to admin for development/vibe coding ease!
+        return 'user'; // Default to user for non-admins
     };
 
     const user: User | null = session?.user ? {
