@@ -224,7 +224,6 @@ export async function syncTasksToCalendar(
 
   return result;
 }
-
 /**
  * Lee eventos de Google Calendar y los convierte a tareas
  * Lee TODOS los eventos del calendario (no solo los creados por arch-pm)
@@ -465,4 +464,102 @@ export async function createCalendarEventWithAttendees(
       error: errorMessage,
     };
   }
+}
+
+export async function getCalendarEvents(
+  accessToken: string,
+  timeMin?: string,
+  timeMax?: string,
+  calendarId: string = 'primary' // kept for backward compatibility signature, but we'll try to fetch all
+) {
+  const calendar = getCalendarClient(accessToken);
+
+  const start = timeMin || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const end = timeMax || new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString();
+
+  try {
+    // 1. Get List of all calendars the user has selected/visible
+    const calendarList = await calendar.calendarList.list({
+      minAccessRole: 'reader',
+    });
+
+    const calendars = calendarList.data.items || [];
+    console.log('Found calendars:', calendars.map(c => ({ id: c.id, summary: c.summary, selected: c.selected, primary: c.primary })));
+
+    // Filter: Include calendars that are primary, selected, or owned by the user
+    // We relax the filter to ensure we catch "ARCH-Producción" even if 'selected' is quirky
+    const targetCalendars = calendars.filter(c => c.primary || c.selected || c.accessRole === 'owner');
+
+    console.log('Targeting calendars:', targetCalendars.map(c => c.summary));
+
+    if (targetCalendars.length === 0) {
+      targetCalendars.push({ id: 'primary', summary: 'Primary' });
+    }
+
+    // 2. Fetch events from all target calendars in parallel
+    const allEventsPromises = targetCalendars.map(async (cal) => {
+      if (!cal.id) return [];
+      try {
+        const response = await calendar.events.list({
+          calendarId: cal.id,
+          timeMin: start,
+          timeMax: end,
+          singleEvents: true,
+          orderBy: 'startTime',
+          maxResults: 1000,
+        });
+        const items = response.data.items || [];
+        console.log(`Fetched ${items.length} events from ${cal.summary}`);
+        return items.map(event => ({
+          ...event,
+          sourceCalendar: cal.summary
+        }));
+      } catch (err) {
+        console.warn(`Failed to fetch events from calendar ${cal.summary} (${cal.id})`, err);
+        return [];
+      }
+    });
+
+    const results = await Promise.all(allEventsPromises);
+
+    // 3. Flatten the array
+    const flatEvents = results.flat();
+
+    return flatEvents;
+
+  } catch (error) {
+    console.error('Error fetching calendar events:', error);
+    // Fallback to original primary fetch if listing fails completely
+    try {
+      const response = await calendar.events.list({
+        calendarId: 'primary',
+        timeMin: start,
+        timeMax: end,
+        singleEvents: true,
+        orderBy: 'startTime',
+        maxResults: 2500,
+      });
+      return response.data.items || [];
+    } catch (innerError) {
+      throw innerError;
+    }
+  }
+}
+
+export async function updateEventMetadata(
+  accessToken: string,
+  calendarId: string,
+  eventId: string,
+  metadata: { [key: string]: string }
+) {
+  const calendar = getCalendarClient(accessToken);
+  await calendar.events.patch({
+    calendarId,
+    eventId,
+    requestBody: {
+      extendedProperties: {
+        private: metadata,
+      },
+    },
+  });
 }

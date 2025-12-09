@@ -29,13 +29,20 @@ export default function AIAssistant() {
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Access store to provide context-aware answers
-    const { tasks, gates, team, getStats, fetchTasks } = useStore();
+    const { tasks, gates, team, events, fetchCalendarEvents, fetchTasks, getStats } = useStore();
 
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages, isOpen]);
+
+    // Fetch events when assistant opens if not already loaded
+    useEffect(() => {
+        if (isOpen && events.length === 0) {
+            fetchCalendarEvents();
+        }
+    }, [isOpen, events.length, fetchCalendarEvents]);
 
     const handleSend = async () => {
         if (!input.trim() || isTyping) return;
@@ -60,6 +67,7 @@ export default function AIAssistant() {
                 gates,
                 team,
                 stats,
+                events, // Pass events to Gemini
             };
 
             // Enviar mensaje a Gemini
@@ -86,7 +94,7 @@ export default function AIAssistant() {
             }
         } catch (error) {
             console.error('Error al comunicarse con Gemini:', error);
-            
+
             const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
             const errorMsg: Message = {
                 id: (Date.now() + 1).toString(),
@@ -117,7 +125,7 @@ export default function AIAssistant() {
                                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30">
                                     <Bot className="w-6 h-6 text-primary" />
                                 </div>
-                                    <div>
+                                <div>
                                     <h3 className="font-bold text-foreground">Production AI (Gemini)</h3>
                                     <div className="flex items-center gap-1.5">
                                         <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />

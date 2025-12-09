@@ -19,6 +19,7 @@ export interface Task {
   scheduledDate?: string; // ISO date string 'YYYY-MM-DD'
   scheduledTime?: string; // Time string 'HH:MM'
   isScheduled?: boolean; // Flag to indicate if task has specific date/time
+  isGoogleEvent?: boolean; // Flag to indicate if task is from Google Calendar
 }
 
 export interface TeamMember {
@@ -45,11 +46,32 @@ export interface Gate {
 
 export interface CalendarEvent {
   id: string;
+  summary?: string;
+  description?: string;
+  location?: string;
+  start?: {
+    dateTime?: string;
+    date?: string;
+    timeZone?: string;
+  };
+  end?: {
+    dateTime?: string;
+    date?: string;
+    timeZone?: string;
+  };
+  extendedProperties?: {
+    private?: {
+      [key: string]: string;
+    };
+  };
+  htmlLink?: string;
+  // Legacy fields kept for compatibility if needed, but made optional
   taskId?: string;
   gateId?: string;
-  date: string;
-  type: EventType;
-  title: string;
+  date?: string;
+  type?: EventType;
+  title?: string;
+  sourceCalendar?: string;
 }
 
 export interface Stats {

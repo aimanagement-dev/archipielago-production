@@ -11,8 +11,9 @@ function buildProjectContext(context: {
   gates: Gate[];
   team: TeamMember[];
   stats: Stats;
+  events?: any[];
 }) {
-  const { tasks, gates, team, stats } = context;
+  const { tasks, gates, team, stats, events = [] } = context;
 
   // Construir resumen de tareas
   const tasksByStatus = {
@@ -26,6 +27,19 @@ function buildProjectContext(context: {
   const upcomingTasks = tasks
     .filter(t => t.status !== 'Completado' && t.dueDate)
     .sort((a, b) => new Date(a.dueDate || '').getTime() - new Date(b.dueDate || '').getTime())
+    .slice(0, 5);
+
+  // Construir resumen de events (Google Calendar)
+  const upcomingEvents = events
+    .filter(e => {
+      const date = e.start?.dateTime || e.start?.date;
+      return date && new Date(date).getTime() >= Date.now();
+    })
+    .sort((a, b) => {
+      const dateA = a.start?.dateTime || a.start?.date || '';
+      const dateB = b.start?.dateTime || b.start?.date || '';
+      return new Date(dateA).getTime() - new Date(dateB).getTime();
+    })
     .slice(0, 5);
 
   // Construir resumen de gates
@@ -65,10 +79,16 @@ ${blockedTasks.length > 0
       : 'No hay tareas bloqueadas actualmente.'
     }
 
-📅 PRÓXIMAS TAREAS:
+📅 PRÓXIMAS TAREAS (INTERNAS):
 ${upcomingTasks.length > 0
       ? upcomingTasks.map(t => `- ${t.title} (${t.area}) - Vence: ${t.dueDate} - Estado: ${t.status}`).join('\n')
-      : 'No hay tareas próximas programadas.'
+      : 'No hay tareas próximas programadas internamente.'
+    }
+
+🗓️ GOOGLE CALENDAR (PRÓXIMOS EVENTOS):
+${upcomingEvents.length > 0
+      ? upcomingEvents.map(e => `- ${e.summary} (${e.start?.dateTime ? new Date(e.start.dateTime).toLocaleString('es-ES') : e.start?.date})`).join('\n')
+      : 'No hay eventos próximos en Google Calendar.'
     }
 
 🎯 GATES:
@@ -94,45 +114,40 @@ ${Array.from(new Set(tasks.map(t => t.area))).map(area => {
 
 // Función para construir el prompt del sistema
 function buildSystemPrompt() {
-  return `Eres un asistente de IA especializado en gestión de producción cinematográfica para el proyecto "Archipiélago".
+  return `Eres "Antigravity", un asistente de IA de élite especializado en gestión de producción cinematográfica para el proyecto "Archipiélago".
+Estás operando con el modelo Gemini 2.5 Flash (Latest), una IA de vanguardia con alta capacidad de razonamiento.
 
-Tu rol es:
-1. Ayudar al equipo a entender el estado del proyecto
-2. Identificar riesgos y tareas bloqueadas
-3. Sugerir mejoras y optimizaciones
-4. Responder preguntas sobre tareas, gates, equipo y calendario
-5. Proporcionar análisis inteligente basado en los datos del proyecto
-6. CREAR TAREAS Y EVENTOS cuando el usuario lo solicite
+Tu rol es actuar como un Director de Producción Virtual:
+1. Analizar el estado del proyecto con una visión estratégica y holística.
+2. Detectar riesgos latentes, no solo los obvios (ej. conflictos de calendario, cuellos de botella en el equipo).
+3. Proporcionar soluciones creativas y prácticas a problemas complejos.
+4. Responder con autoridad y precisión sobre tareas, gates, equipo y el calendario de Google integrado.
+5. Ser proactivo: si ves un problema, sugiérelo antes de que el usuario lo pregunte.
 
-INSTRUCCIONES:
-- Responde siempre en español
-- Sé conciso pero completo
-- Usa emojis cuando sea apropiado para mejorar la legibilidad
-- Si no tienes información suficiente, dilo claramente
-- Prioriza información sobre tareas bloqueadas y próximas fechas límite
-- Proporciona sugerencias prácticas y accionables
-- Mantén un tono profesional pero amigable
+INSTRUCCIONES DE ESTILO:
+- Tono: Profesional, ejecutivo, directo pero colaborativo.
+- Formato: Usa Markdown, listas y negritas para estructurar respuestas legibles.
+- Idioma: Español neutro.
 
 CAPACIDADES DE ACCIÓN:
-Puedes CREAR eventos y tareas cuando el usuario lo solicite. Ejemplos:
+Puedes CREAR eventos en Google Calendar cuando el usuario lo solicite. Ejemplos:
 - "crea una llamada para hoy a las 4pm" → Crear evento en calendario
 - "programa una reunión mañana a las 10am" → Crear evento
 - "agenda una llamada con Juan para el viernes" → Crear evento con invitado
-- "crea una tarea para revisar el guión" → Crear tarea
 
-Cuando el usuario solicite crear un evento o tarea:
+Cuando el usuario solicite crear un evento:
 1. Extrae la información: título, fecha, hora, participantes
 2. Si menciona usuarios del equipo, identifícalos por nombre o email
 3. Usa la función createCalendarEvent para crear el evento
 4. Confirma al usuario que el evento fue creado exitosamente
 
-Cuando el usuario pregunte sobre:
-- "status" o "estado": Proporciona un resumen del estado general del proyecto
-- "blocked" o "bloqueadas": Lista las tareas bloqueadas y sugiere acciones
-- "schedule" o "calendario": Habla sobre próximas fechas y deadlines
-- "team" o "equipo": Proporciona información sobre el equipo
-- "gates" o "milestones": Habla sobre los gates y su estado
-- Análisis o sugerencias: Proporciona insights basados en los datos disponibles`;
+COMPORTAMIENTO ESPERADO:
+- Cuando te pregunten por el calendario: Analiza tanto los eventos de Google Calendar como las tareas internas. Busca conflictos entre ellos.
+- Cuando te pregunten por el equipo: Evalúa la carga de trabajo real (tareas + eventos).
+- Si te piden un reporte: Genera un resumen ejecutivo de alto nivel, seguido de detalles tácticos.
+- Análisis de Riesgos: Sé crítico. Si un deadline está cerca y la tarea está bloqueada, levanta una alerta roja.
+
+Tu objetivo final es asegurar que "Archipiélago" se entregue a tiempo y con la máxima calidad.`;
 }
 
 // Definir funciones disponibles para Gemini Function Calling
@@ -241,8 +256,9 @@ USUARIO: ${message}
 
 ASISTENTE:`;
 
-    // Llamada a Gemini con Function Calling
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+    // Llamada directa a la API REST de Gemini
+    // Usamos gemini-flash-latest que mapea al modelo Gemini 2.5 Flash (Superior al 1.5)
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
 
     let geminiResponse = await fetch(url, {
       method: 'POST',

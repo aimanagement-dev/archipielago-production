@@ -35,6 +35,7 @@ interface AppState {
   getTasksByArea: (area: string) => Task[];
   getTasksByStatus: (status: string) => Task[];
   syncCalendar: () => Promise<void>;
+  fetchCalendarEvents: (start?: string, end?: string) => Promise<void>;
 
   // Presence & Chat (local/demo only)
   userStatuses: Record<string, 'online' | 'offline' | 'away'>;
@@ -262,6 +263,36 @@ export const useStore = create<AppState>()(
           set({
             isLoading: false,
             error: `Error al sincronizar calendario: ${error instanceof Error ? error.message : 'Unknown'}`
+          });
+        }
+      },
+
+      fetchCalendarEvents: async (start, end) => {
+        set({ isLoading: true });
+        try {
+          const params = new URLSearchParams();
+          if (start) params.append('start', start);
+          if (end) params.append('end', end);
+
+          const response = await fetch(`/api/google/calendar/events?${params.toString()}`);
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Error fetching calendar events');
+          }
+
+          const data = await response.json();
+          if (data.events) {
+            set({ events: data.events, isLoading: false, error: null });
+          } else {
+            set({ events: [], isLoading: false, error: null });
+          }
+
+        } catch (error) {
+          console.error('Error fetching calendar events:', error);
+          set({
+            isLoading: false,
+            error: `Error al obtener eventos del calendario: ${error instanceof Error ? error.message : 'Unknown'}`
           });
         }
       },

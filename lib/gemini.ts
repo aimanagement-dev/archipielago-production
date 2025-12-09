@@ -10,6 +10,7 @@ export interface GeminiContext {
   gates: Gate[];
   team: TeamMember[];
   stats: Stats;
+  events?: any[]; // Using any[] temporarily to avoid circular deps or complex type imports, but strictly it is CalendarEvent[]
 }
 
 /**

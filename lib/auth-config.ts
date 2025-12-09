@@ -37,23 +37,33 @@ export const authOptions: NextAuthOptions = {
             return false;
         },
         async jwt({ token, account, user }) {
-            // Guardar access token cuando se obtiene
-            if (account) {
-                token.accessToken = account.access_token;
-                token.refreshToken = account.refresh_token;
+            // Initial sign in
+            if (account && user) {
+                return {
+                    accessToken: account.access_token,
+                    accessTokenExpires: Date.now() + (account.expires_in as number) * 1000,
+                    refreshToken: account.refresh_token,
+                    user,
+                    email: user.email,
+                    name: user.name,
+                };
             }
-            // Guardar información del usuario
-            if (user) {
-                token.email = user.email;
-                token.name = user.name;
+
+            // Return previous token if the access token has not expired yet
+            // Give a 10 second buffer
+            if (Date.now() < (token.accessTokenExpires as number) - 10000) {
+                return token;
             }
-            return token;
+
+            // Access token has expired, try to update it
+            return refreshAccessToken(token);
         },
         async session({ session, token }) {
             // Agregar access token a la sesión
             if (session.user) {
                 session.accessToken = token.accessToken as string;
                 session.user.email = token.email as string;
+                session.error = token.error as string; // Pass error to client if any
             }
             return session;
         },
@@ -71,4 +81,43 @@ export const authOptions: NextAuthOptions = {
     secret: process.env.NEXTAUTH_SECRET || '',
     debug: process.env.NODE_ENV === 'development',
 };
+
+async function refreshAccessToken(token: any) {
+    try {
+        const url = "https://oauth2.googleapis.com/token";
+        const response = await fetch(url, {
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            method: "POST",
+            body: new URLSearchParams({
+                client_id: process.env.GOOGLE_CLIENT_ID!,
+                client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+                grant_type: "refresh_token",
+                refresh_token: token.refreshToken,
+            }),
+        });
+
+        const refreshedTokens = await response.json();
+
+        if (!response.ok) {
+            throw refreshedTokens;
+        }
+
+        return {
+            ...token,
+            accessToken: refreshedTokens.access_token,
+            accessTokenExpires: Date.now() + refreshedTokens.expires_in * 1000,
+            // Fall back to old refresh token if new one is not returned
+            refreshToken: refreshedTokens.refresh_token ?? token.refreshToken,
+        };
+    } catch (error) {
+        console.log("Error refreshing access token", error);
+
+        return {
+            ...token,
+            error: "RefreshAccessTokenError",
+        };
+    }
+}
 

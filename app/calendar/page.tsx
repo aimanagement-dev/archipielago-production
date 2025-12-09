@@ -23,19 +23,52 @@ export default function CalendarPage() {
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  const { tasks, gates, addTask, updateTask, deleteTask, isLoading, fetchTasks } = useStore();
+  const { tasks, gates, addTask, updateTask, deleteTask, syncCalendar, fetchCalendarEvents, events, isLoading, fetchTasks } = useStore();
   const { user } = useAuth();
 
-  // Cargar tareas al montar el componente
+  // Cargar tareas + eventos de Calendar al montar el componente
   useEffect(() => {
     fetchTasks();
-  }, [fetchTasks]);
+    fetchCalendarEvents();
+  }, [fetchTasks, fetchCalendarEvents]);
 
   // Separate scheduled tasks from ongoing tasks
-  const scheduledTasks = useMemo(() =>
-    tasks.filter(t => t.isScheduled && t.scheduledDate),
-    [tasks]
-  );
+  const scheduledTasks = useMemo(() => {
+    // 1. Internal tasks
+    const internalTasks = tasks.filter(t => t.isScheduled && t.scheduledDate);
+
+    // 2. Map Google Events to Task-like structure for display
+    const googleEvents = events.map(event => {
+      // Avoid duplicates: if event has private property 'taskId', it's likely an internal task
+      // But we only have access to what the API returns.
+      // For now, let's just map them.
+      // Note: The API 'getCalendarEvents' returns full event objects.
+
+      // Using 'extendedProperties' to check source
+      const isInternal = event.extendedProperties?.private?.source === 'arch-pm';
+      if (isInternal) return null; // Skip internally created events to avoid duplication if using both lists
+
+      const start = event.start?.dateTime || event.start?.date;
+      if (!start) return null;
+
+      return {
+        id: event.id || 'google-event',
+        title: `${event.summary || '(Sin título)'}${event.sourceCalendar ? ` [${event.sourceCalendar}]` : ' [Google]'}`,
+        status: 'Pendiente', // Default status for external events
+        area: 'Planificación', // Default area
+        month: 'Ene',
+        week: 'Week 1',
+        responsible: [],
+        notes: event.description,
+        scheduledDate: start.split('T')[0],
+        scheduledTime: event.start?.dateTime ? format(parseISO(event.start.dateTime), 'HH:mm') : undefined,
+        isScheduled: true,
+        isGoogleEvent: true, // Flag to identify external events
+      } as unknown as Task;
+    }).filter(Boolean) as Task[];
+
+    return [...internalTasks, ...googleEvents];
+  }, [tasks, events]);
 
   const ongoingTasks = useMemo(() =>
     tasks.filter(t => !t.isScheduled || !t.scheduledDate),
