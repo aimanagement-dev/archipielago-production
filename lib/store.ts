@@ -243,6 +243,13 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'arch-pm-storage',
+      partialize: (state) => ({
+        // Solo persistir team y gates, NO tasks
+        // Las tasks siempre vienen de Google Sheets
+        team: state.team,
+        gates: state.gates,
+        events: state.events,
+      }),
     }
   )
 );
