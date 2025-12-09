@@ -81,13 +81,21 @@ export async function DELETE(req: Request) {
             return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
         }
 
+        console.log(`[DELETE] Attempting to delete task: ${taskId}`);
+
         const service = new GoogleSheetsService(session.accessToken);
         const spreadsheetId = await service.getOrCreateDatabase();
+
+        console.log(`[DELETE] Spreadsheet ID: ${spreadsheetId}`);
+
         await service.deleteTask(spreadsheetId, taskId);
 
-        return NextResponse.json({ success: true });
+        console.log(`[DELETE] Task ${taskId} deleted successfully`);
+
+        return NextResponse.json({ success: true, deleted: taskId });
     } catch (error) {
-        console.error("Error deleting task:", error);
-        return NextResponse.json({ error: "Failed to delete task" }, { status: 500 });
+        console.error("[DELETE] Error deleting task:", error);
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        return NextResponse.json({ error: "Failed to delete task", details: errorMessage }, { status: 500 });
     }
 }

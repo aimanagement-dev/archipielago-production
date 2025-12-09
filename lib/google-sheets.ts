@@ -191,12 +191,17 @@ export class GoogleSheetsService {
     }
 
     async deleteTask(spreadsheetId: string, taskId: string) {
+        console.log(`[GoogleSheets] deleteTask called for taskId: ${taskId}`);
+
         const rowIndex = await this.findTaskRowIndex(spreadsheetId, taskId);
+        console.log(`[GoogleSheets] Found task at rowIndex: ${rowIndex}`);
+
         if (rowIndex === -1) {
             throw new Error(`Task with ID ${taskId} not found`);
         }
 
         const sheetId = await this.getSheetId(spreadsheetId, 'Tasks');
+        console.log(`[GoogleSheets] Sheet ID: ${sheetId}, deleting row ${rowIndex} (0-based: ${rowIndex - 1} to ${rowIndex})`);
 
         await this.sheets.spreadsheets.batchUpdate({
             spreadsheetId,
@@ -215,6 +220,8 @@ export class GoogleSheetsService {
                 ],
             },
         });
+
+        console.log(`[GoogleSheets] Row deleted successfully`);
     }
 
     private async findTaskRowIndex(spreadsheetId: string, taskId: string): Promise<number> {
