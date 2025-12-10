@@ -38,8 +38,8 @@ export const useAuth = () => {
         user,
         isAuthenticated,
         isLoading,
-        login: () => signIn('google'),
-        logout: () => signOut(),
-        register: () => signIn('google'),
+        login: () => signIn('google', { callbackUrl: '/' }),
+        logout: () => signOut({ callbackUrl: '/login' }),
+        register: () => signIn('google', { callbackUrl: '/' }),
     };
 };

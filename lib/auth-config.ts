@@ -23,6 +23,9 @@ export const authOptions: NextAuthOptions = {
     ],
     callbacks: {
         async signIn({ user, account, profile }) {
+            console.log('[Auth] signIn callback - user:', user?.email);
+            console.log('[Auth] signIn callback - account type:', account?.provider);
+
             // Lista de usuarios autorizados
             const authorizedUsers = [
                 'ai.management@archipielagofilm.com',
@@ -30,9 +33,11 @@ export const authOptions: NextAuthOptions = {
             ];
 
             if (user?.email && authorizedUsers.includes(user.email)) {
+                console.log('[Auth] User authorized:', user.email);
                 return true;
             }
 
+            console.log('[Auth] User NOT authorized:', user?.email);
             // Bloquear usuarios no autorizados
             return false;
         },
