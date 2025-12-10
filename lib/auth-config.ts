@@ -26,19 +26,13 @@ export const authOptions: NextAuthOptions = {
             console.log('[Auth] signIn callback - user:', user?.email);
             console.log('[Auth] signIn callback - account type:', account?.provider);
 
-            // Lista de usuarios autorizados
-            const authorizedUsers = [
-                'ai.management@archipielagofilm.com',
-                'ai.lantica@lanticastudio.com',
-            ];
-
-            if (user?.email && authorizedUsers.includes(user.email)) {
-                console.log('[Auth] User authorized:', user.email);
+            // TEMPORALMENTE: Permitir cualquier usuario de Google para debug
+            if (user?.email) {
+                console.log('[Auth] User allowed (debug mode):', user.email);
                 return true;
             }
 
-            console.log('[Auth] User NOT authorized:', user?.email);
-            // Bloquear usuarios no autorizados
+            console.log('[Auth] No email found');
             return false;
         },
         async jwt({ token, account, user }) {
