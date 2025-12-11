@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Sidebar from '@/components/Layout/Sidebar';
 import AIAssistant from '@/components/AIAssistant';
 import Header from '@/components/Layout/Header';
+import ChatSidebar from '@/components/Chat/ChatSidebar';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, isLoading } = useAuth();
@@ -58,6 +59,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
                 </div>
             </main>
             <AIAssistant />
+            <ChatSidebar />
         </div>
     );
 }

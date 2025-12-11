@@ -3,6 +3,7 @@
 import { useAuth } from '@/lib/auth';
 import { LogOut, Settings, User, Shield } from 'lucide-react';
 import { useState } from 'react';
+import NotificationBell from '@/components/Notifications/NotificationBell';
 
 export default function Header() {
     const { user, logout } = useAuth();
@@ -17,11 +18,14 @@ export default function Header() {
                 <h1 className="text-lg font-bold text-foreground">{user.name}</h1>
             </div>
 
-            <div className="relative">
-                <button
-                    onClick={() => setShowMenu(!showMenu)}
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors"
-                >
+            <div className="flex items-center gap-4">
+                <NotificationBell />
+
+                <div className="relative">
+                    <button
+                        onClick={() => setShowMenu(!showMenu)}
+                        className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors"
+                    >
                     <div className="text-right">
                         <p className="text-sm font-medium text-foreground">{user.name}</p>
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -78,6 +82,7 @@ export default function Header() {
                         </div>
                     </>
                 )}
+                </div>
             </div>
         </header>
     );
