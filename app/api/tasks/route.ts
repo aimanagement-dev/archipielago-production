@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { GoogleSheetsService } from "@/lib/google-sheets";
 import { authOptions } from "@/lib/auth-config";
+import { syncTasksToCalendar, CalendarTaskPayload } from "@/lib/google/calendar";
 
 export async function GET() {
     const session = await getServerSession(authOptions);
@@ -35,6 +36,26 @@ export async function POST(req: Request) {
         const spreadsheetId = await service.getOrCreateDatabase();
         await service.addTask(spreadsheetId, task);
 
+        // Si la tarea tiene fecha programada, sincronizar automáticamente a Google Calendar
+        if (task.scheduledDate) {
+            try {
+                const calendarPayload: CalendarTaskPayload = {
+                    id: task.id,
+                    title: task.title,
+                    scheduledDate: task.scheduledDate,
+                    scheduledTime: task.scheduledTime,
+                    responsible: task.responsible,
+                    area: task.area,
+                    status: task.status,
+                    notes: task.notes,
+                };
+                await syncTasksToCalendar([calendarPayload], session.accessToken);
+            } catch (calendarError) {
+                console.error("Error sincronizando a Calendar:", calendarError);
+                // No fallar la creación de la tarea si falla la sincronización con Calendar
+            }
+        }
+
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("Error creating task:", error);
@@ -58,6 +79,47 @@ export async function PUT(req: Request) {
         const service = new GoogleSheetsService(session.accessToken);
         const spreadsheetId = await service.getOrCreateDatabase();
         await service.updateTask(spreadsheetId, task);
+
+        // Si la tarea tiene fecha programada, sincronizar automáticamente a Google Calendar
+        if (task.scheduledDate) {
+            try {
+                const calendarPayload: CalendarTaskPayload = {
+                    id: task.id,
+                    title: task.title,
+                    scheduledDate: task.scheduledDate,
+                    scheduledTime: task.scheduledTime,
+                    responsible: task.responsible,
+                    area: task.area,
+                    status: task.status,
+                    notes: task.notes,
+                };
+                await syncTasksToCalendar([calendarPayload], session.accessToken);
+            } catch (calendarError) {
+                console.error("Error sincronizando a Calendar:", calendarError);
+                // No fallar la actualización de la tarea si falla la sincronización con Calendar
+            }
+        } else {
+            // Si la tarea ya no tiene fecha programada, eliminar de Calendar si existía
+            try {
+                // Obtener todas las tareas programadas para sincronizar
+                const allTasks = await service.getTasks(spreadsheetId);
+                const scheduledTasks = allTasks
+                    .filter(t => t.isScheduled && t.scheduledDate)
+                    .map(t => ({
+                        id: t.id,
+                        title: t.title,
+                        scheduledDate: t.scheduledDate!,
+                        scheduledTime: t.scheduledTime,
+                        responsible: t.responsible,
+                        area: t.area,
+                        status: t.status,
+                        notes: t.notes,
+                    }));
+                await syncTasksToCalendar(scheduledTasks, session.accessToken);
+            } catch (calendarError) {
+                console.error("Error sincronizando eliminación de Calendar:", calendarError);
+            }
+        }
 
         return NextResponse.json({ success: true });
     } catch (error) {
@@ -89,6 +151,28 @@ export async function DELETE(req: Request) {
         console.log(`[DELETE] Spreadsheet ID: ${spreadsheetId}`);
 
         await service.deleteTask(spreadsheetId, taskId);
+
+        // Eliminar también de Google Calendar si existía
+        try {
+            // Obtener todas las tareas programadas restantes para sincronizar
+            const allTasks = await service.getTasks(spreadsheetId);
+            const scheduledTasks = allTasks
+                .filter(t => t.isScheduled && t.scheduledDate)
+                .map(t => ({
+                    id: t.id,
+                    title: t.title,
+                    scheduledDate: t.scheduledDate!,
+                    scheduledTime: t.scheduledTime,
+                    responsible: t.responsible,
+                    area: t.area,
+                    status: t.status,
+                    notes: t.notes,
+                }));
+            await syncTasksToCalendar(scheduledTasks, session.accessToken);
+        } catch (calendarError) {
+            console.error("Error eliminando de Calendar:", calendarError);
+            // No fallar la eliminación de la tarea si falla la sincronización con Calendar
+        }
 
         console.log(`[DELETE] Task ${taskId} deleted successfully`);
 

@@ -646,19 +646,35 @@ export default function CalendarPage() {
           setSelectedTask(null);
         }}
         onSave={async (task) => {
+          let taskId: string;
+          
           if (selectedTask) {
-            updateTask(selectedTask.id, task);
+            taskId = selectedTask.id;
+            await updateTask(selectedTask.id, task);
           } else {
+            // addTask genera un ID nuevo, necesitamos obtenerlo después
             await addTask(task);
+            // Esperar un momento y obtener el ID de la tarea recién creada
+            await new Promise(resolve => setTimeout(resolve, 100));
+            const updatedTasks = useStore.getState().tasks;
+            const newTask = updatedTasks.find(t => 
+              t.title === task.title && 
+              t.scheduledDate === task.scheduledDate
+            );
+            taskId = newTask?.id || `temp-${Date.now()}`;
           }
-          // Recargar tareas después de guardar
+          
+          // La sincronización con Calendar ahora se hace automáticamente en el endpoint /api/tasks
+          // Solo recargar tareas después de guardar
           await fetchTasks();
           setSelectedTask(null);
         }}
-        onDelete={selectedTask ? () => {
-          deleteTask(selectedTask.id);
+        onDelete={selectedTask ? async () => {
+          // La eliminación de Calendar se hace automáticamente en el endpoint /api/tasks
+          await deleteTask(selectedTask.id);
           setIsModalOpen(false);
           setSelectedTask(null);
+          await fetchTasks();
         } : undefined}
         initialData={selectedTask || undefined}
         defaultDate={currentDate.toISOString().split('T')[0]}
