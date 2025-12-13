@@ -127,18 +127,18 @@ export default function CalendarPage() {
     setCurrentDate(new Date());
   };
 
-  // Sincronización bidireccional: primero desde Calendar, luego hacia Calendar
+  // Sincronización bidireccional: siempre sincroniza Calendar ↔ Sheets en ambas direcciones
   const handleSyncFromCalendar = async () => {
     setSyncingFromCalendar(true);
     setSyncMessage(null);
     setSyncError(null);
 
     try {
-      // PASO 1: Sincronizar desde Google Calendar hacia la app
       const now = new Date();
       const timeMin = new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString();
       const timeMax = new Date(now.getFullYear(), now.getMonth() + 6, 0).toISOString();
 
+      // PASO 1: Sincronizar desde Google Calendar hacia Sheets
       const responseFromCalendar = await fetch(
         `/api/google/calendar/sync?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&updateSheets=true`,
         { method: 'GET' }
@@ -150,23 +150,22 @@ export default function CalendarPage() {
         throw new Error(dataFromCalendar.error || 'No se pudo sincronizar desde Google Calendar.');
       }
 
-      // Recargar tareas desde Sheets DESPUÉS de sincronizar desde Calendar
       // Esperar un momento para que Sheets procese los cambios
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Recargar tareas desde Sheets
+      // Recargar tareas (ahora lee de Sheets Y Calendar)
       await fetchTasks();
       
       // Esperar un momento adicional para asegurar que las tareas se carguen
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Obtener las tareas actualizadas del store después de recargar
+      // Obtener las tareas actualizadas del store
       const storeState = useStore.getState();
       const updatedTasks = storeState.tasks;
       
       console.log(`[SYNC] Tareas cargadas después de sincronizar desde Calendar: ${updatedTasks.length}`);
 
-      // PASO 2: Sincronizar desde la app hacia Google Calendar
+      // PASO 2: Sincronizar desde Sheets hacia Google Calendar
       const scheduledTasksPayload = updatedTasks
         .filter((task) => task.isScheduled && task.scheduledDate)
         .map((task) => ({
@@ -180,6 +179,7 @@ export default function CalendarPage() {
           notes: task.notes,
         }));
 
+      let dataToCalendar: { ok?: boolean; created?: number; updated?: number; error?: string } | null = null;
       if (scheduledTasksPayload.length > 0) {
         const responseToCalendar = await fetch('/api/google/calendar/sync', {
           method: 'POST',
@@ -187,21 +187,21 @@ export default function CalendarPage() {
           body: JSON.stringify({ tasks: scheduledTasksPayload }),
         });
 
-        const dataToCalendar = await responseToCalendar.json();
+        dataToCalendar = await responseToCalendar.json();
 
-        if (!responseToCalendar.ok || !dataToCalendar.ok) {
-          console.warn('Error sincronizando hacia Calendar:', dataToCalendar.error);
+        if (!responseToCalendar.ok || (dataToCalendar && !dataToCalendar.ok)) {
+          console.warn('Error sincronizando hacia Calendar:', dataToCalendar?.error);
         }
       }
 
       // Mensaje de éxito combinado
       const parts = [];
       if (dataFromCalendar.tasksFound > 0) parts.push(`${dataFromCalendar.tasksFound} eventos leídos`);
-      if (dataFromCalendar.updated > 0) parts.push(`${dataFromCalendar.updated} actualizados`);
-      if (dataFromCalendar.created > 0) parts.push(`${dataFromCalendar.created} creados`);
+      if (dataFromCalendar.updated > 0) parts.push(`${dataFromCalendar.updated} actualizados en Sheets`);
+      if (dataFromCalendar.created > 0) parts.push(`${dataFromCalendar.created} creados en Sheets`);
       if (dataToCalendar) {
-        if (dataToCalendar.created > 0) parts.push(`${dataToCalendar.created} eventos creados`);
-        if (dataToCalendar.updated > 0) parts.push(`${dataToCalendar.updated} eventos actualizados`);
+        if (dataToCalendar.created && dataToCalendar.created > 0) parts.push(`${dataToCalendar.created} eventos creados`);
+        if (dataToCalendar.updated && dataToCalendar.updated > 0) parts.push(`${dataToCalendar.updated} eventos actualizados`);
       }
 
       setSyncMessage(

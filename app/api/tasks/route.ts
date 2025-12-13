@@ -2,7 +2,8 @@ import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { GoogleSheetsService } from "@/lib/google-sheets";
 import { authOptions } from "@/lib/auth-config";
-import { syncTasksToCalendar, CalendarTaskPayload } from "@/lib/google/calendar";
+import { syncTasksToCalendar, syncCalendarToTasks, CalendarTaskPayload } from "@/lib/google/calendar";
+import { Task } from "@/lib/types";
 
 export async function GET() {
     const session = await getServerSession(authOptions);
@@ -14,9 +15,64 @@ export async function GET() {
     try {
         const service = new GoogleSheetsService(session.accessToken);
         const spreadsheetId = await service.getOrCreateDatabase();
-        const tasks = await service.getTasks(spreadsheetId);
-
-        return NextResponse.json({ tasks });
+        
+        // PASO 1: Leer tareas de Sheets
+        const sheetsTasks = await service.getTasks(spreadsheetId);
+        
+        // PASO 2: Leer eventos de Calendar (últimos 3 meses, próximos 6 meses)
+        const now = new Date();
+        const timeMin = new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString();
+        const timeMax = new Date(now.getFullYear(), now.getMonth() + 6, 0).toISOString();
+        
+        let calendarTasks: CalendarTaskPayload[] = [];
+        try {
+            const calendarResult = await syncCalendarToTasks(session.accessToken, {
+                timeMin,
+                timeMax,
+            });
+            calendarTasks = calendarResult.tasks;
+        } catch (calendarError) {
+            console.warn("Error leyendo Calendar (continuando con Sheets):", calendarError);
+            // Continuar solo con Sheets si Calendar falla
+        }
+        
+        // PASO 3: Combinar tareas de Sheets y Calendar
+        // Crear un mapa de tareas por ID, dando prioridad a Calendar si hay conflictos
+        const tasksMap = new Map<string, Task>();
+        
+        // Primero agregar todas las tareas de Sheets
+        for (const task of sheetsTasks) {
+            tasksMap.set(task.id, task);
+        }
+        
+        // Luego actualizar/agregar tareas de Calendar (Calendar tiene prioridad)
+        for (const calendarTask of calendarTasks) {
+            if (!calendarTask.id || !calendarTask.title || !calendarTask.scheduledDate) {
+                continue;
+            }
+            
+            const task: Task = {
+                id: calendarTask.id,
+                title: calendarTask.title,
+                status: (calendarTask.status as Task['status']) || 'Pendiente',
+                area: (calendarTask.area as Task['area']) || 'Planificación',
+                month: 'Ene' as Task['month'],
+                week: 'Week 1',
+                responsible: Array.isArray(calendarTask.responsible) ? calendarTask.responsible : [],
+                notes: calendarTask.notes || '',
+                scheduledDate: calendarTask.scheduledDate,
+                scheduledTime: calendarTask.scheduledTime,
+                isScheduled: !!calendarTask.scheduledDate,
+            };
+            
+            // Calendar tiene prioridad si existe en ambos
+            tasksMap.set(task.id, task);
+        }
+        
+        // Convertir mapa a array
+        const combinedTasks = Array.from(tasksMap.values());
+        
+        return NextResponse.json({ tasks: combinedTasks });
     } catch (error) {
         console.error("Error fetching tasks:", error);
         return NextResponse.json({ error: "Failed to fetch tasks" }, { status: 500 });
