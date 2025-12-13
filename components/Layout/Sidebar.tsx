@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Calendar, CheckSquare, Users, Flag, Settings } from 'lucide-react';
+import { LayoutDashboard, Calendar, CheckSquare, Users, Flag, Settings, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth';
 
@@ -11,6 +11,7 @@ const navigation = [
   { name: 'Calendar', href: '/calendar', icon: Calendar },
   { name: 'Tasks', href: '/tasks', icon: CheckSquare },
   { name: 'Team', href: '/team', icon: Users },
+  { name: 'Chat', href: '/chat', icon: MessageSquare },
   { name: 'Gates', href: '/gates', icon: Flag },
 ];
 

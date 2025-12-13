@@ -35,6 +35,14 @@ interface AppState {
   getTasksByArea: (area: string) => Task[];
   getTasksByStatus: (status: string) => Task[];
   syncCalendar: () => Promise<void>;
+
+  // Presence & Chat (local/demo only)
+  userStatuses: Record<string, 'online' | 'offline' | 'away'>;
+  setUserStatus: (userId: string, status: 'online' | 'offline' | 'away') => void;
+  activeChatUser?: string;
+  setActiveChat: (userId: string) => void;
+  chatSessions: Record<string, { from: string; text: string; ts: string }[]>;
+  sendChatMessage: (userId: string, text: string) => void;
 }
 
 import { persist } from 'zustand/middleware';
@@ -48,6 +56,9 @@ export const useStore = create<AppState>()(
       events: [],
       isLoading: false,
       error: null,
+      userStatuses: {},
+      activeChatUser: undefined,
+      chatSessions: {},
 
       fetchTasks: async () => {
         set({ isLoading: true });
@@ -250,6 +261,35 @@ export const useStore = create<AppState>()(
             error: `Error al sincronizar calendario: ${error instanceof Error ? error.message : 'Unknown'}`
           });
         }
+      },
+
+      setUserStatus: (userId, status) => {
+        set((state) => ({
+          userStatuses: {
+            ...state.userStatuses,
+            [userId]: status,
+          },
+        }));
+      },
+
+      setActiveChat: (userId) => {
+        set({ activeChatUser: userId });
+      },
+
+      sendChatMessage: (userId, text) => {
+        const ts = new Date().toISOString();
+        set((state) => {
+          const existing = state.chatSessions[userId] || [];
+          return {
+            chatSessions: {
+              ...state.chatSessions,
+              [userId]: [
+                ...existing,
+                { from: 'Yo', text, ts },
+              ],
+            },
+          };
+        });
       },
     }),
     {
