@@ -29,7 +29,7 @@ export default function AIAssistant() {
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Access store to provide context-aware answers
-    const { tasks, gates, team, getStats } = useStore();
+    const { tasks, gates, team, getStats, fetchTasks } = useStore();
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -65,6 +65,9 @@ export default function AIAssistant() {
             // Enviar mensaje a Gemini
             const response = await sendMessageToGemini(userInput, context);
 
+            // Verificar si se ejecutó una acción
+            const actionExecuted = userInput.toLowerCase().match(/(crea|crear|programa|agenda|schedule|create)/i);
+            
             const aiMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
@@ -73,6 +76,14 @@ export default function AIAssistant() {
             };
 
             setMessages((prev) => [...prev, aiMsg]);
+            
+            // Si se creó un evento, recargar tareas para mostrar el nuevo evento
+            if (actionExecuted && (response.toLowerCase().includes('creado') || response.toLowerCase().includes('evento'))) {
+                // Recargar tareas después de un breve delay
+                setTimeout(() => {
+                    fetchTasks();
+                }, 1000);
+            }
         } catch (error) {
             console.error('Error al comunicarse con Gemini:', error);
             

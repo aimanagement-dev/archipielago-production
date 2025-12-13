@@ -347,3 +347,77 @@ export async function syncCalendarToTasks(
 
   return result;
 }
+
+/**
+ * Crea un evento en Google Calendar con invitados (attendees)
+ */
+export async function createCalendarEventWithAttendees(
+  accessToken: string,
+  options: {
+    title: string;
+    description?: string;
+    startDateTime: string; // ISO string
+    endDateTime?: string; // ISO string, opcional (default: +1 hora)
+    attendees?: string[]; // Array de emails
+    calendarId?: string;
+    timezone?: string;
+  }
+): Promise<{ success: boolean; eventId?: string; eventLink?: string; error?: string }> {
+  const calendarId = options.calendarId || process.env.GOOGLE_CALENDAR_ID || 'primary';
+  const timezone = options.timezone || process.env.GOOGLE_CALENDAR_TIMEZONE || 'America/Santo_Domingo';
+  const calendar = getCalendarClient(accessToken);
+
+  try {
+    const startDate = new Date(options.startDateTime);
+    const endDate = options.endDateTime 
+      ? new Date(options.endDateTime)
+      : new Date(startDate.getTime() + 60 * 60 * 1000); // +1 hora por defecto
+
+    const event: calendar_v3.Schema$Event = {
+      summary: options.title,
+      description: options.description || '',
+      start: {
+        dateTime: startDate.toISOString(),
+        timeZone: timezone,
+      },
+      end: {
+        dateTime: endDate.toISOString(),
+        timeZone: timezone,
+      },
+      extendedProperties: {
+        private: {
+          source: 'arch-pm',
+          createdBy: 'gemini-ai',
+        },
+      },
+    };
+
+    // Agregar attendees si se proporcionan
+    const hasAttendees = options.attendees && options.attendees.length > 0;
+    if (hasAttendees && options.attendees) {
+      event.attendees = options.attendees.map(email => ({
+        email: email.trim(),
+      }));
+    }
+
+    const response = await calendar.events.insert({
+      calendarId,
+      requestBody: event,
+      sendUpdates: hasAttendees ? 'all' : 'none',
+    });
+
+    return {
+      success: true,
+      eventId: response.data.id || undefined,
+      eventLink: response.data.htmlLink || undefined,
+    };
+  } catch (error) {
+    console.error('Error creating calendar event:', error);
+    const err = error as { message?: string; response?: { data?: { error?: { message?: string } } } };
+    const errorMessage = err.response?.data?.error?.message || err.message || 'Error desconocido';
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
+}

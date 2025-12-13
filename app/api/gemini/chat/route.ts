@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Task, Gate, TeamMember, Stats } from '@/lib/types';
 import { checkAuth } from '@/lib/api-auth';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-config';
+import { createCalendarEventWithAttendees } from '@/lib/google/calendar';
 
 // Función para construir el contexto del proyecto
 function buildProjectContext(context: {
@@ -99,6 +102,7 @@ Tu rol es:
 3. Sugerir mejoras y optimizaciones
 4. Responder preguntas sobre tareas, gates, equipo y calendario
 5. Proporcionar análisis inteligente basado en los datos del proyecto
+6. CREAR TAREAS Y EVENTOS cuando el usuario lo solicite
 
 INSTRUCCIONES:
 - Responde siempre en español
@@ -109,6 +113,19 @@ INSTRUCCIONES:
 - Proporciona sugerencias prácticas y accionables
 - Mantén un tono profesional pero amigable
 
+CAPACIDADES DE ACCIÓN:
+Puedes CREAR eventos y tareas cuando el usuario lo solicite. Ejemplos:
+- "crea una llamada para hoy a las 4pm" → Crear evento en calendario
+- "programa una reunión mañana a las 10am" → Crear evento
+- "agenda una llamada con Juan para el viernes" → Crear evento con invitado
+- "crea una tarea para revisar el guión" → Crear tarea
+
+Cuando el usuario solicite crear un evento o tarea:
+1. Extrae la información: título, fecha, hora, participantes
+2. Si menciona usuarios del equipo, identifícalos por nombre o email
+3. Usa la función createCalendarEvent para crear el evento
+4. Confirma al usuario que el evento fue creado exitosamente
+
 Cuando el usuario pregunte sobre:
 - "status" o "estado": Proporciona un resumen del estado general del proyecto
 - "blocked" o "bloqueadas": Lista las tareas bloqueadas y sugiere acciones
@@ -118,9 +135,72 @@ Cuando el usuario pregunte sobre:
 - Análisis o sugerencias: Proporciona insights basados en los datos disponibles`;
 }
 
+// Definir funciones disponibles para Gemini Function Calling
+function getAvailableFunctions(team: TeamMember[]) {
+  return [
+    {
+      name: 'createCalendarEvent',
+      description: 'Crea un evento en Google Calendar. Úsalo cuando el usuario solicite crear una llamada, reunión, evento o tarea programada.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: {
+            type: 'string',
+            description: 'Título del evento (ej: "Llamada con el equipo", "Reunión de producción")',
+          },
+          description: {
+            type: 'string',
+            description: 'Descripción opcional del evento',
+          },
+          startDateTime: {
+            type: 'string',
+            description: 'Fecha y hora de inicio en formato ISO 8601 (ej: "2025-12-15T16:00:00-04:00" para hoy a las 4pm hora de Santo Domingo)',
+          },
+          endDateTime: {
+            type: 'string',
+            description: 'Fecha y hora de fin en formato ISO 8601 (opcional, por defecto será 1 hora después del inicio)',
+          },
+          attendees: {
+            type: 'array',
+            items: { type: 'string' },
+            description: `Array de emails de los participantes. Usa los emails del equipo cuando mencione nombres. Emails disponibles: ${team.map(m => m.email || m.name).join(', ')}`,
+          },
+        },
+        required: ['title', 'startDateTime'],
+      },
+    },
+  ];
+}
+
+// Función helper para encontrar emails del equipo por nombre
+function findTeamMemberEmails(names: string[], team: TeamMember[]): string[] {
+  const emails: string[] = [];
+  
+  for (const name of names) {
+    const lowerName = name.toLowerCase().trim();
+    const member = team.find(m => 
+      m.name.toLowerCase().includes(lowerName) || 
+      lowerName.includes(m.name.toLowerCase()) ||
+      (m.email && m.email.toLowerCase().includes(lowerName))
+    );
+    
+    if (member && member.email) {
+      emails.push(member.email);
+    }
+  }
+  
+  return emails;
+}
+
 export async function POST(request: NextRequest) {
   const authResponse = await checkAuth();
   if (authResponse) return authResponse;
+
+  // Obtener sesión para access token
+  const session = await getServerSession(authOptions);
+  if (!session || !session.accessToken) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
   try {
     // Validar que la API key esté configurada
@@ -147,21 +227,24 @@ export async function POST(request: NextRequest) {
     // Construir el contexto del proyecto
     const projectContext = buildProjectContext(context);
     const systemPrompt = buildSystemPrompt();
+    const functions = getAvailableFunctions(context.team || []);
 
     // Construir el prompt completo
     const fullPrompt = `${systemPrompt}
 
 ${projectContext}
 
+EQUIPO DISPONIBLE (para invitar a eventos):
+${(context.team || []).map((m: TeamMember) => `- ${m.name}${m.email ? ` (${m.email})` : ''}`).join('\n')}
+
 USUARIO: ${message}
 
 ASISTENTE:`;
 
-    // Llamada directa a la API REST de Gemini
-    // Usamos gemini-2.0-flash que está disponible en la API
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    // Llamada a Gemini con Function Calling
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
 
-    const geminiResponse = await fetch(url, {
+    let geminiResponse = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -171,6 +254,9 @@ ASISTENTE:`;
           parts: [{
             text: fullPrompt
           }]
+        }],
+        tools: [{
+          functionDeclarations: functions
         }]
       })
     });
@@ -181,14 +267,105 @@ ASISTENTE:`;
       throw new Error(errorData.error?.message || 'Error al comunicarse con Gemini API');
     }
 
-    const data = await geminiResponse.json();
+    let data = await geminiResponse.json();
+    let responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    let functionCalls = data.candidates?.[0]?.content?.parts?.filter((p: any) => p.functionCall) || [];
 
-    // Extraer el texto de la respuesta
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No se pudo generar una respuesta.';
+    // Si Gemini quiere llamar una función, ejecutarla
+    if (functionCalls.length > 0) {
+      const functionCall = functionCalls[0].functionCall;
+      
+      if (functionCall.name === 'createCalendarEvent') {
+        const args = functionCall.args;
+        
+        // Procesar attendees: si Gemini envió nombres, buscar sus emails
+        let attendeeEmails = args.attendees || [];
+        if (attendeeEmails.length > 0 && context.team) {
+          // Si algunos no son emails válidos, intentar encontrarlos por nombre
+          attendeeEmails = attendeeEmails.map((attendee: string) => {
+            // Si ya es un email válido, usarlo
+            if (attendee.includes('@')) {
+              return attendee;
+            }
+            // Si no, buscar en el equipo
+            const member = context.team?.find((m: TeamMember) => 
+              m.name.toLowerCase().includes(attendee.toLowerCase()) ||
+              attendee.toLowerCase().includes(m.name.toLowerCase())
+            );
+            return member?.email || attendee;
+          }).filter(Boolean);
+        }
+        
+        // Crear el evento en Google Calendar
+        const result = await createCalendarEventWithAttendees(
+          session.accessToken,
+          {
+            title: args.title,
+            description: args.description,
+            startDateTime: args.startDateTime,
+            endDateTime: args.endDateTime,
+            attendees: attendeeEmails.length > 0 ? attendeeEmails : undefined,
+          }
+        );
+
+        // Enviar respuesta de la función a Gemini para que genere una respuesta final
+        const functionResponsePrompt = `${fullPrompt}
+
+ASISTENTE: [Llamando función createCalendarEvent con: ${JSON.stringify(args)}]
+
+FUNCIÓN EJECUTADA:
+${result.success 
+  ? `✅ Evento creado exitosamente! Event ID: ${result.eventId}${result.eventLink ? `\nEnlace: ${result.eventLink}` : ''}`
+  : `❌ Error al crear evento: ${result.error}`
+}
+
+Ahora responde al usuario confirmando que el evento fue creado (o explicando el error si hubo uno).`;
+
+        geminiResponse = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [{ text: fullPrompt }]
+              },
+              {
+                parts: [
+                  { functionCall: functionCall },
+                  { 
+                    functionResponse: {
+                      name: functionCall.name,
+                      response: result
+                    }
+                  }
+                ]
+              },
+              {
+                parts: [{ text: 'Responde al usuario confirmando que el evento fue creado exitosamente o explicando el error si hubo uno.' }]
+              }
+            ],
+            tools: [{
+              functionDeclarations: functions
+            }]
+          })
+        });
+
+        if (!geminiResponse.ok) {
+          const errorData = await geminiResponse.json();
+          throw new Error(errorData.error?.message || 'Error al comunicarse con Gemini API');
+        }
+
+        data = await geminiResponse.json();
+        responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Evento creado exitosamente.';
+      }
+    }
 
     return NextResponse.json({
-      message: text,
+      message: responseText,
       success: true,
+      actionExecuted: functionCalls.length > 0,
     });
 
   } catch (error) {
