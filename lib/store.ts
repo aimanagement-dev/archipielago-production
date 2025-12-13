@@ -43,6 +43,8 @@ interface AppState {
   setActiveChat: (userId: string) => void;
   chatSessions: Record<string, { from: string; text: string; ts: string }[]>;
   sendChatMessage: (userId: string, text: string) => void;
+  currentUserId?: string;
+  setCurrentUser: (userId: string) => void;
 }
 
 import { persist } from 'zustand/middleware';
@@ -59,6 +61,7 @@ export const useStore = create<AppState>()(
       userStatuses: {},
       activeChatUser: undefined,
       chatSessions: {},
+      currentUserId: undefined,
 
       fetchTasks: async () => {
         set({ isLoading: true });
@@ -264,6 +267,11 @@ export const useStore = create<AppState>()(
       },
 
       setUserStatus: (userId, status) => {
+        const currentUser = get().currentUserId;
+        if (!currentUser) return; // Sin usuario activo no permitimos cambiar estados
+        // Solo el propio usuario puede cambiar su estado
+        if (currentUser !== userId) return;
+
         set((state) => ({
           userStatuses: {
             ...state.userStatuses,
@@ -287,6 +295,20 @@ export const useStore = create<AppState>()(
                 ...existing,
                 { from: 'Yo', text, ts },
               ],
+            },
+          };
+        });
+      },
+
+      setCurrentUser: (userId) => {
+        set({ currentUserId: userId });
+        // Si no hay estado previo, inicializar en online
+        set((state) => {
+          if (state.userStatuses[userId]) return state;
+          return {
+            userStatuses: {
+              ...state.userStatuses,
+              [userId]: 'online',
             },
           };
         });

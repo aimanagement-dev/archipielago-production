@@ -94,5 +94,13 @@
     "status": "Inactivo",
     "type": "Part-time",
     "notes": "Nuevo en Diciembre"
+  },
+  {
+    "id": "m14",
+    "name": "ia.Lantica",
+    "role": "AI Assistant",
+    "status": "Activo",
+    "type": "Full-time",
+    "email": "ia.lantica@lanticastudios.com"
   }
 ]

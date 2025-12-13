@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { Circle, MessageSquare, Send } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
 
 const statusColors: Record<'online' | 'offline' | 'away', string> = {
   online: 'bg-green-500',
@@ -26,9 +27,19 @@ export default function ChatPage() {
     sendChatMessage,
     activeChatUser,
     setActiveChat,
+    currentUserId,
+    setCurrentUser,
   } = useStore();
 
+  const { user } = useAuth();
+
   const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    if (user?.id) {
+      setCurrentUser(user.id);
+    }
+  }, [user, setCurrentUser]);
 
   const sortedTeam = useMemo(
     () => [...team].sort((a, b) => a.name.localeCompare(b.name)),
@@ -81,6 +92,7 @@ export default function ChatPage() {
               const status: 'online' | 'offline' | 'away' =
                 userStatuses[user.id] || 'offline';
               const isActive = activeUser?.id === user.id;
+              const isSelf = currentUserId === user.id;
               return (
                 <div
                   key={user.id}
@@ -117,22 +129,28 @@ export default function ChatPage() {
                       </div>
                     </div>
                   </div>
-                  <select
-                    value={status}
-                    onChange={(e) =>
-                      setUserStatus(
-                        user.id,
-                        e.target.value as 'online' | 'offline' | 'away'
-                      )
-                    }
-                    className="bg-white/5 border border-white/10 text-xs rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
-                  >
-                    {statusLabels.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                  {isSelf ? (
+                    <select
+                      value={status}
+                      onChange={(e) =>
+                        setUserStatus(
+                          user.id,
+                          e.target.value as 'online' | 'offline' | 'away'
+                        )
+                      }
+                      className="bg-white/5 border border-white/10 text-xs rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      {statusLabels.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      {statusLabels.find((s) => s.value === status)?.label || 'Desconectado'}
+                    </span>
+                  )}
                 </div>
               );
             })}
