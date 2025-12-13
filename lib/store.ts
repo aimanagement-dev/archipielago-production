@@ -87,6 +87,7 @@ export const useStore = create<AppState>()(
       },
 
       addTask: async (task) => {
+        // Generar ID siempre (task es Omit<Task, "id">)
         const newTask = { ...task, id: generateId() };
         const previousTasks = get().tasks;
 
@@ -103,14 +104,19 @@ export const useStore = create<AppState>()(
           });
 
           if (!response.ok) {
-            throw new Error('Failed to sync task to Sheets');
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || errorData.details || 'Failed to sync task to Sheets');
           }
+
+          // Recargar tareas después de crear para asegurar sincronización
+          const { fetchTasks } = get();
+          setTimeout(() => fetchTasks(), 500);
         } catch (error) {
           console.error('Failed to sync task to Sheets:', error);
-          // Revert optimistic update on error
-          set({ tasks: previousTasks });
-          set({ error: 'Error al sincronizar la tarea. Por favor, inténtalo de nuevo.' });
-          throw error;
+          // NO revertir el optimistic update - mantener la tarea en la UI
+          // El usuario puede intentar sincronizar manualmente después
+          set({ error: `Error al sincronizar la tarea: ${error instanceof Error ? error.message : 'Unknown error'}` });
+          // No lanzar el error para que la UI no se rompa
         }
       },
 
@@ -134,12 +140,17 @@ export const useStore = create<AppState>()(
           });
 
           if (!response.ok) {
-            throw new Error('Failed to update task in Sheets');
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || errorData.details || 'Failed to update task in Sheets');
           }
+
+          // Recargar tareas después de actualizar para asegurar sincronización
+          const { fetchTasks } = get();
+          setTimeout(() => fetchTasks(), 500);
         } catch (error) {
           console.error('Failed to sync task update to Sheets:', error);
-          // Revert optimistic update on error
-          set({ tasks: previousTasks });
+          // NO revertir - mantener los cambios en la UI
+          set({ error: `Error al actualizar la tarea: ${error instanceof Error ? error.message : 'Unknown error'}` });
         }
       },
 

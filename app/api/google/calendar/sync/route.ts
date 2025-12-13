@@ -84,12 +84,25 @@ export async function GET(request: Request) {
       const spreadsheetId = await sheetsService.getOrCreateDatabase();
       
       // Obtener tareas existentes
-      const existingTasks = await sheetsService.getTasks(spreadsheetId);
+      let existingTasks: Task[] = [];
+      try {
+        existingTasks = await sheetsService.getTasks(spreadsheetId);
+      } catch (error) {
+        console.error('Error obteniendo tareas existentes:', error);
+        // Continuar de todas formas
+      }
+      
       const existingTaskMap = new Map(existingTasks.map(t => [t.id, t]));
 
       // Actualizar o crear tareas
       for (const calendarTask of calendarResult.tasks) {
         try {
+          // Validar que la tarea tenga los campos mínimos requeridos
+          if (!calendarTask.id || !calendarTask.title || !calendarTask.scheduledDate) {
+            console.warn(`Tarea inválida omitida:`, calendarTask);
+            continue;
+          }
+
           const existingTask = existingTaskMap.get(calendarTask.id);
           
           // Convertir CalendarTaskPayload a Task
@@ -100,7 +113,7 @@ export async function GET(request: Request) {
             area: (calendarTask.area as Task['area']) || 'Planificación',
             month: 'Ene' as Task['month'], // Default, se puede mejorar extrayendo del scheduledDate
             week: 'Week 1',
-            responsible: calendarTask.responsible || [],
+            responsible: Array.isArray(calendarTask.responsible) ? calendarTask.responsible : [],
             notes: calendarTask.notes || '',
             scheduledDate: calendarTask.scheduledDate,
             scheduledTime: calendarTask.scheduledTime,
@@ -108,26 +121,52 @@ export async function GET(request: Request) {
           };
 
           if (existingTask) {
-            // Actualizar tarea existente solo si hay cambios en fecha/hora/título
-            const hasChanges = 
-              existingTask.scheduledDate !== task.scheduledDate ||
-              existingTask.scheduledTime !== task.scheduledTime ||
-              existingTask.title !== task.title;
-
-            if (hasChanges) {
+            // Actualizar tarea existente SIEMPRE para asegurar que esté sincronizada
+            try {
               await sheetsService.updateTask(spreadsheetId, task);
               result.updated += 1;
+            } catch (updateError) {
+              console.error(`Error actualizando tarea ${calendarTask.id}:`, updateError);
+              // Si falla la actualización, intentar eliminar y recrear
+              try {
+                await sheetsService.deleteTask(spreadsheetId, task.id);
+                await sheetsService.addTask(spreadsheetId, task);
+                result.created += 1;
+                result.updated -= 1; // Ajustar contador
+              } catch (recreateError) {
+                console.error(`Error recreando tarea ${calendarTask.id}:`, recreateError);
+                result.errors.push({
+                  id: calendarTask.id,
+                  message: `Error actualizando: ${updateError instanceof Error ? updateError.message : 'Unknown'}`,
+                });
+              }
             }
           } else {
-            // Crear nueva tarea solo si no existe
-            await sheetsService.addTask(spreadsheetId, task);
-            result.created += 1;
+            // Crear nueva tarea
+            try {
+              await sheetsService.addTask(spreadsheetId, task);
+              result.created += 1;
+            } catch (createError) {
+              console.error(`Error creando tarea ${calendarTask.id}:`, createError);
+              // Intentar de nuevo con un ID diferente si el problema es de duplicados
+              try {
+                const taskWithNewId = { ...task, id: `${task.id}-retry-${Date.now()}` };
+                await sheetsService.addTask(spreadsheetId, taskWithNewId);
+                result.created += 1;
+                console.log(`Tarea creada con ID alternativo: ${taskWithNewId.id}`);
+              } catch (retryError) {
+                result.errors.push({
+                  id: calendarTask.id,
+                  message: createError instanceof Error ? createError.message : 'Error creando en Sheets',
+                });
+              }
+            }
           }
         } catch (error) {
-          console.error(`Error updating task ${calendarTask.id} in Sheets:`, error);
+          console.error(`Error procesando tarea ${calendarTask.id}:`, error);
           result.errors.push({
             id: calendarTask.id,
-            message: error instanceof Error ? error.message : 'Error actualizando en Sheets',
+            message: error instanceof Error ? error.message : 'Error procesando tarea',
           });
         }
       }
