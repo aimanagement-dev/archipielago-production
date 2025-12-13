@@ -230,7 +230,8 @@ export async function syncTasksToCalendar(
 
 /**
  * Lee eventos de Google Calendar y los convierte a tareas
- * Solo lee eventos creados por arch-pm (con extendedProperties.source='arch-pm')
+ * Lee TODOS los eventos del calendario (no solo los creados por arch-pm)
+ * Esto permite sincronizar eventos existentes de Google Calendar hacia la app
  */
 export async function syncCalendarToTasks(
   accessToken: string,
@@ -252,10 +253,10 @@ export async function syncCalendarToTasks(
   };
 
   try {
-    // Obtener eventos creados por arch-pm
+    // Obtener TODOS los eventos del calendario (no solo los creados por arch-pm)
+    // Esto permite sincronizar eventos existentes de Google Calendar
     const response = await calendar.events.list({
       calendarId,
-      privateExtendedProperty: ['source=arch-pm'],
       timeMin: options?.timeMin || new Date().toISOString(),
       timeMax: options?.timeMax,
       maxResults: 2500,
@@ -267,24 +268,57 @@ export async function syncCalendarToTasks(
 
     for (const event of events) {
       try {
-        const taskId = event.extendedProperties?.private?.taskId;
+        // Generar taskId: usar el taskId existente o generar uno basado en el eventId
+        let taskId = event.extendedProperties?.private?.taskId;
+        if (!taskId && event.id) {
+          // Si no tiene taskId, generar uno basado en el eventId de Google Calendar
+          // Remover el prefijo común de Google Calendar IDs
+          const eventIdClean = event.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
+          taskId = `cal-${eventIdClean}`;
+        }
+        
         if (!taskId) {
-          continue; // Solo procesar eventos con taskId
+          continue; // Si no hay eventId, no podemos procesarlo
         }
 
         const summary = event.summary || '';
         const description = event.description || '';
         
-        // Extraer información de la descripción
+        // Extraer información de la descripción (formato arch-pm)
         const areaMatch = description.match(/Área:\s*(.+)/);
         const statusMatch = description.match(/Estado:\s*(.+)/);
         const responsibleMatch = description.match(/Responsables:\s*(.+)/);
         
-        const area = areaMatch ? areaMatch[1].trim() : undefined;
-        const status = statusMatch ? statusMatch[1].trim() : undefined;
-        const responsible = responsibleMatch 
+        let area = areaMatch ? areaMatch[1].trim() : undefined;
+        let status = statusMatch ? statusMatch[1].trim() : undefined;
+        let responsible = responsibleMatch 
           ? responsibleMatch[1].split(',').map(s => s.trim()).filter(Boolean)
           : [];
+        
+        // Si no se encontró información estructurada, intentar extraer del título
+        // Ejemplo: "ARCH | [PRELIM] AI PR DGCIN" -> área podría ser "Producción"
+        if (!area && summary) {
+          // Detectar áreas comunes en el título
+          const titleLower = summary.toLowerCase();
+          if (titleLower.includes('producción') || titleLower.includes('production')) {
+            area = 'Producción';
+          } else if (titleLower.includes('post') || titleLower.includes('edición')) {
+            area = 'Post-producción';
+          } else if (titleLower.includes('guión') || titleLower.includes('script')) {
+            area = 'Guión';
+          } else if (titleLower.includes('técnico') || titleLower.includes('tech')) {
+            area = 'Técnico';
+          } else if (titleLower.includes('casting')) {
+            area = 'Casting';
+          }
+        }
+        
+        // Extraer responsables de attendees si existen
+        if (event.attendees && event.attendees.length > 0 && responsible.length === 0) {
+          responsible = event.attendees
+            .map(a => a.email)
+            .filter(Boolean) as string[];
+        }
 
         // Extraer fecha y hora
         let scheduledDate: string | undefined;
@@ -322,8 +356,8 @@ export async function syncCalendarToTasks(
           title: summary,
           scheduledDate,
           scheduledTime,
-          area,
-          status,
+          area: area || 'Planificación', // Default area si no se encuentra
+          status: status || 'Pendiente', // Default status si no se encuentra
           responsible,
           notes: notes || undefined,
         };
