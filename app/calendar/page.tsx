@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, LayoutGrid, List, Columns, Clock, CheckSquare, RefreshCw } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, addDays, isSameDay, isToday, isSameMonth, parseISO } from 'date-fns';
@@ -23,8 +23,13 @@ export default function CalendarPage() {
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
-  const { tasks, gates, addTask, updateTask, deleteTask, syncCalendar, isLoading, fetchTasks } = useStore();
+  const { tasks, gates, addTask, updateTask, deleteTask, isLoading, fetchTasks } = useStore();
   const { user } = useAuth();
+
+  // Cargar tareas al montar el componente
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
 
   // Separate scheduled tasks from ongoing tasks
   const scheduledTasks = useMemo(() =>
@@ -122,53 +127,87 @@ export default function CalendarPage() {
     setCurrentDate(new Date());
   };
 
-  // Sincronizar desde Google Calendar hacia la app
+  // Sincronización bidireccional: primero desde Calendar, luego hacia Calendar
   const handleSyncFromCalendar = async () => {
     setSyncingFromCalendar(true);
     setSyncMessage(null);
     setSyncError(null);
 
     try {
-      // Calcular rango de fechas (últimos 3 meses y próximos 6 meses)
+      // PASO 1: Sincronizar desde Google Calendar hacia la app
       const now = new Date();
       const timeMin = new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString();
       const timeMax = new Date(now.getFullYear(), now.getMonth() + 6, 0).toISOString();
 
-      const response = await fetch(
+      const responseFromCalendar = await fetch(
         `/api/google/calendar/sync?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&updateSheets=true`,
         { method: 'GET' }
       );
 
-      const data = await response.json();
+      const dataFromCalendar = await responseFromCalendar.json();
 
-      if (!response.ok || !data.ok) {
-        throw new Error(data.error || 'No se pudo sincronizar desde Google Calendar.');
+      if (!responseFromCalendar.ok || !dataFromCalendar.ok) {
+        throw new Error(dataFromCalendar.error || 'No se pudo sincronizar desde Google Calendar.');
       }
 
+      // Recargar tareas desde Sheets DESPUÉS de sincronizar desde Calendar
+      await fetchTasks();
+
+      // Esperar un momento para que las tareas se carguen
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Obtener las tareas actualizadas del store después de recargar
+      // Necesitamos acceder al store directamente para obtener las tareas actualizadas
+      const storeState = useStore.getState();
+      const updatedTasks = storeState.tasks;
+
+      // PASO 2: Sincronizar desde la app hacia Google Calendar
+      const scheduledTasksPayload = updatedTasks
+        .filter((task) => task.isScheduled && task.scheduledDate)
+        .map((task) => ({
+          id: task.id,
+          title: task.title,
+          scheduledDate: task.scheduledDate,
+          scheduledTime: task.scheduledTime,
+          responsible: task.responsible,
+          area: task.area,
+          status: task.status,
+          notes: task.notes,
+        }));
+
+      if (scheduledTasksPayload.length > 0) {
+        const responseToCalendar = await fetch('/api/google/calendar/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tasks: scheduledTasksPayload }),
+        });
+
+        const dataToCalendar = await responseToCalendar.json();
+
+        if (!responseToCalendar.ok || !dataToCalendar.ok) {
+          console.warn('Error sincronizando hacia Calendar:', dataToCalendar.error);
+        }
+      }
+
+      // Mensaje de éxito combinado
       const parts = [];
-      if (data.tasksFound > 0) parts.push(`${data.tasksFound} eventos encontrados`);
-      if (data.updated > 0) parts.push(`${data.updated} actualizados`);
-      if (data.created > 0) parts.push(`${data.created} creados`);
+      if (dataFromCalendar.tasksFound > 0) parts.push(`${dataFromCalendar.tasksFound} eventos leídos`);
+      if (dataFromCalendar.updated > 0) parts.push(`${dataFromCalendar.updated} actualizados`);
+      if (dataFromCalendar.created > 0) parts.push(`${dataFromCalendar.created} creados`);
 
       setSyncMessage(
-        `✅ Sincronización desde Calendar completa: ${parts.join(', ')}.`
+        `✅ Sincronización bidireccional completa: ${parts.join(', ')}.`
       );
 
-      // Recargar tareas desde Sheets
+      // Recargar tareas una vez más para asegurar que todo esté actualizado
       await fetchTasks();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Error al sincronizar desde Google Calendar.';
+      const errorMessage = error instanceof Error ? error.message : 'Error al sincronizar con Google Calendar.';
       setSyncError(errorMessage);
+      console.error('Error en sincronización:', error);
     } finally {
       setSyncingFromCalendar(false);
     }
-  };
-
-  // Sincronizar desde la app hacia Google Calendar
-  const handleSyncToCalendar = async () => {
-    setSyncMessage(null);
-    setSyncError(null);
-    await syncCalendar();
   };
 
   // Render Month View - Click on day navigates to day view
@@ -473,31 +512,24 @@ export default function CalendarPage() {
 
             {user?.role === 'admin' && (
               <>
-                <div className="flex items-center gap-2 mr-2">
-                  <button
-                    onClick={handleSyncToCalendar}
-                    disabled={isLoading}
-                    className="p-2 bg-white/5 text-foreground rounded-lg hover:bg-white/10 transition-colors border border-white/10 disabled:opacity-50"
-                    title="Sincronizar hacia Google Calendar (App → Calendar)"
-                  >
-                    <RefreshCw className={cn("w-5 h-5", isLoading ? "animate-spin" : "")} />
-                  </button>
-                  <button
-                    onClick={handleSyncFromCalendar}
-                    disabled={syncingFromCalendar}
-                    className="p-2 bg-white/5 text-foreground rounded-lg hover:bg-white/10 transition-colors border border-white/10 disabled:opacity-50"
-                    title="Sincronizar desde Google Calendar (Calendar → App)"
-                  >
-                    <RefreshCw className={cn("w-5 h-5 rotate-180", syncingFromCalendar ? "animate-spin" : "")} />
-                  </button>
-                </div>
+                <button
+                  onClick={handleSyncFromCalendar}
+                  disabled={syncingFromCalendar || isLoading}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/5 text-foreground rounded-lg hover:bg-white/10 transition-colors border border-white/10 disabled:opacity-50"
+                  title="Sincronizar bidireccionalmente con Google Calendar"
+                >
+                  <RefreshCw className={cn("w-4 h-4", (syncingFromCalendar || isLoading) ? "animate-spin" : "")} />
+                  <span className="text-sm font-medium">
+                    {(syncingFromCalendar || isLoading) ? 'Sincronizando...' : 'Sincronizar Calendar'}
+                  </span>
+                </button>
                 {syncMessage && (
-                  <div className="text-sm text-green-400 bg-green-400/10 px-3 py-1 rounded-lg">
+                  <div className="text-sm text-green-400 bg-green-400/10 px-3 py-1 rounded-lg max-w-md">
                     {syncMessage}
                   </div>
                 )}
                 {syncError && (
-                  <div className="text-sm text-red-400 bg-red-400/10 px-3 py-1 rounded-lg">
+                  <div className="text-sm text-red-400 bg-red-400/10 px-3 py-1 rounded-lg max-w-md">
                     {syncError}
                   </div>
                 )}
@@ -619,8 +651,8 @@ export default function CalendarPage() {
           } else {
             await addTask(task);
           }
-          // Sincronizar automáticamente con Google Calendar
-          handleSyncToCalendar();
+          // Recargar tareas después de guardar
+          await fetchTasks();
           setSelectedTask(null);
         }}
         onDelete={selectedTask ? () => {
