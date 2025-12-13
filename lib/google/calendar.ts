@@ -279,25 +279,19 @@ export async function syncCalendarToTasks(
           }
         }
         
-        // PASO 3: Si aún no tiene taskId, intentar usar el eventId directamente
-        // PERO solo si el evento fue creado por arch-pm (tiene source=arch-pm)
-        // Esto evita crear IDs duplicados para eventos externos
+        // PASO 3: Si aún no tiene taskId, generar uno basado en el eventId
+        // Esto permite sincronizar eventos creados manualmente en Calendar
         if (!taskId && event.id) {
-          const isArchPmEvent = event.extendedProperties?.private?.source === 'arch-pm';
-          if (isArchPmEvent) {
-            // Si es evento de arch-pm pero no tiene taskId, usar el eventId como taskId
-            // Esto puede pasar si el evento fue creado antes de implementar taskId
-            taskId = event.id;
-          } else {
-            // Para eventos externos (no creados por arch-pm), generar un ID único
-            // pero solo si realmente queremos sincronizarlos
-            // Por ahora, los omitimos para evitar duplicados
-            continue; // Omitir eventos externos sin taskId
-          }
+          // Generar un ID único basado en el eventId de Google Calendar
+          // Usar un hash del eventId para crear un ID consistente
+          const eventIdHash = event.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
+          taskId = `cal-${eventIdHash}`;
+          console.log(`[syncCalendarToTasks] Evento sin taskId, generado: ${taskId} para evento "${summary}"`);
         }
         
         if (!taskId) {
-          continue; // Si no hay taskId, no podemos procesarlo
+          console.warn(`[syncCalendarToTasks] Evento sin ID, omitiendo:`, event.summary);
+          continue; // Si no hay taskId ni eventId, no podemos procesarlo
         }
         
         // Extraer información de la descripción (formato arch-pm)

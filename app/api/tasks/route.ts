@@ -31,9 +31,10 @@ export async function GET() {
                 timeMax,
             });
             calendarTasks = calendarResult.tasks;
+            console.log(`[GET /api/tasks] Leídos ${calendarTasks.length} eventos de Calendar`);
         } catch (calendarError) {
-            console.warn("Error leyendo Calendar (continuando con Sheets):", calendarError);
-            // Continuar solo con Sheets si Calendar falla
+            console.error("[GET /api/tasks] Error leyendo Calendar:", calendarError);
+            // Continuar solo con Sheets si Calendar falla, pero loguear el error
         }
         
         // PASO 3: Combinar tareas de Sheets y Calendar
@@ -71,6 +72,8 @@ export async function GET() {
         
         // Convertir mapa a array
         const combinedTasks = Array.from(tasksMap.values());
+        
+        console.log(`[GET /api/tasks] Total tareas combinadas: ${combinedTasks.length} (${sheetsTasks.length} de Sheets, ${calendarTasks.length} de Calendar)`);
         
         return NextResponse.json({ tasks: combinedTasks });
     } catch (error) {
@@ -115,24 +118,29 @@ export async function POST(req: Request) {
         };
 
         await service.addTask(spreadsheetId, taskToSave);
+        console.log(`[POST /api/tasks] Tarea ${task.id} guardada en Sheets`);
 
         // Si la tarea tiene fecha programada, sincronizar automáticamente a Google Calendar
-        // Hacerlo en segundo plano para no bloquear la respuesta
+        // ESPERAR la sincronización para asegurar que se cree correctamente
         const accessToken = session.accessToken;
         if (task.scheduledDate && accessToken) {
-            // No esperar la sincronización con Calendar, hacerlo en background
-            syncTasksToCalendar([{
-                id: task.id,
-                title: task.title,
-                scheduledDate: task.scheduledDate,
-                scheduledTime: task.scheduledTime,
-                responsible: task.responsible || [],
-                area: task.area,
-                status: task.status,
-                notes: task.notes,
-            }], accessToken).catch((calendarError) => {
-                console.error("Error sincronizando a Calendar (no crítico):", calendarError);
-            });
+            try {
+                console.log(`[POST /api/tasks] Sincronizando tarea ${task.id} a Calendar...`);
+                const syncResult = await syncTasksToCalendar([{
+                    id: task.id,
+                    title: task.title,
+                    scheduledDate: task.scheduledDate,
+                    scheduledTime: task.scheduledTime,
+                    responsible: task.responsible || [],
+                    area: task.area,
+                    status: task.status,
+                    notes: task.notes,
+                }], accessToken);
+                console.log(`[POST /api/tasks] Sincronización a Calendar exitosa:`, syncResult);
+            } catch (calendarError) {
+                console.error("[POST /api/tasks] Error sincronizando a Calendar:", calendarError);
+                // NO fallar la creación de la tarea si Calendar falla, pero loguear el error
+            }
         }
 
         return NextResponse.json({ success: true, task: taskToSave });
@@ -174,22 +182,27 @@ export async function PUT(req: Request) {
         };
         
         await service.updateTask(spreadsheetId, taskToUpdate);
+        console.log(`[PUT /api/tasks] Tarea ${task.id} actualizada en Sheets`);
 
-        // Sincronizar con Calendar en background (no bloquear la respuesta)
-        const accessToken = session.accessToken; // Guardar para usar en callbacks
+        // Sincronizar con Calendar - ESPERAR para asegurar que se actualice correctamente
+        const accessToken = session.accessToken;
         if (task.scheduledDate && accessToken) {
-            syncTasksToCalendar([{
-                id: task.id,
-                title: task.title,
-                scheduledDate: task.scheduledDate,
-                scheduledTime: task.scheduledTime,
-                responsible: task.responsible || [],
-                area: task.area,
-                status: task.status,
-                notes: task.notes,
-            }], accessToken).catch((calendarError) => {
-                console.error("Error sincronizando a Calendar (no crítico):", calendarError);
-            });
+            try {
+                console.log(`[PUT /api/tasks] Sincronizando tarea ${task.id} a Calendar...`);
+                await syncTasksToCalendar([{
+                    id: task.id,
+                    title: task.title,
+                    scheduledDate: task.scheduledDate,
+                    scheduledTime: task.scheduledTime,
+                    responsible: task.responsible || [],
+                    area: task.area,
+                    status: task.status,
+                    notes: task.notes,
+                }], accessToken);
+                console.log(`[PUT /api/tasks] Sincronización a Calendar exitosa`);
+            } catch (calendarError) {
+                console.error("[PUT /api/tasks] Error sincronizando a Calendar:", calendarError);
+            }
         } else if (!task.scheduledDate && accessToken) {
             // Si la tarea ya no tiene fecha programada, sincronizar todas las tareas restantes
             service.getTasks(spreadsheetId).then(allTasks => {
