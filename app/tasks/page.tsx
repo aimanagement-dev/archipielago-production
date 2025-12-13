@@ -6,7 +6,7 @@ import { Task } from '@/lib/types';
 import TaskList from '@/components/Tasks/TaskList';
 import TaskFilters from '@/components/Tasks/TaskFilters';
 import TaskModal from '@/components/Tasks/TaskModal';
-import { Plus, LayoutGrid, List, Calendar } from 'lucide-react';
+import { Plus, LayoutGrid, List, Calendar, RefreshCw, ArrowUp, ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type GroupBy = 'none' | 'month' | 'week' | 'area' | 'status';
@@ -17,6 +17,7 @@ export default function TasksPage() {
   const [editingTask, setEditingTask] = useState<Task | undefined>(undefined);
   const [groupBy, setGroupBy] = useState<GroupBy>('month');
   const [syncing, setSyncing] = useState(false);
+  const [syncingFromCalendar, setSyncingFromCalendar] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
@@ -59,7 +60,8 @@ export default function TasksPage() {
     setEditingTask(undefined);
   };
 
-  const handleSyncCalendar = async () => {
+  // Sincronizar desde la app hacia Google Calendar
+  const handleSyncToCalendar = async () => {
     setSyncing(true);
     setSyncMessage(null);
     setSyncError(null);
@@ -103,13 +105,55 @@ export default function TasksPage() {
       if (data.skipped > 0) parts.push(`${data.skipped} omitidas`);
 
       setSyncMessage(
-        `✅ Sincronización completa: ${parts.join(', ')}.`
+        `✅ Sincronización hacia Calendar completa: ${parts.join(', ')}.`
       );
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Error al sincronizar con Google Calendar.';
       setSyncError(errorMessage);
     } finally {
       setSyncing(false);
+    }
+  };
+
+  // Sincronizar desde Google Calendar hacia la app
+  const handleSyncFromCalendar = async () => {
+    setSyncingFromCalendar(true);
+    setSyncMessage(null);
+    setSyncError(null);
+
+    try {
+      // Calcular rango de fechas (últimos 3 meses y próximos 6 meses)
+      const now = new Date();
+      const timeMin = new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString();
+      const timeMax = new Date(now.getFullYear(), now.getMonth() + 6, 0).toISOString();
+
+      const response = await fetch(
+        `/api/google/calendar/sync?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&updateSheets=true`,
+        { method: 'GET' }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || 'No se pudo sincronizar desde Google Calendar.');
+      }
+
+      const parts = [];
+      if (data.tasksFound > 0) parts.push(`${data.tasksFound} eventos encontrados`);
+      if (data.updated > 0) parts.push(`${data.updated} actualizados`);
+      if (data.created > 0) parts.push(`${data.created} creados`);
+
+      setSyncMessage(
+        `✅ Sincronización desde Calendar completa: ${parts.join(', ')}.`
+      );
+
+      // Recargar tareas desde Sheets
+      await fetchTasks();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error al sincronizar desde Google Calendar.';
+      setSyncError(errorMessage);
+    } finally {
+      setSyncingFromCalendar(false);
     }
   };
 
@@ -151,19 +195,46 @@ export default function TasksPage() {
           <p className="text-muted-foreground">Organiza y monitorea todas las tareas del proyecto</p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleSyncCalendar}
-            disabled={syncing}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg font-medium border border-white/10 transition-colors',
-              syncing
-                ? 'bg-white/10 text-muted-foreground cursor-not-allowed'
-                : 'bg-white/5 hover:bg-white/10 text-foreground'
-            )}
-          >
-            <Calendar className="w-5 h-5" />
-            {syncing ? 'Sincronizando...' : 'Sync Google Calendar'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSyncToCalendar}
+              disabled={syncing}
+              className={cn(
+                'flex items-center gap-2 px-3 py-2 rounded-lg font-medium border border-white/10 transition-colors',
+                syncing
+                  ? 'bg-white/10 text-muted-foreground cursor-not-allowed'
+                  : 'bg-white/5 hover:bg-white/10 text-foreground'
+              )}
+              title="Sincronizar hacia Google Calendar (App → Calendar)"
+            >
+              <ArrowUp className="w-4 h-4" />
+              {syncing ? 'Sincronizando...' : '→ Calendar'}
+            </button>
+            <button
+              onClick={handleSyncFromCalendar}
+              disabled={syncingFromCalendar}
+              className={cn(
+                'flex items-center gap-2 px-3 py-2 rounded-lg font-medium border border-white/10 transition-colors',
+                syncingFromCalendar
+                  ? 'bg-white/10 text-muted-foreground cursor-not-allowed'
+                  : 'bg-white/5 hover:bg-white/10 text-foreground'
+              )}
+              title="Sincronizar desde Google Calendar (Calendar → App)"
+            >
+              <ArrowDown className="w-4 h-4" />
+              {syncingFromCalendar ? 'Sincronizando...' : '← Calendar'}
+            </button>
+          </div>
+          {syncMessage && (
+            <div className="text-sm text-green-400 bg-green-400/10 px-3 py-1 rounded-lg">
+              {syncMessage}
+            </div>
+          )}
+          {syncError && (
+            <div className="text-sm text-red-400 bg-red-400/10 px-3 py-1 rounded-lg">
+              {syncError}
+            </div>
+          )}
 
           <button
             onClick={() => {

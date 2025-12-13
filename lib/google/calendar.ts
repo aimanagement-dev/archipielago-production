@@ -227,3 +227,123 @@ export async function syncTasksToCalendar(
 
   return result;
 }
+
+/**
+ * Lee eventos de Google Calendar y los convierte a tareas
+ * Solo lee eventos creados por arch-pm (con extendedProperties.source='arch-pm')
+ */
+export async function syncCalendarToTasks(
+  accessToken: string,
+  options?: { calendarId?: string; timeMin?: string; timeMax?: string }
+): Promise<{
+  tasks: CalendarTaskPayload[];
+  updated: number;
+  created: number;
+  errors: { id: string; message: string }[];
+}> {
+  const calendarId = options?.calendarId || process.env.GOOGLE_CALENDAR_ID || 'primary';
+  const calendar = getCalendarClient(accessToken);
+
+  const result = {
+    tasks: [] as CalendarTaskPayload[],
+    updated: 0,
+    created: 0,
+    errors: [] as { id: string; message: string }[],
+  };
+
+  try {
+    // Obtener eventos creados por arch-pm
+    const response = await calendar.events.list({
+      calendarId,
+      privateExtendedProperty: ['source=arch-pm'],
+      timeMin: options?.timeMin || new Date().toISOString(),
+      timeMax: options?.timeMax,
+      maxResults: 2500,
+      singleEvents: true,
+      orderBy: 'startTime',
+    });
+
+    const events = response.data.items || [];
+
+    for (const event of events) {
+      try {
+        const taskId = event.extendedProperties?.private?.taskId;
+        if (!taskId) {
+          continue; // Solo procesar eventos con taskId
+        }
+
+        const summary = event.summary || '';
+        const description = event.description || '';
+        
+        // Extraer información de la descripción
+        const areaMatch = description.match(/Área:\s*(.+)/);
+        const statusMatch = description.match(/Estado:\s*(.+)/);
+        const responsibleMatch = description.match(/Responsables:\s*(.+)/);
+        
+        const area = areaMatch ? areaMatch[1].trim() : undefined;
+        const status = statusMatch ? statusMatch[1].trim() : undefined;
+        const responsible = responsibleMatch 
+          ? responsibleMatch[1].split(',').map(s => s.trim()).filter(Boolean)
+          : [];
+
+        // Extraer fecha y hora
+        let scheduledDate: string | undefined;
+        let scheduledTime: string | undefined;
+
+        if (event.start?.dateTime) {
+          // Evento con hora específica
+          const startDate = new Date(event.start.dateTime);
+          scheduledDate = startDate.toISOString().split('T')[0];
+          scheduledTime = `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`;
+        } else if (event.start?.date) {
+          // Evento de todo el día
+          scheduledDate = event.start.date;
+        }
+
+        if (!scheduledDate) {
+          continue; // Solo procesar eventos con fecha
+        }
+
+        // Extraer notas (todo lo que no sea área, estado o responsables)
+        const notes = description
+          .split('\n')
+          .filter(line => {
+            const trimmed = line.trim();
+            return trimmed && 
+                   !trimmed.startsWith('Área:') && 
+                   !trimmed.startsWith('Estado:') && 
+                   !trimmed.startsWith('Responsables:');
+          })
+          .join('\n')
+          .trim();
+
+        const task: CalendarTaskPayload = {
+          id: taskId,
+          title: summary,
+          scheduledDate,
+          scheduledTime,
+          area,
+          status,
+          responsible,
+          notes: notes || undefined,
+        };
+
+        result.tasks.push(task);
+      } catch (error) {
+        console.error('Error processing calendar event', event.id, error);
+        result.errors.push({
+          id: event.id || 'unknown',
+          message: error instanceof Error ? error.message : 'Error procesando evento',
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching calendar events:', error);
+    result.errors.push({
+      id: 'fetch',
+      message: error instanceof Error ? error.message : 'Error obteniendo eventos del calendario',
+    });
+  }
+
+  return result;
+}

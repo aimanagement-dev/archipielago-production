@@ -19,8 +19,11 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [syncingFromCalendar, setSyncingFromCalendar] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
-  const { tasks, gates, addTask, updateTask, deleteTask, syncCalendar, isLoading } = useStore();
+  const { tasks, gates, addTask, updateTask, deleteTask, syncCalendar, isLoading, fetchTasks } = useStore();
   const { user } = useAuth();
 
   // Separate scheduled tasks from ongoing tasks
@@ -117,6 +120,55 @@ export default function CalendarPage() {
 
   const handleToday = () => {
     setCurrentDate(new Date());
+  };
+
+  // Sincronizar desde Google Calendar hacia la app
+  const handleSyncFromCalendar = async () => {
+    setSyncingFromCalendar(true);
+    setSyncMessage(null);
+    setSyncError(null);
+
+    try {
+      // Calcular rango de fechas (últimos 3 meses y próximos 6 meses)
+      const now = new Date();
+      const timeMin = new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString();
+      const timeMax = new Date(now.getFullYear(), now.getMonth() + 6, 0).toISOString();
+
+      const response = await fetch(
+        `/api/google/calendar/sync?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&updateSheets=true`,
+        { method: 'GET' }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || 'No se pudo sincronizar desde Google Calendar.');
+      }
+
+      const parts = [];
+      if (data.tasksFound > 0) parts.push(`${data.tasksFound} eventos encontrados`);
+      if (data.updated > 0) parts.push(`${data.updated} actualizados`);
+      if (data.created > 0) parts.push(`${data.created} creados`);
+
+      setSyncMessage(
+        `✅ Sincronización desde Calendar completa: ${parts.join(', ')}.`
+      );
+
+      // Recargar tareas desde Sheets
+      await fetchTasks();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error al sincronizar desde Google Calendar.';
+      setSyncError(errorMessage);
+    } finally {
+      setSyncingFromCalendar(false);
+    }
+  };
+
+  // Sincronizar desde la app hacia Google Calendar
+  const handleSyncToCalendar = async () => {
+    setSyncMessage(null);
+    setSyncError(null);
+    await syncCalendar();
   };
 
   // Render Month View - Click on day navigates to day view
@@ -421,14 +473,34 @@ export default function CalendarPage() {
 
             {user?.role === 'admin' && (
               <>
-                <button
-                  onClick={() => syncCalendar()}
-                  disabled={isLoading}
-                  className="p-2 bg-white/5 text-foreground rounded-lg hover:bg-white/10 transition-colors border border-white/10 disabled:opacity-50 mr-2"
-                  title="Sincronizar con Google Calendar"
-                >
-                  <RefreshCw className={cn("w-5 h-5", isLoading ? "animate-spin" : "")} />
-                </button>
+                <div className="flex items-center gap-2 mr-2">
+                  <button
+                    onClick={handleSyncToCalendar}
+                    disabled={isLoading}
+                    className="p-2 bg-white/5 text-foreground rounded-lg hover:bg-white/10 transition-colors border border-white/10 disabled:opacity-50"
+                    title="Sincronizar hacia Google Calendar (App → Calendar)"
+                  >
+                    <RefreshCw className={cn("w-5 h-5", isLoading ? "animate-spin" : "")} />
+                  </button>
+                  <button
+                    onClick={handleSyncFromCalendar}
+                    disabled={syncingFromCalendar}
+                    className="p-2 bg-white/5 text-foreground rounded-lg hover:bg-white/10 transition-colors border border-white/10 disabled:opacity-50"
+                    title="Sincronizar desde Google Calendar (Calendar → App)"
+                  >
+                    <RefreshCw className={cn("w-5 h-5 rotate-180", syncingFromCalendar ? "animate-spin" : "")} />
+                  </button>
+                </div>
+                {syncMessage && (
+                  <div className="text-sm text-green-400 bg-green-400/10 px-3 py-1 rounded-lg">
+                    {syncMessage}
+                  </div>
+                )}
+                {syncError && (
+                  <div className="text-sm text-red-400 bg-red-400/10 px-3 py-1 rounded-lg">
+                    {syncError}
+                  </div>
+                )}
                 <button
                   onClick={() => {
                     setSelectedTask(null);
@@ -548,7 +620,7 @@ export default function CalendarPage() {
             await addTask(task);
           }
           // Sincronizar automáticamente con Google Calendar
-          syncCalendar();
+          handleSyncToCalendar();
           setSelectedTask(null);
         }}
         onDelete={selectedTask ? () => {
@@ -557,7 +629,7 @@ export default function CalendarPage() {
           setSelectedTask(null);
         } : undefined}
         initialData={selectedTask || undefined}
-        defaultDate={viewMode === 'day' ? currentDate.toISOString().split('T')[0] : undefined}
+        defaultDate={currentDate.toISOString().split('T')[0]}
       />
     </div>
   );
