@@ -151,15 +151,20 @@ export default function CalendarPage() {
       }
 
       // Recargar tareas desde Sheets DESPUÉS de sincronizar desde Calendar
+      // Esperar un momento para que Sheets procese los cambios
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Recargar tareas desde Sheets
       await fetchTasks();
-
-      // Esperar un momento para que las tareas se carguen
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Esperar un momento adicional para asegurar que las tareas se carguen
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // Obtener las tareas actualizadas del store después de recargar
-      // Necesitamos acceder al store directamente para obtener las tareas actualizadas
       const storeState = useStore.getState();
       const updatedTasks = storeState.tasks;
+      
+      console.log(`[SYNC] Tareas cargadas después de sincronizar desde Calendar: ${updatedTasks.length}`);
 
       // PASO 2: Sincronizar desde la app hacia Google Calendar
       const scheduledTasksPayload = updatedTasks
@@ -194,13 +199,20 @@ export default function CalendarPage() {
       if (dataFromCalendar.tasksFound > 0) parts.push(`${dataFromCalendar.tasksFound} eventos leídos`);
       if (dataFromCalendar.updated > 0) parts.push(`${dataFromCalendar.updated} actualizados`);
       if (dataFromCalendar.created > 0) parts.push(`${dataFromCalendar.created} creados`);
+      if (dataToCalendar) {
+        if (dataToCalendar.created > 0) parts.push(`${dataToCalendar.created} eventos creados`);
+        if (dataToCalendar.updated > 0) parts.push(`${dataToCalendar.updated} eventos actualizados`);
+      }
 
       setSyncMessage(
         `✅ Sincronización bidireccional completa: ${parts.join(', ')}.`
       );
 
       // Recargar tareas una vez más para asegurar que todo esté actualizado
+      await new Promise(resolve => setTimeout(resolve, 500));
       await fetchTasks();
+      
+      console.log(`[SYNC] Sincronización completa. Tareas finales: ${useStore.getState().tasks.length}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Error al sincronizar con Google Calendar.';
       setSyncError(errorMessage);

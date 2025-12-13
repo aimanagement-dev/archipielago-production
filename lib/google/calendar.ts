@@ -45,18 +45,22 @@ function buildEventBody(task: CalendarTaskPayload, timezone: string): calendar_v
     throw new Error(`Task ${task.id} no tiene scheduledDate`);
   }
 
+  // Construir descripción con formato estructurado para facilitar parsing
+  const descriptionParts = [];
+  if (task.notes) descriptionParts.push(task.notes);
+  if (task.area) descriptionParts.push(`Área: ${task.area}`);
+  if (task.status) descriptionParts.push(`Estado: ${task.status}`);
+  if (task.responsible && task.responsible.length > 0) {
+    descriptionParts.push(`Responsables: ${task.responsible.join(', ')}`);
+  }
+  // Agregar taskId en la descripción también para facilitar búsqueda
+  descriptionParts.push(`TaskID: ${task.id}`);
+
   if (hasTime) {
     const startDate = new Date(`${task.scheduledDate}T${task.scheduledTime || '09:00'}:00Z`).toISOString();
     return {
       summary: task.title,
-      description: [
-        task.notes || '',
-        task.area ? `Área: ${task.area}` : '',
-        task.status ? `Estado: ${task.status}` : '',
-        task.responsible && task.responsible.length ? `Responsables: ${task.responsible.join(', ')}` : '',
-      ]
-        .filter(Boolean)
-        .join('\n'),
+      description: descriptionParts.join('\n'),
       start: {
         dateTime: startDate,
         timeZone: timezone,
@@ -76,14 +80,7 @@ function buildEventBody(task: CalendarTaskPayload, timezone: string): calendar_v
 
   return {
     summary: task.title,
-    description: [
-      task.notes || '',
-      task.area ? `Área: ${task.area}` : '',
-      task.status ? `Estado: ${task.status}` : '',
-      task.responsible && task.responsible.length ? `Responsables: ${task.responsible.join(', ')}` : '',
-    ]
-      .filter(Boolean)
-      .join('\n'),
+    description: descriptionParts.join('\n'),
     start: {
       date: task.scheduledDate,
       timeZone: timezone,
@@ -268,21 +265,40 @@ export async function syncCalendarToTasks(
 
     for (const event of events) {
       try {
-        // Generar taskId: usar el taskId existente o generar uno basado en el eventId
+        const summary = event.summary || '';
+        const description = event.description || '';
+        
+        // PASO 1: Buscar taskId en extendedProperties (más confiable)
         let taskId = event.extendedProperties?.private?.taskId;
+        
+        // PASO 2: Si no está en extendedProperties, buscar en la descripción
+        if (!taskId) {
+          const taskIdFromDesc = description.match(/TaskID:\s*(.+)/)?.[1]?.trim();
+          if (taskIdFromDesc) {
+            taskId = taskIdFromDesc;
+          }
+        }
+        
+        // PASO 3: Si aún no tiene taskId, intentar usar el eventId directamente
+        // PERO solo si el evento fue creado por arch-pm (tiene source=arch-pm)
+        // Esto evita crear IDs duplicados para eventos externos
         if (!taskId && event.id) {
-          // Si no tiene taskId, generar uno basado en el eventId de Google Calendar
-          // Remover el prefijo común de Google Calendar IDs
-          const eventIdClean = event.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
-          taskId = `cal-${eventIdClean}`;
+          const isArchPmEvent = event.extendedProperties?.private?.source === 'arch-pm';
+          if (isArchPmEvent) {
+            // Si es evento de arch-pm pero no tiene taskId, usar el eventId como taskId
+            // Esto puede pasar si el evento fue creado antes de implementar taskId
+            taskId = event.id;
+          } else {
+            // Para eventos externos (no creados por arch-pm), generar un ID único
+            // pero solo si realmente queremos sincronizarlos
+            // Por ahora, los omitimos para evitar duplicados
+            continue; // Omitir eventos externos sin taskId
+          }
         }
         
         if (!taskId) {
-          continue; // Si no hay eventId, no podemos procesarlo
+          continue; // Si no hay taskId, no podemos procesarlo
         }
-
-        const summary = event.summary || '';
-        const description = event.description || '';
         
         // Extraer información de la descripción (formato arch-pm)
         const areaMatch = description.match(/Área:\s*(.+)/);
@@ -338,7 +354,7 @@ export async function syncCalendarToTasks(
           continue; // Solo procesar eventos con fecha
         }
 
-        // Extraer notas (todo lo que no sea área, estado o responsables)
+        // Extraer notas (todo lo que no sea área, estado, responsables o TaskID)
         const notes = description
           .split('\n')
           .filter(line => {
@@ -346,7 +362,8 @@ export async function syncCalendarToTasks(
             return trimmed && 
                    !trimmed.startsWith('Área:') && 
                    !trimmed.startsWith('Estado:') && 
-                   !trimmed.startsWith('Responsables:');
+                   !trimmed.startsWith('Responsables:') &&
+                   !trimmed.startsWith('TaskID:');
           })
           .join('\n')
           .trim();

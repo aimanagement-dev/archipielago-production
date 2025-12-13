@@ -121,25 +121,40 @@ export async function GET(request: Request) {
           };
 
           if (existingTask) {
-            // Actualizar tarea existente SIEMPRE para asegurar que esté sincronizada
-            try {
-              await sheetsService.updateTask(spreadsheetId, task);
-              result.updated += 1;
-            } catch (updateError) {
-              console.error(`Error actualizando tarea ${calendarTask.id}:`, updateError);
-              // Si falla la actualización, intentar eliminar y recrear
+            // Verificar si hay cambios reales antes de actualizar
+            const hasChanges = 
+              existingTask.title !== task.title ||
+              existingTask.scheduledDate !== task.scheduledDate ||
+              existingTask.scheduledTime !== task.scheduledTime ||
+              existingTask.status !== task.status ||
+              existingTask.area !== task.area ||
+              existingTask.notes !== task.notes ||
+              JSON.stringify(existingTask.responsible) !== JSON.stringify(task.responsible);
+            
+            if (hasChanges) {
+              // Actualizar tarea existente solo si hay cambios
               try {
-                await sheetsService.deleteTask(spreadsheetId, task.id);
-                await sheetsService.addTask(spreadsheetId, task);
-                result.created += 1;
-                result.updated -= 1; // Ajustar contador
-              } catch (recreateError) {
-                console.error(`Error recreando tarea ${calendarTask.id}:`, recreateError);
-                result.errors.push({
-                  id: calendarTask.id,
-                  message: `Error actualizando: ${updateError instanceof Error ? updateError.message : 'Unknown'}`,
-                });
+                await sheetsService.updateTask(spreadsheetId, task);
+                result.updated += 1;
+              } catch (updateError) {
+                console.error(`Error actualizando tarea ${calendarTask.id}:`, updateError);
+                // Si falla la actualización, intentar eliminar y recrear
+                try {
+                  await sheetsService.deleteTask(spreadsheetId, task.id);
+                  await sheetsService.addTask(spreadsheetId, task);
+                  result.created += 1;
+                  result.updated -= 1; // Ajustar contador
+                } catch (recreateError) {
+                  console.error(`Error recreando tarea ${calendarTask.id}:`, recreateError);
+                  result.errors.push({
+                    id: calendarTask.id,
+                    message: `Error actualizando: ${updateError instanceof Error ? updateError.message : 'Unknown'}`,
+                  });
+                }
               }
+            } else {
+              // No hay cambios, no actualizar
+              console.log(`Tarea ${calendarTask.id} ya está sincronizada, sin cambios`);
             }
           } else {
             // Crear nueva tarea
