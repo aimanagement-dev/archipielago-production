@@ -169,7 +169,7 @@ export async function GET(request: Request) {
                 await sheetsService.addTask(spreadsheetId, taskWithNewId);
                 result.created += 1;
                 console.log(`Tarea creada con ID alternativo: ${taskWithNewId.id}`);
-              } catch (retryError) {
+              } catch {
                 result.errors.push({
                   id: calendarTask.id,
                   message: createError instanceof Error ? createError.message : 'Error creando en Sheets',

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { Circle, MessageSquare, Send } from 'lucide-react';
+import { MessageSquare, Send } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 
 const statusColors: Record<'online' | 'offline' | 'away', string> = {

@@ -104,7 +104,6 @@ export const useStore = create<AppState>()(
       addTask: async (task) => {
         // Generar ID siempre (task es Omit<Task, "id">)
         const newTask = { ...task, id: generateId() };
-        const previousTasks = get().tasks;
 
         // Optimistic update
         set((state) => ({
@@ -140,7 +139,6 @@ export const useStore = create<AppState>()(
         if (!currentTask) return;
 
         const updatedTask = { ...currentTask, ...updates };
-        const previousTasks = get().tasks;
 
         // Optimistic update
         set((state) => ({

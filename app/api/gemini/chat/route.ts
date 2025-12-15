@@ -188,26 +188,6 @@ function getAvailableFunctions(team: TeamMember[]) {
   ];
 }
 
-// Función helper para encontrar emails del equipo por nombre
-function findTeamMemberEmails(names: string[], team: TeamMember[]): string[] {
-  const emails: string[] = [];
-  
-  for (const name of names) {
-    const lowerName = name.toLowerCase().trim();
-    const member = team.find(m => 
-      m.name.toLowerCase().includes(lowerName) || 
-      lowerName.includes(m.name.toLowerCase()) ||
-      (m.email && m.email.toLowerCase().includes(lowerName))
-    );
-    
-    if (member && member.email) {
-      emails.push(member.email);
-    }
-  }
-  
-  return emails;
-}
-
 export async function POST(request: NextRequest) {
   const authResponse = await checkAuth();
   if (authResponse) return authResponse;
@@ -284,16 +264,26 @@ ASISTENTE:`;
       throw new Error(errorData.error?.message || 'Error al comunicarse con Gemini API');
     }
 
+    type GeminiFunctionCall = { name: string; args: Record<string, unknown> };
+    type GeminiPart = { text?: string; functionCall?: GeminiFunctionCall };
+
     let data = await geminiResponse.json();
     let responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-    let functionCalls = data.candidates?.[0]?.content?.parts?.filter((p: any) => p.functionCall) || [];
+    const parts = (data.candidates?.[0]?.content?.parts || []) as GeminiPart[];
+    const functionCalls = parts.flatMap((p) => (p.functionCall ? [p.functionCall] : []));
 
     // Si Gemini quiere llamar una función, ejecutarla
     if (functionCalls.length > 0) {
-      const functionCall = functionCalls[0].functionCall;
+      const functionCall = functionCalls[0];
       
       if (functionCall.name === 'createCalendarEvent') {
-        const args = functionCall.args;
+        const args = functionCall.args as {
+          title: string;
+          description?: string;
+          startDateTime: string;
+          endDateTime?: string;
+          attendees?: string[];
+        };
         
         // Procesar attendees: si Gemini envió nombres, buscar sus emails
         let attendeeEmails = args.attendees || [];
@@ -325,19 +315,6 @@ ASISTENTE:`;
           }
         );
 
-        // Enviar respuesta de la función a Gemini para que genere una respuesta final
-        const functionResponsePrompt = `${fullPrompt}
-
-ASISTENTE: [Llamando función createCalendarEvent con: ${JSON.stringify(args)}]
-
-FUNCIÓN EJECUTADA:
-${result.success 
-  ? `✅ Evento creado exitosamente! Event ID: ${result.eventId}${result.eventLink ? `\nEnlace: ${result.eventLink}` : ''}`
-  : `❌ Error al crear evento: ${result.error}`
-}
-
-Ahora responde al usuario confirmando que el evento fue creado (o explicando el error si hubo uno).`;
-
         geminiResponse = await fetch(url, {
           method: 'POST',
           headers: {
@@ -350,7 +327,7 @@ Ahora responde al usuario confirmando que el evento fue creado (o explicando el 
               },
               {
                 parts: [
-                  { functionCall: functionCall },
+                  { functionCall },
                   { 
                     functionResponse: {
                       name: functionCall.name,

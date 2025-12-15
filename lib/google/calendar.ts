@@ -299,7 +299,7 @@ export async function syncCalendarToTasks(
         const responsibleMatch = description.match(/Responsables:\s*(.+)/);
         
         let area = areaMatch ? areaMatch[1].trim() : undefined;
-        let status = statusMatch ? statusMatch[1].trim() : undefined;
+        const status = statusMatch ? statusMatch[1].trim() : undefined;
         let responsible = responsibleMatch 
           ? responsibleMatch[1].split(',').map(s => s.trim()).filter(Boolean)
           : [];
