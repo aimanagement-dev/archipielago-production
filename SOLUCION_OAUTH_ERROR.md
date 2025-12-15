@@ -8,10 +8,12 @@ El error **"Access blocked: Authorization Error - Error 401: invalid_client"** s
 2. Selecciona el proyecto correcto (probablemente `archipielago-os` o similar)
 3. Ve a **APIs & Services** > **Credentials**
 4. Busca tu OAuth 2.0 Client ID con el nombre `Archipiélago Web` o similar
-5. **VERIFICA** que el Client ID mostrado sea exactamente:
+5. **VERIFICA** que el Client ID mostrado coincida con el que configuraste en tu `.env.local` / Vercel:
    ```
-   3160191465556-qcdd1ea8o6u8uboj756rad0r4turjech.apps.googleusercontent.com
+   tu_google_client_id.apps.googleusercontent.com
    ```
+
+**Nota importante:** si Google muestra `Error 401: deleted_client`, ese OAuth Client fue eliminado en Google Cloud y necesitas **crear uno nuevo** y actualizar las variables.
 
 ## ✅ Paso 2: Verificar la URL de Redirección
 

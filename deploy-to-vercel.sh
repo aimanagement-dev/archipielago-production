@@ -4,7 +4,7 @@
 # SCRIPT DE DEPLOYMENT AUTOMÁTICO A VERCEL
 # ============================================
 # Proyecto: Archipiélago Production OS
-# Cuenta: ai.management@archipielagofilm.com
+# Nota: NO guardes credenciales en este repo. Este script lee valores desde variables de entorno.
 # ============================================
 
 echo "🚀 Iniciando deployment a Vercel..."
@@ -22,7 +22,7 @@ echo ""
 
 # Login a Vercel (abrirá el navegador)
 echo "🔐 Autenticando con Vercel..."
-echo "⚠️  IMPORTANTE: Usa la cuenta ai.management@archipielagofilm.com"
+echo "⚠️  IMPORTANTE: Usa tu cuenta de Vercel (esto abrirá el navegador)"
 echo ""
 vercel login
 
@@ -31,18 +31,20 @@ echo ""
 echo "📦 Deploying proyecto..."
 echo ""
 
-# Configurar variables de entorno
-vercel env add GOOGLE_CLIENT_ID production << EOF
-3160191465556-qcdd1ea8o6u8uboj756rad0r4turjech.apps.googleusercontent.com
-EOF
+# Configurar variables de entorno (desde tu terminal, NO desde el repo)
+# Requiere que exportes estas variables antes de ejecutar el script:
+#   export GOOGLE_CLIENT_ID="..."
+#   export GOOGLE_CLIENT_SECRET="..."
+#   export NEXTAUTH_SECRET="..."  # recomendado: openssl rand -base64 32
+if [[ -z "${GOOGLE_CLIENT_ID:-}" || -z "${GOOGLE_CLIENT_SECRET:-}" || -z "${NEXTAUTH_SECRET:-}" ]]; then
+  echo "❌ Faltan variables de entorno requeridas."
+  echo "Define GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y NEXTAUTH_SECRET en tu shell y vuelve a ejecutar."
+  exit 1
+fi
 
-vercel env add GOOGLE_CLIENT_SECRET production << EOF
-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
-EOF
-
-vercel env add NEXTAUTH_SECRET production << EOF
-tJ3z9RHouWo7v6JcTJY0ZTS6/KdbtSmZeqw86YTjKYY=
-EOF
+printf "%s" "$GOOGLE_CLIENT_ID" | vercel env add GOOGLE_CLIENT_ID production
+printf "%s" "$GOOGLE_CLIENT_SECRET" | vercel env add GOOGLE_CLIENT_SECRET production
+printf "%s" "$NEXTAUTH_SECRET" | vercel env add NEXTAUTH_SECRET production
 
 # Deploy a producción
 vercel --prod

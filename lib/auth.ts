@@ -20,8 +20,11 @@ export const useAuth = () => {
     // In the future, this should come from the Google Sheet 'Team' tab
     const getRole = (email?: string | null): UserRole => {
         if (!email) return 'viewer';
-        // Admin emails - EXCLUSIVAMENTE usar ai.management@archipielagofilm.com
-        const admins = ['ai.management@archipielagofilm.com'];
+        // Admin emails - se alinean con la lista de login permitido
+        const admins = [
+            'ai.management@archipielagofilm.com',
+            'ia.lantica@lanticastudios.com'
+        ];
         if (admins.includes(email)) return 'admin';
         return 'user'; // Default to user for non-admins
     };

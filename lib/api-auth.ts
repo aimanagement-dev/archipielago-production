@@ -26,12 +26,21 @@ export async function checkAdmin() {
         );
     }
 
-    // In the future, check for specific admin roles or emails here.
-    // Currently, based on lib/auth.ts, all authenticated users are treated as admins.
-    // const userEmail = session.user?.email;
-    // if (!userEmail || !['ai.management@archipielagofilm.com'].includes(userEmail)) {
-    //   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    // }
+    const admins = (process.env.ADMIN_EMAILS ||
+        process.env.ALLOWED_LOGIN_EMAILS ||
+        'ai.management@archipielagofilm.com,ia.lantica@lanticastudios.com')
+        .split(',')
+        .map((email) => email.trim().toLowerCase())
+        .filter(Boolean);
+
+    const userEmail = session.user?.email?.toLowerCase();
+
+    if (!userEmail || !admins.includes(userEmail)) {
+        return NextResponse.json(
+            { error: "Forbidden" },
+            { status: 403 }
+        );
+    }
 
     return null; // Admin check successful
 }

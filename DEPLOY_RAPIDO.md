@@ -20,14 +20,16 @@ https://vercel.com
 
 ```bash
 GOOGLE_CLIENT_ID
-3160191465556-qcdd1ea8o6u8uboj756rad0r4turjech.apps.googleusercontent.com
+tu_google_client_id.apps.googleusercontent.com
 
 GOOGLE_CLIENT_SECRET
-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
+tu_google_client_secret_aqui
 
 NEXTAUTH_SECRET
-tJ3z9RHouWo7v6JcTJY0ZTS6/KdbtSmZeqw86YTjKYY=
+tu_nextauth_secret_aqui
 ```
+
+**⚠️ Seguridad:** No pegues secretos reales en Markdown ni los commitees. Si ya se pegaron en el repo, **róta** esas credenciales de inmediato.
 
 **Opcional (para AI Assistant):**
 ```bash

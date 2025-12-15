@@ -58,14 +58,16 @@ Ve a: **Settings → Environment Variables**
 
 | Variable | Valor | Entornos |
 |----------|-------|----------|
-| `GOOGLE_CLIENT_ID` | `3160191465556-qcdd1ea8o6u8uboj756rad0r4turjech.apps.googleusercontent.com` | Production, Preview, Development |
-| `GOOGLE_CLIENT_SECRET` | `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` | Production, Preview, Development |
-| `NEXTAUTH_SECRET` | `tJ3z9RHouWo7v6JcTJY0ZTS6/KdbtSmZeqw86YTjKYY=` | Production, Preview, Development |
+| `GOOGLE_CLIENT_ID` | `tu_google_client_id.apps.googleusercontent.com` | Production, Preview, Development |
+| `GOOGLE_CLIENT_SECRET` | `tu_google_client_secret_aqui` | Production, Preview, Development |
+| `NEXTAUTH_SECRET` | `tu_nextauth_secret_aqui` | Production, Preview, Development |
 | `NEXTAUTH_URL` | `https://[tu-url].vercel.app` | Production |
 
 **⚠️ IMPORTANTE:**
 - Si `NEXTAUTH_URL` NO está configurada → agrégala con la URL de producción
 - Después de agregar/modificar variables → **REDEPLOY**
+
+**🔒 Seguridad (CRÍTICO):** No pegues secretos reales en este archivo. Si algún secreto real llegó a GitHub, **róta** credenciales (Google OAuth, NextAuth, service account) inmediatamente.
 
 #### Variables Opcionales:
 

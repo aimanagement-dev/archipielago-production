@@ -54,12 +54,14 @@ En la sección "Environment Variables", agregar:
 
 ```bash
 # OAuth
-GOOGLE_CLIENT_ID=3160191465556-qcdd1ea8o6u8uboj756rad0r4turjech.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=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
+GOOGLE_CLIENT_ID=tu_google_client_id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=tu_google_client_secret_aqui
 
 # NextAuth
-NEXTAUTH_SECRET=tJ3z9RHouWo7v6JcTJY0ZTS6/KdbtSmZeqw86YTjKYY=
+NEXTAUTH_SECRET=tu_nextauth_secret_aqui
 ```
+
+**⚠️ Seguridad (CRÍTICO):** Nunca guardes valores reales de `GOOGLE_CLIENT_SECRET`, `NEXTAUTH_SECRET` o keys privadas en archivos `.md` o scripts. Si alguna vez se subieron al repo, asume compromiso y **róta** credenciales.
 
 **IMPORTANTE:** NO agregar `NEXTAUTH_URL` todavía (Vercel lo genera automáticamente)
 

@@ -49,13 +49,15 @@ Todos los endpoints están protegidos correctamente:
 
 ```bash
 # OAuth Configuration
-GOOGLE_CLIENT_ID=3160191465556-qcdd1ea8o6u8uboj756rad0r4turjech.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=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
+GOOGLE_CLIENT_ID=tu_google_client_id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=tu_google_client_secret_aqui
 
 # NextAuth Configuration
 NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=tJ3z9RHouWo7v6JcTJY0ZTS6/KdbtSmZeqw86YTjKYY=
+NEXTAUTH_SECRET=tu_nextauth_secret_aqui
 ```
+
+**🔒 Seguridad:** este archivo no debe contener secretos reales. Si alguna vez copiaste secretos aquí y lo subiste al repo, rota credenciales cuanto antes.
 
 ### Variables Pendientes (Opcional)
 
