@@ -87,15 +87,21 @@ export const parseCrewCSV = (csvContent: string): CSVParseResult => {
                     member[mappedField] = value;
                 }
 
-                if (mappedField === 'name') hasName = true;
+                if (mappedField === 'name' && value) hasName = true;
             }
         });
+
+        // Fallback: If no name but has email, use email username as name
+        if (!hasName && member.email) {
+            member.name = member.email.split('@')[0];
+            hasName = true;
+        }
 
         if (hasName) {
             if (!member.id) member.id = crypto.randomUUID();
             members.push(member);
         } else {
-            errors.push(`Fila ${i + 1}: Ignorada por falta de Nombre.`);
+            errors.push(`Fila ${i + 1}: Ignorada por falta de Nombre/Email.`);
         }
     }
 
