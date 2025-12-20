@@ -1,11 +1,31 @@
 'use client';
 
 import { useAuth } from '@/lib/auth';
-import { Film, Loader2 } from 'lucide-react';
+import { Film, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
-export default function LoginPage() {
+import { Suspense } from 'react';
+
+function LoginContent() {
     const { login, isLoading } = useAuth();
+    const searchParams = useSearchParams();
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+    useEffect(() => {
+        // Verificar si hay un error en los query params
+        const error = searchParams.get('error');
+        if (error) {
+            const errorMessages: Record<string, string> = {
+                'Configuration': 'Error de configuración del servidor. Contacta al administrador.',
+                'AccessDenied': 'Tu cuenta no está autorizada para acceder a esta aplicación.',
+                'Verification': 'Error de verificación. Intenta nuevamente.',
+                'Default': 'Error al iniciar sesión. Intenta nuevamente.',
+            };
+            setErrorMessage(errorMessages[error] || errorMessages['Default']);
+        }
+    }, [searchParams]);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -28,10 +48,28 @@ export default function LoginPage() {
                         <p className="text-sm text-muted-foreground mt-2">Production Management System</p>
                     </div>
 
+                    {/* Error Message */}
+                    {errorMessage && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg flex items-start gap-3"
+                        >
+                            <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                                <p className="text-sm font-medium text-destructive">Error de autenticación</p>
+                                <p className="text-xs text-muted-foreground mt-1">{errorMessage}</p>
+                            </div>
+                        </motion.div>
+                    )}
+
                     {/* Google Login Button */}
                     <div className="space-y-4">
                         <button
-                            onClick={() => login()}
+                            onClick={() => {
+                                setErrorMessage(null); // Limpiar error al intentar de nuevo
+                                login();
+                            }}
                             disabled={isLoading}
                             className="w-full bg-white text-black py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors shadow-lg flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
@@ -76,3 +114,16 @@ export default function LoginPage() {
         </div>
     );
 }
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        }>
+            <LoginContent />
+        </Suspense>
+    );
+}
+

@@ -5,6 +5,20 @@ import { authOptions } from '@/lib/auth-config';
 import { GoogleSheetsService } from '@/lib/google-sheets';
 import { Task } from '@/lib/types';
 
+function monthFromDate(date: string): Task['month'] {
+  const month = new Date(date).getMonth();
+  const map: Task['month'][] = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'] as any;
+  // Nuestro tipo Month no contempla Sep/Oct; usamos 'Nov' y 'Dic' válidos en rango actual
+  return map[month] || 'Nov';
+}
+
+function weekOfMonth(date: string): string {
+  const d = new Date(date);
+  const day = d.getDate();
+  const week = Math.floor((day - 1) / 7) + 1;
+  return `Week ${week}`;
+}
+
 /**
  * POST: Sincronizar desde la app hacia Google Calendar
  * Body: { tasks: CalendarTaskPayload[] }
@@ -111,8 +125,8 @@ export async function GET(request: Request) {
             title: calendarTask.title,
             status: (calendarTask.status as Task['status']) || 'Pendiente',
             area: (calendarTask.area as Task['area']) || 'Planificación',
-            month: 'Ene' as Task['month'], // Default, se puede mejorar extrayendo del scheduledDate
-            week: 'Week 1',
+            month: monthFromDate(calendarTask.scheduledDate),
+            week: weekOfMonth(calendarTask.scheduledDate),
             responsible: Array.isArray(calendarTask.responsible) ? calendarTask.responsible : [],
             notes: calendarTask.notes || '',
             scheduledDate: calendarTask.scheduledDate,
@@ -185,6 +199,36 @@ export async function GET(request: Request) {
           });
         }
       }
+    }
+
+    // Limpieza: eliminar en Sheets las tareas programadas que ya no existen en Calendar
+    try {
+      const calendarIds = new Set(calendarResult.tasks.map((t) => t.id));
+      const sheetsService = new GoogleSheetsService(session.accessToken);
+      const spreadsheetId = await sheetsService.getOrCreateDatabase();
+      const existingTasks = await sheetsService.getTasks(spreadsheetId);
+      const toDelete = existingTasks.filter(
+        (t) => t.isScheduled && t.scheduledDate && !calendarIds.has(t.id)
+      );
+
+      for (const t of toDelete) {
+        try {
+          await sheetsService.deleteTask(spreadsheetId, t.id);
+          result.updated += 0; // no-op, solo limpieza
+        } catch (err) {
+          console.error(`[GC Sync] Error borrando tarea huérfana ${t.id}:`, err);
+          result.errors.push({
+            id: t.id,
+            message: `No se pudo borrar tarea ausente en Calendar`,
+          });
+        }
+      }
+    } catch (cleanupError) {
+      console.error('[GC Sync] Error en limpieza de tareas ausentes:', cleanupError);
+      result.errors.push({
+        id: 'cleanup',
+        message: 'Error limpiando tareas ausentes vs Calendar',
+      });
     }
 
     return NextResponse.json(result);

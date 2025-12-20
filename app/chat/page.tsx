@@ -36,10 +36,10 @@ export default function ChatPage() {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && user.id !== currentUserId) {
       setCurrentUser(user.id);
     }
-  }, [user, setCurrentUser]);
+  }, [user?.id, currentUserId, setCurrentUser]);
 
   const sortedTeam = useMemo(
     () => [...team].sort((a, b) => a.name.localeCompare(b.name)),
@@ -170,10 +170,10 @@ export default function ChatPage() {
                 <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm font-semibold">
                   {activeUser
                     ? activeUser.name
-                        .split(' ')
-                        .map((p) => p[0])
-                        .join('')
-                        .slice(0, 2)
+                      .split(' ')
+                      .map((p) => p[0])
+                      .join('')
+                      .slice(0, 2)
                     : '?'}
                 </div>
                 <span
@@ -191,8 +191,8 @@ export default function ChatPage() {
                   {activeStatus === 'online'
                     ? 'Disponible'
                     : activeStatus === 'away'
-                    ? 'Ausente'
-                    : 'Desconectado'}
+                      ? 'Ausente'
+                      : 'Desconectado'}
                 </div>
               </div>
             </div>

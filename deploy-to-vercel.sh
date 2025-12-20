@@ -24,7 +24,7 @@ echo ""
 echo "🔐 Autenticando con Vercel..."
 echo "⚠️  IMPORTANTE: Usa tu cuenta de Vercel (esto abrirá el navegador)"
 echo ""
-vercel login
+# vercel login
 
 # Deploy del proyecto
 echo ""

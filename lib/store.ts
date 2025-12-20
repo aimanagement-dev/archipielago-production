@@ -351,6 +351,9 @@ export const useStore = create<AppState>()(
         team: state.team,
         gates: state.gates,
         events: state.events,
+        // Cloud Studio: Persist Chat
+        chatSessions: state.chatSessions,
+        userStatuses: state.userStatuses,
       }),
     }
   )

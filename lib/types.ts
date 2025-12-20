@@ -32,6 +32,7 @@ export interface Task {
   scheduledDate?: string; // ISO date string 'YYYY-MM-DD'
   scheduledTime?: string; // Time string 'HH:MM'
   isScheduled?: boolean; // Flag to indicate if task has specific date/time
+  hasMeet?: boolean; // Wants Google Meet link
   isGoogleEvent?: boolean; // Flag to indicate if task is from Google Calendar
   attachments?: Attachment[]; // Documents and links attached to task
   visibility?: VisibilityLevel; // Who can see this task
@@ -41,11 +42,40 @@ export interface Task {
 export interface TeamMember {
   id: string;
   name: string;
-  role: string;
+  role: string; // To be deprecated in favor of position/department
   status: MemberStatus;
   type: MemberType;
+
+  // Contácto y Personal
   email?: string;
+  secondaryEmail?: string;
+  phone?: string;
+  address?: string;
+  idNumber?: string; // DNI / Passport
+  nationality?: string;
+
+  // Profesional
+  department?: string; // e.g. "Camera", "Sound", "Production"
+  position?: string;   // e.g. "DoP", "Boom Operator"
+  union?: string;      // Sindicato / Guild
+  dailyRate?: number;
+  currency?: 'USD' | 'DOP' | 'EUR';
+
+  // Emergencia
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  emergencyContactRelation?: string;
+
+  // Metadata & Extras
   notes?: string;
+  dietaryRequirements?: string;
+  allergies?: string;
+  socials?: {
+    linkedin?: string;
+    imdb?: string;
+    instagram?: string; // Portafolio
+    website?: string;
+  };
 }
 
 export interface Gate {

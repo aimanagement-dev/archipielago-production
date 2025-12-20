@@ -27,10 +27,53 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
         week: 'Week 1',
         notes: '',
         responsible: [],
+        isScheduled: true, // Default to true as per user preference for Date-driven tasks
         attachments: [],
         visibility: 'all',
         visibleTo: [],
     });
+
+    // Auto-calculate Month and Week when date changes
+    useEffect(() => {
+        if (formData.scheduledDate) {
+            const date = new Date(formData.scheduledDate);
+            if (!isNaN(date.getTime())) {
+                // Determine Month
+                const monthIndex = date.getMonth(); // 0-11
+                const monthMap: Record<number, Month> = {
+                    0: 'Ene', 1: 'Feb', 2: 'Mar', 3: 'Abr', 4: 'May', 5: 'Jun',
+                    6: 'Jul', 7: 'Ago', 8: 'Nov', 9: 'Nov', 10: 'Nov', 11: 'Dic'
+                    // Fallback for Sep/Oct to Nov since they are missing in types
+                };
+
+                // Determine Project Week
+                // Rule: "Semana 1 es la 2da semana de Noviembre (Nov 10)"
+                const projectYear = date.getFullYear();
+
+                // Define Project Start Date: Nov 10 (UTC)
+                const projectStartDate = new Date(Date.UTC(projectYear, 10, 10));
+
+                // Check difference in days
+                const diffTime = date.getTime() - projectStartDate.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                let weekLabel = '';
+                if (diffDays < 0) {
+                    const preWeekNum = Math.abs(Math.floor(diffDays / 7));
+                    weekLabel = `Pre-W ${preWeekNum}`;
+                } else {
+                    const weekNum = Math.floor(diffDays / 7) + 1;
+                    weekLabel = `Week ${weekNum}`;
+                }
+
+                setFormData(prev => ({
+                    ...prev,
+                    month: monthMap[monthIndex] || 'Nov',
+                    week: weekLabel
+                }));
+            }
+        }
+    }, [formData.scheduledDate]);
 
     useEffect(() => {
         if (initialData) {
@@ -44,8 +87,8 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                 week: 'Week 1',
                 notes: '',
                 responsible: [],
-                isScheduled: !!defaultDate,
-                scheduledDate: defaultDate || '',
+                isScheduled: true,
+                scheduledDate: defaultDate || new Date().toISOString().split('T')[0],
             });
         }
     }, [initialData, isOpen, defaultDate]);
@@ -105,29 +148,23 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                         </div>
                     </div>
 
+                    {/* Date Selection - Made Primary */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-muted-foreground">Month</label>
-                            <select
-                                value={formData.month}
-                                onChange={(e) => setFormData({ ...formData, month: e.target.value as Month })}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary/50"
-                            >
-                                {MONTHS.map((month) => (
-                                    <option key={month} value={month} className="bg-card text-foreground">{month}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-muted-foreground">Week</label>
+                            <label className="text-sm font-medium text-muted-foreground">Fecha</label>
                             <input
-                                type="text"
-                                value={formData.week}
-                                onChange={(e) => setFormData({ ...formData, week: e.target.value })}
+                                type="date"
+                                value={formData.scheduledDate || ''}
+                                onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })}
                                 className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary/50"
-                                placeholder="e.g. Week 1"
                             />
+                        </div>
+                        <div className="space-y-2">
+                            {/* Auto-calculated Info Display */}
+                            <label className="text-sm font-medium text-muted-foreground">Periodo</label>
+                            <div className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-muted-foreground cursor-not-allowed">
+                                {formData.month} - {formData.week}
+                            </div>
                         </div>
                     </div>
 
@@ -141,32 +178,23 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                         />
                     </div>
 
-                    {/* Scheduling Section */}
+                    {/* Advanced Scheduling Options */}
                     <div className="border-t border-white/10 pt-4">
                         <div className="flex items-center gap-2 mb-3">
                             <input
                                 type="checkbox"
-                                id="isScheduled"
-                                checked={formData.isScheduled || false}
-                                onChange={(e) => setFormData({ ...formData, isScheduled: e.target.checked })}
+                                id="hasTime"
+                                checked={!!formData.scheduledTime}
+                                onChange={(e) => setFormData({ ...formData, scheduledTime: e.target.checked ? '09:00' : undefined })}
                                 className="w-4 h-4 rounded border-white/10 bg-white/5 text-primary focus:ring-primary"
                             />
-                            <label htmlFor="isScheduled" className="text-sm font-medium text-foreground">
-                                Programar con fecha y hora específica
+                            <label htmlFor="hasTime" className="text-sm font-medium text-foreground">
+                                Asignar hora específica
                             </label>
                         </div>
 
-                        {formData.isScheduled && (
-                            <div className="grid grid-cols-2 gap-4 mt-3">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium text-muted-foreground">Fecha</label>
-                                    <input
-                                        type="date"
-                                        value={formData.scheduledDate || ''}
-                                        onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary/50"
-                                    />
-                                </div>
+                        {formData.scheduledTime !== undefined && (
+                            <div className="space-y-4 max-w-[50%]">
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-muted-foreground">Hora</label>
                                     <input
@@ -174,14 +202,59 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                                         value={formData.scheduledTime || ''}
                                         onChange={(e) => setFormData({ ...formData, scheduledTime: e.target.value })}
                                         className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary/50"
-                                        placeholder="HH:MM"
                                     />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        id="hasMeet"
+                                        checked={formData.hasMeet || false}
+                                        onChange={(e) => setFormData({ ...formData, hasMeet: e.target.checked })}
+                                        className="w-4 h-4 rounded border-white/10 bg-white/5 text-primary focus:ring-primary"
+                                    />
+                                    <label htmlFor="hasMeet" className="text-sm font-medium text-foreground flex items-center gap-1">
+                                        Video Call (Meet)
+                                    </label>
                                 </div>
                             </div>
                         )}
                     </div>
 
-                    {/* Attachments and Permissions */}
+                    {/* Drive Integration (Simple) */}
+                    <div className="space-y-2 pt-2 border-t border-white/10">
+                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                            Recursos (Drive)
+                            {formData.notes?.includes('drive.google.com') && (
+                                <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Linked</span>
+                            )}
+                        </label>
+                        <p className="text-xs text-muted-foreground mb-1">
+                            Pega el enlace a la carpeta o archivo de Drive para esta tarea.
+                        </p>
+                        <input
+                            type="text"
+                            value={formData.notes?.split('\n').find(l => l.includes('drive.google.com')) || ''}
+                            onChange={(e) => {
+                                const newLink = e.target.value;
+                                const currentNotes = formData.notes || '';
+                                const lines = currentNotes.split('\n');
+                                const existingLinkIndex = lines.findIndex(l => l.includes('drive.google.com'));
+
+                                if (existingLinkIndex !== -1) {
+                                    if (newLink) lines[existingLinkIndex] = newLink;
+                                    else lines.splice(existingLinkIndex, 1);
+                                } else if (newLink) {
+                                    lines.push(newLink);
+                                }
+
+                                setFormData({ ...formData, notes: lines.join('\n').trim() });
+                            }}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:border-blue-500/50 placeholder:text-muted-foreground/50"
+                            placeholder="https://drive.google.com/..."
+                        />
+                    </div>
+
+                    {/* Attachments and Permissions (Advanced) */}
                     <TaskAttachments
                         task={formData}
                         onChange={(updates) => setFormData({ ...formData, ...updates })}

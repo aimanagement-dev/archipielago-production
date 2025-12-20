@@ -7,9 +7,12 @@ import { Plus, Mail, Users, Pencil, Trash2, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth';
 import TeamModal from '@/components/Team/TeamModal';
+import ImportModal from '@/components/Team/ImportModal';
+import { Upload } from 'lucide-react';
 
 export default function TeamPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -67,16 +70,25 @@ export default function TeamPage() {
           <p className="text-muted-foreground">Gestiona el crew y contactos del proyecto</p>
         </div>
         {user?.role === 'admin' && (
-          <button
-            onClick={() => {
-              setEditingMember(undefined);
-              setIsModalOpen(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-[0_0_20px_rgba(245,158,11,0.3)]"
-          >
-            <Plus className="w-5 h-5" />
-            Nuevo Miembro
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setIsImportModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-secondary/10 text-secondary-foreground rounded-lg font-medium hover:bg-secondary/20 transition-colors border border-white/10"
+            >
+              <Upload className="w-5 h-5" />
+              <span className="hidden sm:inline">Importar</span>
+            </button>
+            <button
+              onClick={() => {
+                setEditingMember(undefined);
+                setIsModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-[0_0_20px_rgba(245,158,11,0.3)]"
+            >
+              <Plus className="w-5 h-5" />
+              <span className="hidden sm:inline">Nuevo Miembro</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -234,6 +246,10 @@ export default function TeamPage() {
         onClose={handleClose}
         onSave={handleSave}
         initialData={editingMember}
+      />
+      <ImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
       />
     </div>
   );

@@ -10,6 +10,7 @@ export interface CalendarTaskPayload {
   area?: string;
   status?: string;
   notes?: string;
+  hasMeet?: boolean;
 }
 
 function getCalendarClient(accessToken: string) {
@@ -65,6 +66,14 @@ function buildEventBody(task: CalendarTaskPayload, timezone: string): calendar_v
         dateTime: startDate,
         timeZone: timezone,
       },
+      conferenceData: task.hasMeet
+        ? {
+          createRequest: {
+            requestId: `meet-${task.id}-${Date.now()}`,
+            conferenceSolutionKey: { type: 'hangoutsMeet' },
+          },
+        }
+        : undefined,
       end: {
         dateTime: addOneHour(startDate),
         timeZone: timezone,
@@ -113,6 +122,7 @@ async function upsertEvent(
       eventId,
       requestBody: body,
       sendUpdates: 'none',
+      conferenceDataVersion: 1,
     });
     return 'updated';
   } catch (error) {
@@ -128,6 +138,7 @@ async function upsertEvent(
           id: eventId,
         },
         sendUpdates: 'none',
+        conferenceDataVersion: 1,
       });
       return 'created';
     }
@@ -266,10 +277,18 @@ export async function syncCalendarToTasks(
       try {
         const summary = event.summary || '';
         const description = event.description || '';
-        
+
+        const isArchPmEvent = event.extendedProperties?.private?.source === 'arch-pm';
+        const hasTaskIdInDesc = /TaskID:\s*(.+)/.test(description);
+
+        // Solo procesar eventos creados por la app (source=arch-pm o con TaskID en descripción/extendedProperties)
+        if (!isArchPmEvent && !hasTaskIdInDesc && !event.extendedProperties?.private?.taskId) {
+          continue;
+        }
+
         // PASO 1: Buscar taskId en extendedProperties (más confiable)
         let taskId = event.extendedProperties?.private?.taskId;
-        
+
         // PASO 2: Si no está en extendedProperties, buscar en la descripción
         if (!taskId) {
           const taskIdFromDesc = description.match(/TaskID:\s*(.+)/)?.[1]?.trim();
@@ -277,33 +296,30 @@ export async function syncCalendarToTasks(
             taskId = taskIdFromDesc;
           }
         }
-        
-        // PASO 3: Si aún no tiene taskId, generar uno basado en el eventId
-        // Esto permite sincronizar eventos creados manualmente en Calendar
-        if (!taskId && event.id) {
-          // Generar un ID único basado en el eventId de Google Calendar
-          // Usar un hash del eventId para crear un ID consistente
+
+        // PASO 3: Si aún no tiene taskId, solo generar para eventos creados por la app
+        if (!taskId && isArchPmEvent && event.id) {
           const eventIdHash = event.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
           taskId = `cal-${eventIdHash}`;
           console.log(`[syncCalendarToTasks] Evento sin taskId, generado: ${taskId} para evento "${summary}"`);
         }
-        
+
         if (!taskId) {
           console.warn(`[syncCalendarToTasks] Evento sin ID, omitiendo:`, event.summary);
           continue; // Si no hay taskId ni eventId, no podemos procesarlo
         }
-        
+
         // Extraer información de la descripción (formato arch-pm)
         const areaMatch = description.match(/Área:\s*(.+)/);
         const statusMatch = description.match(/Estado:\s*(.+)/);
         const responsibleMatch = description.match(/Responsables:\s*(.+)/);
-        
+
         let area = areaMatch ? areaMatch[1].trim() : undefined;
-        const status = statusMatch ? statusMatch[1].trim() : undefined;
-        let responsible = responsibleMatch 
+        let status = statusMatch ? statusMatch[1].trim() : undefined;
+        let responsible = responsibleMatch
           ? responsibleMatch[1].split(',').map(s => s.trim()).filter(Boolean)
           : [];
-        
+
         // Si no se encontró información estructurada, intentar extraer del título
         // Ejemplo: "ARCH | [PRELIM] AI PR DGCIN" -> área podría ser "Producción"
         if (!area && summary) {
@@ -321,7 +337,7 @@ export async function syncCalendarToTasks(
             area = 'Casting';
           }
         }
-        
+
         // Extraer responsables de attendees si existen
         if (event.attendees && event.attendees.length > 0 && responsible.length === 0) {
           responsible = event.attendees
@@ -348,18 +364,28 @@ export async function syncCalendarToTasks(
         }
 
         // Extraer notas (todo lo que no sea área, estado, responsables o TaskID)
-        const notes = description
+        const notesBase = description
           .split('\n')
           .filter(line => {
             const trimmed = line.trim();
-            return trimmed && 
-                   !trimmed.startsWith('Área:') && 
-                   !trimmed.startsWith('Estado:') && 
-                   !trimmed.startsWith('Responsables:') &&
-                   !trimmed.startsWith('TaskID:');
+            return trimmed &&
+              !trimmed.startsWith('Área:') &&
+              !trimmed.startsWith('Estado:') &&
+              !trimmed.startsWith('Responsables:') &&
+              !trimmed.startsWith('TaskID:');
           })
           .join('\n')
           .trim();
+
+        // Añadir detalles extra del evento (location / hangout link) al final
+        const extraNotes: string[] = [];
+        if (event.location) extraNotes.push(`Location: ${event.location}`);
+        if ((event as any).hangoutLink) extraNotes.push(`Meet: ${(event as any).hangoutLink}`);
+        const notes =
+          [notesBase, ...extraNotes]
+            .filter(Boolean)
+            .join('\n')
+            .trim();
 
         const task: CalendarTaskPayload = {
           id: taskId,
@@ -413,7 +439,7 @@ export async function createCalendarEventWithAttendees(
 
   try {
     const startDate = new Date(options.startDateTime);
-    const endDate = options.endDateTime 
+    const endDate = options.endDateTime
       ? new Date(options.endDateTime)
       : new Date(startDate.getTime() + 60 * 60 * 1000); // +1 hora por defecto
 

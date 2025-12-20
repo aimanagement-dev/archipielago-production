@@ -5,6 +5,19 @@ import { authOptions } from "@/lib/auth-config";
 import { syncTasksToCalendar, syncCalendarToTasks, CalendarTaskPayload } from "@/lib/google/calendar";
 import { Task } from "@/lib/types";
 
+function monthFromDate(date: string): Task['month'] {
+    const month = new Date(date).getMonth();
+    const map: Task['month'][] = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'] as any;
+    return map[month] || 'Nov';
+}
+
+function weekOfMonth(date: string): string {
+    const d = new Date(date);
+    const day = d.getDate();
+    const week = Math.floor((day - 1) / 7) + 1;
+    return `Week ${week}`;
+}
+
 export async function GET() {
     const session = await getServerSession(authOptions);
 
@@ -57,8 +70,8 @@ export async function GET() {
                 title: calendarTask.title,
                 status: (calendarTask.status as Task['status']) || 'Pendiente',
                 area: (calendarTask.area as Task['area']) || 'Planificación',
-                month: 'Ene' as Task['month'],
-                week: 'Week 1',
+                month: monthFromDate(calendarTask.scheduledDate),
+                week: weekOfMonth(calendarTask.scheduledDate),
                 responsible: Array.isArray(calendarTask.responsible) ? calendarTask.responsible : [],
                 notes: calendarTask.notes || '',
                 scheduledDate: calendarTask.scheduledDate,
@@ -257,7 +270,17 @@ export async function DELETE(req: Request) {
 
         console.log(`[DELETE] Spreadsheet ID: ${spreadsheetId}`);
 
-        await service.deleteTask(spreadsheetId, taskId);
+        // Si es una tarea que vino de Calendar (id generado) puede no existir en Sheets.
+        const isCalendarOnlyTask = taskId.startsWith('cal-');
+        if (!isCalendarOnlyTask) {
+            try {
+                await service.deleteTask(spreadsheetId, taskId);
+            } catch (error) {
+                console.warn(`[DELETE] No se pudo borrar en Sheets (continuando para limpiar Calendar):`, error);
+            }
+        } else {
+            console.log(`[DELETE] Tarea ${taskId} viene de Calendar, omitimos borrado en Sheets`);
+        }
 
         // Eliminar también de Google Calendar si existía (en background)
         const accessToken = session.accessToken;
