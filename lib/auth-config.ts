@@ -40,45 +40,6 @@ export const authOptions: NextAuthOptions = {
         }),
     ],
     callbacks: {
-<<<<<<< HEAD
-        async signIn({ user, account, profile }) {
-            // Logging para diagnóstico
-            console.log('[NextAuth] signIn callback ejecutado');
-            console.log('[NextAuth] User email:', user?.email);
-            console.log('[NextAuth] User name:', user?.name);
-
-            // Si no hay email, bloquear
-            if (!user?.email) {
-                console.error('[NextAuth] ❌ Usuario sin email, bloqueando login');
-                return false;
-            }
-
-            // Verificar si se permite cualquier email (para desarrollo/testing)
-            const allowAnyEmail = process.env.NEXTAUTH_ALLOW_ANY_EMAIL === 'true';
-            if (allowAnyEmail) {
-                console.log('[NextAuth] ✅ NEXTAUTH_ALLOW_ANY_EMAIL=true, permitiendo cualquier email');
-                return true;
-            }
-
-            // Lista de usuarios autorizados
-            const authorizedUsers = [
-                'ai.management@archipielagofilm.com',
-                'ai.lantica@lanticastudio.com',
-            ];
-
-            // Verificar si el email está autorizado
-            const isAuthorized = authorizedUsers.includes(user.email);
-
-            if (isAuthorized) {
-                console.log('[NextAuth] ✅ Usuario autorizado:', user.email);
-                return true;
-            }
-
-            // Usuario no autorizado
-            console.error('[NextAuth] ❌ Usuario NO autorizado:', user.email);
-            console.error('[NextAuth] Usuarios autorizados:', authorizedUsers.join(', '));
-            return false;
-=======
         async signIn({ user }) {
             // Limitar quién puede iniciar sesión
             const allowedEmails = (process.env.ALLOWED_LOGIN_EMAILS ||
@@ -96,7 +57,6 @@ export const authOptions: NextAuthOptions = {
             }
 
             return true;
->>>>>>> a375377ec7273516cd8886076dfda48a390c5ac9
         },
         async jwt({ token, account, user }) {
             // Initial sign in
@@ -208,4 +168,3 @@ async function refreshAccessToken(token: any) {
         };
     }
 }
-
