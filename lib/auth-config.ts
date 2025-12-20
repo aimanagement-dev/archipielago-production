@@ -27,13 +27,8 @@ if (!nextAuthSecret || nextAuthSecret.trim() === '') {
 export const authOptions: NextAuthOptions = {
     providers: [
         GoogleProvider({
-<<<<<<< HEAD
-            clientId: clientId || '',
-            clientSecret: clientSecret || '',
-=======
             clientId: getRequiredEnv("GOOGLE_CLIENT_ID"),
             clientSecret: getRequiredEnv("GOOGLE_CLIENT_SECRET"),
->>>>>>> a375377ec7273516cd8886076dfda48a390c5ac9
             authorization: {
                 params: {
                     prompt: "select_account consent",
@@ -146,11 +141,7 @@ export const authOptions: NextAuthOptions = {
         signIn: '/login',
         error: '/login', // Redirigir errores de autenticación al login
     },
-<<<<<<< HEAD
-    secret: nextAuthSecret || '',
-=======
     secret: getRequiredEnv("NEXTAUTH_SECRET"),
->>>>>>> a375377ec7273516cd8886076dfda48a390c5ac9
     debug: process.env.NODE_ENV === 'development',
     // Mejorar el manejo de errores
     events: {
