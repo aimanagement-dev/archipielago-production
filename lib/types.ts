@@ -130,3 +130,34 @@ export interface Stats {
   gatesCompleted: number;
   totalGates: number;
 }
+
+export type SubscriptionStatus = 'Active' | 'Cancelled' | 'Paused';
+export type BillingCycle = 'Monthly' | 'Yearly';
+
+export interface Subscription {
+  id: string;
+  platform: string;
+  category: string; // e.g. "Software", "AI Tools", "Infrastructure"
+  cost: number;
+  currency: 'USD' | 'DOP' | 'EUR';
+  billingCycle: BillingCycle;
+  renewalDay: number; // 1-31
+  cardUsed: string; // e.g. "Amex 1004"
+  status: SubscriptionStatus;
+  owner?: string; // Email
+  notes?: string;
+}
+
+export type ExpenseType = 'Subscription Charge' | 'One-off' | 'Reimbursement';
+
+export interface Expense {
+  id: string;
+  date: string; // ISO String or YYYY-MM-DD
+  description: string;
+  amount: number;
+  currency: 'USD' | 'DOP' | 'EUR';
+  category: string;
+  type: ExpenseType;
+  receiptUrl?: string;
+  status?: 'Pending' | 'Approved' | 'Paid';
+}

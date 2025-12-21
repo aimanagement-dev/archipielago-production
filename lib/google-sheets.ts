@@ -76,6 +76,16 @@ export class GoogleSheetsService {
                             properties: { title: 'Team' },
                         },
                     },
+                    {
+                        addSheet: {
+                            properties: { title: 'Subscriptions' },
+                        },
+                    },
+                    {
+                        addSheet: {
+                            properties: { title: 'Expenses' },
+                        },
+                    },
                     // Delete the default 'Sheet1'
                     {
                         deleteSheet: {
@@ -103,6 +113,14 @@ export class GoogleSheetsService {
                     {
                         range: 'Team!A1',
                         values: [['ID', 'Name', 'Email', 'Role', 'Department', 'Position', 'Status', 'Type', 'Phone', 'AccessGranted', 'Metadata']],
+                    },
+                    {
+                        range: 'Subscriptions!A1',
+                        values: [['ID', 'Platform', 'Category', 'Cost', 'Currency', 'BillingCycle', 'RenewalDay', 'CardUsed', 'Status', 'Owner', 'Notes']],
+                    },
+                    {
+                        range: 'Expenses!A1',
+                        values: [['ID', 'Date', 'Description', 'Amount', 'Currency', 'Category', 'Type', 'ReceiptUrl', 'Status']],
                     },
                 ],
             },

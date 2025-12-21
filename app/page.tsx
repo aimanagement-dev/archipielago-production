@@ -13,7 +13,8 @@ import {
   Activity,
   AlertCircle,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  DollarSign
 } from 'lucide-react';
 import { cn, statusColors, areaColors } from '@/lib/utils';
 import Link from 'next/link';
@@ -247,6 +248,18 @@ export default function Dashboard() {
               <div>
                 <div className="font-medium text-foreground">Gates</div>
                 <div className="text-xs text-muted-foreground">Checkpoints del proyecto</div>
+              </div>
+            </Link>
+            <Link
+              href="/finance"
+              className="flex items-center gap-3 p-3 bg-white/5 border border-white/5 rounded-lg hover:border-primary/30 hover:bg-white/10 transition-all group"
+            >
+              <div className="p-2 bg-emerald-500/10 rounded-lg group-hover:bg-emerald-500/20 transition-colors">
+                <DollarSign className="w-5 h-5 text-emerald-500" />
+              </div>
+              <div>
+                <div className="font-medium text-foreground">Finanzas</div>
+                <div className="text-xs text-muted-foreground">Control de gastos</div>
               </div>
             </Link>
           </div>

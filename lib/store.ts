@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Task, TeamMember, Gate, CalendarEvent, Stats } from './types';
+import { Task, TeamMember, Gate, CalendarEvent, Stats, Subscription, Expense } from './types';
 import { generateId } from './utils';
 import tasksData from '@/data/tasks.json';
 import teamData from '@/data/team.json';
@@ -10,6 +10,13 @@ interface AppState {
   team: TeamMember[];
   gates: Gate[];
   events: CalendarEvent[];
+
+  // Finance State
+  finance: {
+    subscriptions: Subscription[];
+    expenses: Expense[];
+  };
+
   isLoading: boolean;
   error: string | null;
 
@@ -29,6 +36,10 @@ interface AppState {
   addMember: (member: Omit<TeamMember, 'id'>) => void;
   updateMember: (id: string, updates: Partial<TeamMember>) => void;
   deleteMember: (id: string) => void;
+
+  // Finance Actions
+  fetchFinance: () => Promise<void>;
+  addTransaction: (type: 'subscription' | 'expense', data: any) => Promise<void>;
 
   // Computed
   getStats: () => Stats;
@@ -58,6 +69,10 @@ export const useStore = create<AppState>()(
       team: teamData as TeamMember[],
       gates: gatesData as Gate[],
       events: [],
+      finance: {
+        subscriptions: [],
+        expenses: []
+      },
       isLoading: false,
       error: null,
       userStatuses: {},
@@ -75,19 +90,14 @@ export const useStore = create<AppState>()(
             if (data.tasks && Array.isArray(data.tasks)) {
               set({ tasks: data.tasks, isLoading: false, error: null });
             } else {
-              // Si la respuesta es válida pero no tiene tareas (ej. hoja vacía),
-              // respetamos eso, pero podríamos loguearlo.
               set({ tasks: [], isLoading: false, error: null });
             }
           } else {
-            // Si la API falla (401, 500), NO borramos las tareas existentes del estado
-            // Solo marcamos el error y dejamos de cargar
             console.warn('Failed to fetch from API');
             set({
               isLoading: false,
               error: 'No se pudo sincronizar con Google Sheets. Mostrando datos locales.'
             });
-            // Opcional: Si no hay tareas cargadas, podríamos cargar mocks
             if (get().tasks.length === 0) {
               set({ tasks: tasksData as Task[] });
             }
@@ -98,14 +108,11 @@ export const useStore = create<AppState>()(
             isLoading: false,
             error: 'Error de conexión. Mostrando datos locales.'
           });
-          // No borramos tareas existentes
         }
       },
 
       addTask: async (task) => {
-        // Generar ID siempre (task es Omit<Task, "id">)
         const newTask = { ...task, id: generateId() };
-
         // Optimistic update
         set((state) => ({
           tasks: [...state.tasks, newTask]
@@ -123,15 +130,11 @@ export const useStore = create<AppState>()(
             throw new Error(errorData.error || errorData.details || 'Failed to sync task to Sheets');
           }
 
-          // Recargar tareas después de crear para asegurar sincronización
           const { fetchTasks } = get();
           setTimeout(() => fetchTasks(), 500);
         } catch (error) {
           console.error('Failed to sync task to Sheets:', error);
-          // NO revertir el optimistic update - mantener la tarea en la UI
-          // El usuario puede intentar sincronizar manualmente después
           set({ error: `Error al sincronizar la tarea: ${error instanceof Error ? error.message : 'Unknown error'}` });
-          // No lanzar el error para que la UI no se rompa
         }
       },
 
@@ -141,7 +144,6 @@ export const useStore = create<AppState>()(
 
         const updatedTask = { ...currentTask, ...updates };
 
-        // Optimistic update
         set((state) => ({
           tasks: state.tasks.map(t => t.id === id ? updatedTask : t)
         }));
@@ -158,12 +160,10 @@ export const useStore = create<AppState>()(
             throw new Error(errorData.error || errorData.details || 'Failed to update task in Sheets');
           }
 
-          // Recargar tareas después de actualizar para asegurar sincronización
           const { fetchTasks } = get();
           setTimeout(() => fetchTasks(), 500);
         } catch (error) {
           console.error('Failed to sync task update to Sheets:', error);
-          // NO revertir - mantener los cambios en la UI
           set({ error: `Error al actualizar la tarea: ${error instanceof Error ? error.message : 'Unknown error'}` });
         }
       },
@@ -171,7 +171,6 @@ export const useStore = create<AppState>()(
       deleteTask: async (id) => {
         const previousTasks = get().tasks;
 
-        // Optimistic update
         set((state) => ({
           tasks: state.tasks.filter(t => t.id !== id)
         }));
@@ -186,7 +185,6 @@ export const useStore = create<AppState>()(
           }
         } catch (error) {
           console.error('Failed to sync task deletion to Sheets:', error);
-          // Revert optimistic update on error
           set({ tasks: previousTasks });
         }
       },
@@ -217,9 +215,6 @@ export const useStore = create<AppState>()(
             }
           } else {
             console.warn('Failed to fetch team from API');
-            // If failed, fall back to local data if empty? Or keep loading?
-            // Better to show error but maybe keep static as backup is dangerous if we want sync.
-            // Let's just set error.
             set({ isLoading: false, error: 'Error sincronizando equipo.' });
           }
         } catch (error) {
@@ -230,7 +225,6 @@ export const useStore = create<AppState>()(
 
       addMember: async (member) => {
         const newMember = { ...member, id: generateId() };
-        // Optimistic
         set((state) => ({ team: [...state.team, newMember] }));
 
         try {
@@ -240,7 +234,6 @@ export const useStore = create<AppState>()(
             body: JSON.stringify(newMember),
           });
           if (!response.ok) throw new Error('Failed to create member');
-          // Reload to sync ID or other server fields
           get().fetchTeam();
         } catch (e) {
           console.error(e);
@@ -249,15 +242,11 @@ export const useStore = create<AppState>()(
       },
 
       updateMember: async (id, updates) => {
-        // Optimistic
         set((state) => ({
           team: state.team.map(m => m.id === id ? { ...m, ...updates } : m)
         }));
 
         try {
-          // Need to send full object or partial? API expects just ID + updates usually, 
-          // but my API route expects a "member" object to update. 
-          // Let's construct the full updated member to send.
           const attributeState = get().team.find(m => m.id === id);
           const fullUpdated = { ...attributeState, ...updates };
 
@@ -275,7 +264,6 @@ export const useStore = create<AppState>()(
 
       deleteMember: async (id) => {
         const prevTeam = get().team;
-        // Optimistic
         set((state) => ({ team: state.team.filter(m => m.id !== id) }));
 
         try {
@@ -286,6 +274,51 @@ export const useStore = create<AppState>()(
           set({ team: prevTeam, error: 'Error al eliminar miembro.' });
         }
       },
+
+      // --- Finance Actions ---
+      fetchFinance: async () => {
+        try {
+          const response = await fetch('/api/finance');
+          if (response.ok) {
+            const data = await response.json();
+            set({
+              finance: {
+                subscriptions: data.subscriptions || [],
+                expenses: data.expenses || []
+              }
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching finance:', error);
+        }
+      },
+
+      addTransaction: async (type: 'subscription' | 'expense', data: any) => {
+        const newId = generateId();
+        const newItem = { ...data, id: newId };
+
+        try {
+          const response = await fetch('/api/finance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type, data: newItem })
+          });
+          if (response.ok) {
+            set((state) => {
+              const newFinance = { ...state.finance };
+              if (type === 'subscription') {
+                newFinance.subscriptions = [...newFinance.subscriptions, newItem];
+              } else {
+                newFinance.expenses = [...newFinance.expenses, newItem];
+              }
+              return { finance: newFinance };
+            });
+          }
+        } catch (error) {
+          console.error('Error adding transaction:', error);
+        }
+      },
+
 
       getStats: () => {
         const { tasks, gates } = get();
@@ -328,7 +361,6 @@ export const useStore = create<AppState>()(
           }
 
           set({ isLoading: false });
-          // Podríamos mostrar un toast de éxito aquí si tuviéramos un sistema de notificaciones
         } catch (error) {
           console.error('Error syncing calendar:', error);
           set({
@@ -370,8 +402,7 @@ export const useStore = create<AppState>()(
 
       setUserStatus: (userId, status) => {
         const currentUser = get().currentUserId;
-        if (!currentUser) return; // Sin usuario activo no permitimos cambiar estados
-        // Solo el propio usuario puede cambiar su estado
+        if (!currentUser) return;
         if (currentUser !== userId) return;
 
         set((state) => ({
@@ -404,7 +435,6 @@ export const useStore = create<AppState>()(
 
       setCurrentUser: (userId) => {
         set({ currentUserId: userId });
-        // Si no hay estado previo, inicializar en online
         set((state) => {
           if (state.userStatuses[userId]) return state;
           return {
@@ -419,12 +449,10 @@ export const useStore = create<AppState>()(
     {
       name: 'arch-pm-storage',
       partialize: (state) => ({
-        // Solo persistir team y gates, NO tasks
-        // Las tasks siempre vienen de Google Sheets
         team: state.team,
         gates: state.gates,
         events: state.events,
-        // Cloud Studio: Persist Chat
+        finance: state.finance, // Persist Finance Data
         chatSessions: state.chatSessions,
         userStatuses: state.userStatuses,
       }),
