@@ -40,93 +40,72 @@ export class GoogleSheetsService {
      * Finds the Archipielago DB spreadsheet or creates it if it doesn't exist.
      */
     async getOrCreateDatabase(): Promise<string> {
-        const existingId = await this.findDatabase();
-        if (existingId) return existingId;
+        let spreadsheetId = await this.findDatabase();
 
-        // Create if not found
-        const resource = {
-            properties: {
-                title: 'Archipielago_DB',
-            },
-        };
-        const spreadsheet = await this.sheets.spreadsheets.create({
-            requestBody: resource,
-            fields: 'spreadsheetId',
-        });
+        if (!spreadsheetId) {
+            // Create if not found
+            const resource = {
+                properties: {
+                    title: 'Archipielago_DB',
+                },
+            };
+            const spreadsheet = await this.sheets.spreadsheets.create({
+                requestBody: resource,
+                fields: 'spreadsheetId',
+            });
+            spreadsheetId = spreadsheet.data.spreadsheetId!;
 
-        const spreadsheetId = spreadsheet.data.spreadsheetId!;
+            // Initial setup will be handled by ensureSchema below
+            // We just need to delete the default Sheet1 if we want to be clean, 
+            // but ensureSchema can handle the rest.
+        }
 
-        // Initialize sheets (tabs)
-        await this.sheets.spreadsheets.batchUpdate({
-            spreadsheetId,
-            requestBody: {
-                requests: [
-                    {
-                        addSheet: {
-                            properties: { title: 'Tasks' },
-                        },
-                    },
-                    {
-                        addSheet: {
-                            properties: { title: 'Gates' },
-                        },
-                    },
-                    {
-                        addSheet: {
-                            properties: { title: 'Team' },
-                        },
-                    },
-                    {
-                        addSheet: {
-                            properties: { title: 'Subscriptions' },
-                        },
-                    },
-                    {
-                        addSheet: {
-                            properties: { title: 'Expenses' },
-                        },
-                    },
-                    // Delete the default 'Sheet1'
-                    {
-                        deleteSheet: {
-                            sheetId: 0,
-                        },
-                    },
-                ],
-            },
-        });
-
-        // Add headers
-        await this.sheets.spreadsheets.values.batchUpdate({
-            spreadsheetId,
-            requestBody: {
-                valueInputOption: 'USER_ENTERED',
-                data: [
-                    {
-                        range: 'Tasks!A1',
-                        values: [['ID', 'Title', 'Status', 'Area', 'Month', 'Week', 'Responsible', 'Notes', 'ScheduledDate', 'ScheduledTime']],
-                    },
-                    {
-                        range: 'Gates!A1',
-                        values: [['ID', 'Title', 'Status', 'Date', 'Description']],
-                    },
-                    {
-                        range: 'Team!A1',
-                        values: [['ID', 'Name', 'Email', 'Role', 'Department', 'Position', 'Status', 'Type', 'Phone', 'AccessGranted', 'Metadata']],
-                    },
-                    {
-                        range: 'Subscriptions!A1',
-                        values: [['ID', 'Platform', 'Category', 'Cost', 'Currency', 'BillingCycle', 'RenewalDay', 'CardUsed', 'Status', 'Owner', 'Notes']],
-                    },
-                    {
-                        range: 'Expenses!A1',
-                        values: [['ID', 'Date', 'Description', 'Amount', 'Currency', 'Category', 'Type', 'ReceiptUrl', 'Status']],
-                    },
-                ],
-            },
-        });
-
+        await this.ensureSchema(spreadsheetId);
         return spreadsheetId;
+    }
+
+    private async ensureSchema(spreadsheetId: string) {
+        const meta = await this.sheets.spreadsheets.get({ spreadsheetId });
+        const existingTitles = meta.data.sheets?.map(s => s.properties?.title) || [];
+
+        const requiredSheets = [
+            { title: 'Tasks', headers: ['ID', 'Title', 'Status', 'Area', 'Month', 'Week', 'Responsible', 'Notes', 'ScheduledDate', 'ScheduledTime'] },
+            { title: 'Gates', headers: ['ID', 'Title', 'Status', 'Date', 'Description'] },
+            { title: 'Team', headers: ['ID', 'Name', 'Email', 'Role', 'Department', 'Position', 'Status', 'Type', 'Phone', 'AccessGranted', 'Metadata'] },
+            { title: 'Subscriptions', headers: ['ID', 'Platform', 'Category', 'Cost', 'Currency', 'BillingCycle', 'RenewalDay', 'CardUsed', 'Status', 'Owner', 'Notes'] },
+            { title: 'Expenses', headers: ['ID', 'Date', 'Description', 'Amount', 'Currency', 'Category', 'Type', 'ReceiptUrl', 'Status'] }
+        ];
+
+        const requests = [];
+        const headerUpdates = [];
+
+        for (const req of requiredSheets) {
+            if (!existingTitles.includes(req.title)) {
+                console.log(`[GoogleSheets] Missing sheet found: ${req.title}. preparing creation.`);
+                requests.push({
+                    addSheet: { properties: { title: req.title } }
+                });
+                headerUpdates.push({
+                    range: `${req.title}!A1`,
+                    values: [req.headers]
+                });
+            }
+        }
+
+        if (requests.length > 0) {
+            await this.sheets.spreadsheets.batchUpdate({
+                spreadsheetId,
+                requestBody: { requests }
+            });
+
+            await this.sheets.spreadsheets.values.batchUpdate({
+                spreadsheetId,
+                requestBody: {
+                    valueInputOption: 'USER_ENTERED',
+                    data: headerUpdates
+                }
+            });
+        }
     }
 
     async getTasks(spreadsheetId: string): Promise<Task[]> {
