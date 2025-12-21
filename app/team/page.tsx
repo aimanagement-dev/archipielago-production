@@ -190,7 +190,10 @@ export default function TeamPage() {
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(member.id, member.name)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(member.id, member.name);
+                    }}
                     className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                     title="Eliminar"
                   >

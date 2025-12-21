@@ -42,14 +42,34 @@ export default function ImportModal({ isOpen, onClose }: ImportModalProps) {
 
         if (!matchesSearch) return false;
 
-        // 2. Match Crew Only (Approximate Match)
+        // 2. Match Crew Only (Stricter Match)
         if (userMatchOnly) {
-            const contactNameParts = contact.name?.toLowerCase().split(' ') || [];
-            // Check if any part of the name matches any part of any team member name
-            // This is a loose "fuzzy" match
+            if (!contact.name) return false;
+
+            const contactParts = contact.name.toLowerCase().split(/\s+/).filter(p => p.length > 2);
+
+            // If contact has very short name (no usable parts > 2 chars), skip match
+            if (contactParts.length === 0) return false;
+
             const hasMatch = team.some(member => {
-                const memberNameLower = member.name.toLowerCase();
-                return contactNameParts.some(part => part.length > 2 && memberNameLower.includes(part));
+                const memberParts = member.name.toLowerCase().split(/\s+/).filter(p => p.length > 2);
+
+                // Count matching parts
+                let matchCount = 0;
+                // Check if contact parts exist in member parts (bidirectional inclusion)
+                contactParts.forEach(cPart => {
+                    if (memberParts.some(mPart => mPart.includes(cPart) || cPart.includes(mPart))) {
+                        matchCount++;
+                    }
+                });
+
+                // STRICT RULE:
+                // If either has only 1 significant part, require that 1 part to match.
+                // If both have multiple parts, require at least 2 parts to match (Name + Surname implied).
+                if (contactParts.length === 1 || memberParts.length === 1) {
+                    return matchCount >= 1;
+                }
+                return matchCount >= 2;
             });
             return hasMatch;
         }
