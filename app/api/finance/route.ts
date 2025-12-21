@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth-config';
 import { GoogleSheetsService } from '@/lib/google-sheets';
+import { Subscription, Transaction } from '@/lib/types';
 import crypto from 'crypto';
 
 export async function GET() {
@@ -15,39 +16,88 @@ export async function GET() {
     try {
         const response = await sheetsService['sheets'].spreadsheets.values.batchGet({
             spreadsheetId,
-            ranges: ['Subscriptions!A2:K', 'Expenses!A2:I']
+            ranges: ['Subscriptions!A2:P', 'Transactions!A2:Q']
         });
 
         const subsRows = response.data.valueRanges?.[0].values || [];
-        const expRows = response.data.valueRanges?.[1].values || [];
+        const transRows = response.data.valueRanges?.[1].values || [];
 
-        const subscriptions = subsRows.map(row => ({
-            id: row[0],
-            platform: row[1],
-            category: row[2],
-            cost: parseFloat(row[3]),
-            currency: row[4],
-            billingCycle: row[5],
-            renewalDay: parseInt(row[6]),
-            cardUsed: row[7],
-            status: row[8],
-            owner: row[9],
-            notes: row[10]
-        }));
+        // Parse Subscriptions (nuevo formato con integración Crew)
+        const subscriptions = subsRows.map(row => {
+            const sub: Partial<Subscription> = {
+                id: row[0] || '',
+                platform: row[1] || '',
+                category: row[2] || '',
+                amount: parseFloat(row[3] || '0'),
+                currency: (row[4] || 'USD') as 'USD' | 'DOP' | 'EUR',
+                billingCycle: (row[5] || 'Monthly') as 'Monthly' | 'Yearly',
+                renewalDay: parseInt(row[6] || '1'),
+                cardUsed: row[7] || '',
+                status: (row[8] || 'Active') as Subscription['status'],
+                ownerId: row[9] || undefined,
+                users: row[10] ? (typeof row[10] === 'string' ? row[10].split(',').filter(Boolean) : []) : [],
+                receiptUrl: row[11] || undefined,
+                notes: row[12] || undefined,
+                createdAt: row[13] || new Date().toISOString(),
+                updatedAt: row[14] || new Date().toISOString(),
+                createdBy: row[15] || undefined,
+            };
+            // Legacy compatibility
+            if (!sub.ownerId && row[9]) sub.owner = row[9];
+            if (!sub.amount && row[3]) sub.cost = parseFloat(row[3] || '0');
+            return sub as Subscription;
+        });
 
-        const expenses = expRows.map(row => ({
-            id: row[0],
-            date: row[1],
-            description: row[2],
-            amount: parseFloat(row[3]),
-            currency: row[4],
-            category: row[5],
-            type: row[6],
-            receiptUrl: row[7],
-            status: row[8]
-        }));
+        // Parse Transactions (nuevo formato)
+        const transactions = transRows.map(row => {
+            const trans: Partial<Transaction> = {
+                id: row[0] || '',
+                date: row[1] || new Date().toISOString().split('T')[0],
+                vendor: row[2] || '',
+                kind: (row[3] || 'one_off') as Transaction['kind'],
+                amount: parseFloat(row[4] || '0'),
+                currency: (row[5] || 'USD') as 'USD' | 'DOP' | 'EUR',
+                category: row[6] || '',
+                payerId: row[7] || undefined,
+                users: row[8] ? (typeof row[8] === 'string' ? row[8].split(',').filter(Boolean) : []) : [],
+                subscriptionId: row[9] || undefined,
+                receiptRef: row[10] || undefined,
+                receiptUrl: row[11] || undefined,
+                notes: row[12] || undefined,
+                status: (row[13] || 'pending') as Transaction['status'],
+                createdAt: row[14] || new Date().toISOString(),
+                updatedAt: row[15] || new Date().toISOString(),
+                createdBy: row[16] || undefined,
+            };
+            return trans as Transaction;
+        });
 
-        return NextResponse.json({ subscriptions, expenses });
+        // Si no hay Transactions, intentar leer Expenses (legacy)
+        let expenses: any[] = [];
+        if (transactions.length === 0) {
+            try {
+                const expResponse = await sheetsService['sheets'].spreadsheets.values.get({
+                    spreadsheetId,
+                    range: 'Expenses!A2:I'
+                });
+                const expRows = expResponse.data.values || [];
+                expenses = expRows.map(row => ({
+                    id: row[0],
+                    date: row[1],
+                    description: row[2],
+                    amount: parseFloat(row[3] || '0'),
+                    currency: row[4] || 'USD',
+                    category: row[5] || '',
+                    type: row[6] || 'One-off',
+                    receiptUrl: row[7] || undefined,
+                    status: row[8] || 'Pending'
+                }));
+            } catch (e) {
+                // Expenses sheet no existe o está vacía, no pasa nada
+            }
+        }
+
+        return NextResponse.json({ subscriptions, transactions, expenses });
     } catch (error) {
         console.error('Error fetching finance data:', error);
         return NextResponse.json({ error: 'Failed to fetch' }, { status: 500 });
@@ -137,42 +187,88 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: true, count: newSubs.length });
 
         } else if (type === 'subscription') {
+            const now = new Date().toISOString();
+            const subId = data.id || crypto.randomUUID();
             await sheetsService['sheets'].spreadsheets.values.append({
                 spreadsheetId,
-                range: 'Subscriptions!A:K',
+                range: 'Subscriptions!A:P',
                 valueInputOption: 'USER_ENTERED',
                 requestBody: {
                     values: [[
-                        crypto.randomUUID(),
-                        data.platform,
-                        data.category,
-                        parseFloat(data.cost),
-                        data.currency,
-                        data.billingCycle,
-                        parseInt(data.renewalDay),
-                        data.cardUsed,
-                        data.status,
-                        data.owner,
-                        data.notes
+                        subId,
+                        data.platform || '',
+                        data.category || '',
+                        parseFloat(data.amount || data.cost || '0'), // Support both 'amount' and legacy 'cost'
+                        data.currency || 'USD',
+                        data.billingCycle || 'Monthly',
+                        parseInt(data.renewalDay || '1'),
+                        data.cardUsed || '',
+                        data.status || 'Active',
+                        data.ownerId || '', // TeamMember ID
+                        (data.users && Array.isArray(data.users) ? data.users.join(',') : '') || '', // Users as comma-separated
+                        data.receiptUrl || '',
+                        data.notes || '',
+                        data.createdAt || now,
+                        now, // updatedAt
+                        session.user?.email || '' // createdBy
+                    ]]
+                }
+            });
+        } else if (type === 'transaction') {
+            const now = new Date().toISOString();
+            const transId = data.id || crypto.randomUUID();
+            await sheetsService['sheets'].spreadsheets.values.append({
+                spreadsheetId,
+                range: 'Transactions!A:Q',
+                valueInputOption: 'USER_ENTERED',
+                requestBody: {
+                    values: [[
+                        transId,
+                        data.date || new Date().toISOString().split('T')[0],
+                        data.vendor || '',
+                        data.kind || 'one_off',
+                        parseFloat(data.amount || '0'),
+                        data.currency || 'USD',
+                        data.category || '',
+                        data.payerId || '', // TeamMember ID
+                        (data.users && Array.isArray(data.users) ? data.users.join(',') : '') || '',
+                        data.subscriptionId || '',
+                        data.receiptRef || '',
+                        data.receiptUrl || '',
+                        data.notes || '',
+                        data.status || 'pending',
+                        data.createdAt || now,
+                        now, // updatedAt
+                        session.user?.email || '' // createdBy
                     ]]
                 }
             });
         } else if (type === 'expense') {
+            // Legacy support: crear como Transaction
+            const now = new Date().toISOString();
             await sheetsService['sheets'].spreadsheets.values.append({
                 spreadsheetId,
-                range: 'Expenses!A:I',
+                range: 'Transactions!A:Q',
                 valueInputOption: 'USER_ENTERED',
                 requestBody: {
                     values: [[
                         crypto.randomUUID(),
-                        new Date().toISOString(),
-                        data.description,
-                        parseFloat(data.amount),
-                        data.currency,
-                        data.category,
-                        data.type,
-                        '', // Receipt URL placeholder
-                        'Pending'
+                        data.date || new Date().toISOString().split('T')[0],
+                        data.description || data.vendor || '',
+                        'one_off', // kind
+                        parseFloat(data.amount || '0'),
+                        data.currency || 'USD',
+                        data.category || '',
+                        '', // payerId
+                        '', // users
+                        '', // subscriptionId
+                        '', // receiptRef
+                        data.receiptUrl || '',
+                        data.notes || '',
+                        (data.status || 'pending').toLowerCase(),
+                        now,
+                        now,
+                        session.user?.email || ''
                     ]]
                 }
             });
@@ -201,13 +297,21 @@ export async function DELETE(req: Request) {
             // Clear all data leaving header
             await sheetsService['sheets'].spreadsheets.values.clear({
                 spreadsheetId,
-                range: 'Subscriptions!A2:K',
+                range: 'Subscriptions!A2:P',
             });
-            // Also clear expenses? potentially.
             await sheetsService['sheets'].spreadsheets.values.clear({
                 spreadsheetId,
-                range: 'Expenses!A2:I',
+                range: 'Transactions!A2:Q',
             });
+            // Legacy: también limpiar Expenses si existe
+            try {
+                await sheetsService['sheets'].spreadsheets.values.clear({
+                    spreadsheetId,
+                    range: 'Expenses!A2:I',
+                });
+            } catch (e) {
+                // Expenses sheet puede no existir, no pasa nada
+            }
             return NextResponse.json({ success: true, message: 'Reset complete' });
         }
 

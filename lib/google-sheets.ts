@@ -72,7 +72,9 @@ export class GoogleSheetsService {
             { title: 'Tasks', headers: ['ID', 'Title', 'Status', 'Area', 'Month', 'Week', 'Responsible', 'Notes', 'ScheduledDate', 'ScheduledTime'] },
             { title: 'Gates', headers: ['ID', 'Title', 'Status', 'Date', 'Description'] },
             { title: 'Team', headers: ['ID', 'Name', 'Email', 'Role', 'Department', 'Position', 'Status', 'Type', 'Phone', 'AccessGranted', 'Metadata'] },
-            { title: 'Subscriptions', headers: ['ID', 'Platform', 'Category', 'Cost', 'Currency', 'BillingCycle', 'RenewalDay', 'CardUsed', 'Status', 'Owner', 'Notes'] },
+            { title: 'Subscriptions', headers: ['ID', 'Platform', 'Category', 'Amount', 'Currency', 'BillingCycle', 'RenewalDay', 'CardUsed', 'Status', 'OwnerId', 'Users', 'ReceiptUrl', 'Notes', 'CreatedAt', 'UpdatedAt', 'CreatedBy'] },
+            { title: 'Transactions', headers: ['ID', 'Date', 'Vendor', 'Kind', 'Amount', 'Currency', 'Category', 'PayerId', 'Users', 'SubscriptionId', 'ReceiptRef', 'ReceiptUrl', 'Notes', 'Status', 'CreatedAt', 'UpdatedAt', 'CreatedBy'] },
+            // Legacy sheet (mantener para migración)
             { title: 'Expenses', headers: ['ID', 'Date', 'Description', 'Amount', 'Currency', 'Category', 'Type', 'ReceiptUrl', 'Status'] }
         ];
 

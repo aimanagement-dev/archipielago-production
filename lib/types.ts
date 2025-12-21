@@ -131,28 +131,71 @@ export interface Stats {
   totalGates: number;
 }
 
-export type SubscriptionStatus = 'Active' | 'Cancelled' | 'Paused';
+export type SubscriptionStatus = 'Active' | 'Cancelled' | 'Paused' | 'Trial';
 export type BillingCycle = 'Monthly' | 'Yearly';
 
 export interface Subscription {
   id: string;
   platform: string;
-  category: string; // e.g. "Software", "AI Tools", "Infrastructure"
-  cost: number;
+  category: string; // e.g. "LLMS", "Gen. Img/Video", "Infrastructure"
+  amount: number; // Renamed from 'cost' for consistency
   currency: 'USD' | 'DOP' | 'EUR';
   billingCycle: BillingCycle;
   renewalDay: number; // 1-31
-  cardUsed: string; // e.g. "Amex 1004"
+  cardUsed?: string; // e.g. "VISA 4237"
   status: SubscriptionStatus;
-  owner?: string; // Email
+  
+  // INTEGRACIÓN CON CREW
+  ownerId?: string; // ID del TeamMember que "paga" (dropdown)
+  users: string[]; // IDs de TeamMembers que "usan" (multi-select)
+  
+  // Metadata
   notes?: string;
+  receiptUrl?: string; // Link a factura en Drive
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string; // Email del admin que creó
+  
+  // Legacy compatibility (deprecated, use ownerId instead)
+  owner?: string; // Email (mantener para migración)
+  cost?: number; // Alias de amount (mantener para compatibilidad)
 }
 
-export type ExpenseType = 'Subscription Charge' | 'One-off' | 'Reimbursement';
+export type TransactionKind = 'fixed' | 'extra' | 'one_off' | 'trial';
+export type TransactionStatus = 'pending' | 'approved' | 'paid';
 
+export interface Transaction {
+  id: string;
+  date: string; // Fecha real del gasto (YYYY-MM-DD)
+  vendor: string; // Plataforma/vendor
+  kind: TransactionKind; // Tipo fuerte: fixed/extra/one_off/trial
+  amount: number;
+  currency: 'USD' | 'DOP' | 'EUR';
+  category: string; // "LLMS", "Ed. Video", etc.
+  
+  // INTEGRACIÓN CON CREW
+  payerId?: string; // ID del TeamMember que pagó (dropdown)
+  users: string[]; // IDs de TeamMembers que usaron (multi-select)
+  
+  // Vinculación opcional
+  subscriptionId?: string; // Si este gasto viene de una suscripción
+  
+  // Receipt & Control
+  receiptRef?: string; // "invoice", "receipt", "factura", o texto libre
+  receiptUrl?: string; // Link al archivo
+  notes?: string;
+  
+  status: TransactionStatus;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string; // Email del admin que creó
+}
+
+// Legacy type (deprecated, use Transaction instead)
+export type ExpenseType = 'Subscription Charge' | 'One-off' | 'Reimbursement';
 export interface Expense {
   id: string;
-  date: string; // ISO String or YYYY-MM-DD
+  date: string;
   description: string;
   amount: number;
   currency: 'USD' | 'DOP' | 'EUR';

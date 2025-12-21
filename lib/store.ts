@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Task, TeamMember, Gate, CalendarEvent, Stats, Subscription, Expense } from './types';
+import { Task, TeamMember, Gate, CalendarEvent, Stats, Subscription, Transaction, Expense } from './types';
 import { generateId } from './utils';
 import tasksData from '@/data/tasks.json';
 import teamData from '@/data/team.json';
@@ -14,7 +14,8 @@ interface AppState {
   // Finance State
   finance: {
     subscriptions: Subscription[];
-    expenses: Expense[];
+    transactions: Transaction[];
+    expenses: Expense[]; // Legacy, mantener para migración
   };
 
   isLoading: boolean;
@@ -39,7 +40,12 @@ interface AppState {
 
   // Finance Actions
   fetchFinance: () => Promise<void>;
-  addTransaction: (type: 'subscription' | 'expense', data: any) => Promise<void>;
+  addSubscription: (data: Partial<Subscription>) => Promise<void>;
+  addTransaction: (data: Partial<Transaction>) => Promise<void>;
+  updateSubscription: (id: string, data: Partial<Subscription>) => Promise<void>;
+  updateTransaction: (id: string, data: Partial<Transaction>) => Promise<void>;
+  deleteSubscription: (id: string) => Promise<void>;
+  deleteTransaction: (id: string) => Promise<void>;
 
   // Computed
   getStats: () => Stats;
@@ -71,6 +77,7 @@ export const useStore = create<AppState>()(
       events: [],
       finance: {
         subscriptions: [],
+        transactions: [],
         expenses: []
       },
       isLoading: false,
@@ -284,7 +291,8 @@ export const useStore = create<AppState>()(
             set({
               finance: {
                 subscriptions: data.subscriptions || [],
-                expenses: data.expenses || []
+                transactions: data.transactions || [],
+                expenses: data.expenses || [] // Legacy
               }
             });
           }
@@ -293,30 +301,107 @@ export const useStore = create<AppState>()(
         }
       },
 
-      addTransaction: async (type: 'subscription' | 'expense', data: any) => {
+      addSubscription: async (data: Partial<Subscription>) => {
         const newId = generateId();
-        const newItem = { ...data, id: newId };
+        const newSub: Subscription = {
+          id: newId,
+          platform: data.platform || '',
+          category: data.category || '',
+          amount: data.amount || 0,
+          currency: data.currency || 'USD',
+          billingCycle: data.billingCycle || 'Monthly',
+          renewalDay: data.renewalDay || 1,
+          cardUsed: data.cardUsed,
+          status: data.status || 'Active',
+          ownerId: data.ownerId,
+          users: data.users || [],
+          receiptUrl: data.receiptUrl,
+          notes: data.notes,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          createdBy: data.createdBy
+        };
 
         try {
           const response = await fetch('/api/finance', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type, data: newItem })
+            body: JSON.stringify({ type: 'subscription', data: newSub })
           });
           if (response.ok) {
-            set((state) => {
-              const newFinance = { ...state.finance };
-              if (type === 'subscription') {
-                newFinance.subscriptions = [...newFinance.subscriptions, newItem];
-              } else {
-                newFinance.expenses = [...newFinance.expenses, newItem];
+            set((state) => ({
+              finance: {
+                ...state.finance,
+                subscriptions: [...state.finance.subscriptions, newSub]
               }
-              return { finance: newFinance };
-            });
+            }));
+            get().fetchFinance(); // Refresh to get server-generated fields
+          }
+        } catch (error) {
+          console.error('Error adding subscription:', error);
+        }
+      },
+
+      addTransaction: async (data: Partial<Transaction>) => {
+        const newId = generateId();
+        const newTrans: Transaction = {
+          id: newId,
+          date: data.date || new Date().toISOString().split('T')[0],
+          vendor: data.vendor || '',
+          kind: data.kind || 'one_off',
+          amount: data.amount || 0,
+          currency: data.currency || 'USD',
+          category: data.category || '',
+          payerId: data.payerId,
+          users: data.users || [],
+          subscriptionId: data.subscriptionId,
+          receiptRef: data.receiptRef,
+          receiptUrl: data.receiptUrl,
+          notes: data.notes,
+          status: data.status || 'pending',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          createdBy: data.createdBy
+        };
+
+        try {
+          const response = await fetch('/api/finance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'transaction', data: newTrans })
+          });
+          if (response.ok) {
+            set((state) => ({
+              finance: {
+                ...state.finance,
+                transactions: [...state.finance.transactions, newTrans]
+              }
+            }));
+            get().fetchFinance(); // Refresh
           }
         } catch (error) {
           console.error('Error adding transaction:', error);
         }
+      },
+
+      updateSubscription: async (id: string, data: Partial<Subscription>) => {
+        // TODO: Implementar PUT endpoint
+        console.log('updateSubscription not yet implemented');
+      },
+
+      updateTransaction: async (id: string, data: Partial<Transaction>) => {
+        // TODO: Implementar PUT endpoint
+        console.log('updateTransaction not yet implemented');
+      },
+
+      deleteSubscription: async (id: string) => {
+        // TODO: Implementar DELETE endpoint
+        console.log('deleteSubscription not yet implemented');
+      },
+
+      deleteTransaction: async (id: string) => {
+        // TODO: Implementar DELETE endpoint
+        console.log('deleteTransaction not yet implemented');
       },
 
 

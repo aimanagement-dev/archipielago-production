@@ -2,26 +2,51 @@
 
 import { useEffect, useState } from 'react';
 import { useStore } from '@/lib/store';
-import { CreditCard, DollarSign, Calendar, Plus, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react';
+import { CreditCard, DollarSign, Calendar, Plus, TrendingUp, AlertCircle, RefreshCw, Pencil, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-// import FinanceModal from './FinanceModal'; // To be implemented
+import { Subscription, Transaction } from '@/lib/types';
+import SubscriptionModal from './SubscriptionModal';
+import TransactionModal from './TransactionModal';
 
 export default function FinanceDashboard() {
-    const { finance, fetchFinance } = useStore();
+    const { finance, team, fetchFinance, fetchTeam, addSubscription, addTransaction } = useStore();
     const [isLoaded, setIsLoaded] = useState(false);
+    const [isSubModalOpen, setIsSubModalOpen] = useState(false);
+    const [isTransModalOpen, setIsTransModalOpen] = useState(false);
+    const [editingSub, setEditingSub] = useState<Subscription | undefined>(undefined);
+    const [editingTrans, setEditingTrans] = useState<Transaction | undefined>(undefined);
 
     useEffect(() => {
-        fetchFinance().then(() => setIsLoaded(true));
-    }, [fetchFinance]);
+        fetchFinance();
+        fetchTeam();
+        setIsLoaded(true);
+    }, [fetchFinance, fetchTeam]);
+
+    // Helper: Get team member name by ID
+    const getMemberName = (id?: string) => {
+        if (!id) return 'N/A';
+        const member = team.find(m => m.id === id);
+        return member?.name || id;
+    };
+
+    // Helper: Get team member names by IDs
+    const getMemberNames = (ids: string[] = []) => {
+        if (ids.length === 0) return 'N/A';
+        return ids.map(id => getMemberName(id)).join(', ');
+    };
 
     // Calculations
     const activeSubs = finance.subscriptions.filter(s => s.status === 'Active');
-    const totalMonthlyFixed = activeSubs.reduce((acc, sub) => acc + sub.cost, 0);
+    const totalMonthlyFixed = activeSubs.reduce((acc, sub) => acc + (sub.amount || sub.cost || 0), 0);
 
-    // Get current month expenses
+    // Get current month transactions
     const currentMonth = new Date().getMonth();
-    const monthlyExpenses = finance.expenses.filter(e => new Date(e.date).getMonth() === currentMonth);
-    const totalVariable = monthlyExpenses.reduce((acc, exp) => acc + exp.amount, 0);
+    const currentYear = new Date().getFullYear();
+    const monthlyTransactions = finance.transactions.filter(t => {
+        const transDate = new Date(t.date);
+        return transDate.getMonth() === currentMonth && transDate.getFullYear() === currentYear;
+    });
+    const totalVariable = monthlyTransactions.reduce((acc, trans) => acc + trans.amount, 0);
 
     const projectedBurn = totalMonthlyFixed + totalVariable;
 
@@ -87,7 +112,6 @@ export default function FinanceDashboard() {
     const handleClearData = async () => {
         if (!confirm('⚠️ ¿Estás seguro? Esto BORRARÁ TODAS las suscripciones importadas para reiniciar. Úsalo si la importación salió mal.')) return;
         try {
-            // Reset call
             const res = await fetch('/api/finance?action=reset_all', {
                 method: 'DELETE',
             });
@@ -96,7 +120,27 @@ export default function FinanceDashboard() {
                 fetchFinance();
             }
         } catch (e) { alert('Error al reiniciar'); }
-    }
+    };
+
+    const handleSaveSubscription = async (data: Partial<Subscription>) => {
+        await addSubscription(data);
+        fetchFinance();
+    };
+
+    const handleSaveTransaction = async (data: Partial<Transaction>) => {
+        await addTransaction(data);
+        fetchFinance();
+    };
+
+    const handleEditSub = (sub: Subscription) => {
+        setEditingSub(sub);
+        setIsSubModalOpen(true);
+    };
+
+    const handleEditTrans = (trans: Transaction) => {
+        setEditingTrans(trans);
+        setIsTransModalOpen(true);
+    };
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -116,24 +160,36 @@ export default function FinanceDashboard() {
                     </div>
                 </div>
 
-                <div className="flex gap-3 w-full md:w-auto">
+                <div className="flex gap-3 w-full md:w-auto flex-wrap">
+                    <button
+                        onClick={() => {
+                            setEditingSub(undefined);
+                            setIsSubModalOpen(true);
+                        }}
+                        className="flex-1 md:flex-none px-4 py-2.5 bg-primary hover:bg-primary/90 text-white text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
+                        <Plus className="w-4 h-4" />
+                        Nueva Suscripción
+                    </button>
+                    <button
+                        onClick={() => {
+                            setEditingTrans(undefined);
+                            setIsTransModalOpen(true);
+                        }}
+                        className="flex-1 md:flex-none px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
+                        <Plus className="w-4 h-4" />
+                        Nueva Transacción
+                    </button>
                     <button
                         onClick={handleExportReport}
                         className="flex-1 md:flex-none px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white text-xs font-medium rounded-lg border border-white/10 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
                         📄 Exportar
                     </button>
-                    {activeSubs.length > 0 ? (
+                    {activeSubs.length > 0 && (
                         <button
                             onClick={handleClearData}
                             className="flex-1 md:flex-none px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium rounded-lg border border-red-500/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 group">
                             <RefreshCw className="w-3 h-3 group-hover:rotate-180 transition-transform" />
-                            Reiniciar Data
-                        </button>
-                    ) : (
-                        <button
-                            onClick={handleImportLegacy}
-                            className="flex-1 md:flex-none px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-blue-500/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
-                            🔄 Importar Legacy (v3)
+                            Reiniciar
                         </button>
                     )}
                 </div>
@@ -197,21 +253,31 @@ export default function FinanceDashboard() {
                         <div className="divide-y divide-white/5">
                             {activeSubs.map(sub => (
                                 <div key={sub.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors group">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-800 to-black border border-white/10 flex items-center justify-center text-xl font-bold text-white/40 group-hover:text-white group-hover:border-blue-500/50 transition-all shadow-lg">
+                                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-800 to-black border border-white/10 flex items-center justify-center text-xl font-bold text-white/40 group-hover:text-white group-hover:border-blue-500/50 transition-all shadow-lg flex-shrink-0">
                                             {sub.platform.slice(0, 2).toUpperCase()}
                                         </div>
-                                        <div>
-                                            <p className="font-bold text-white leading-none text-lg">{sub.platform}</p>
-                                            <div className="flex items-center gap-2 mt-1.5">
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-bold text-white leading-none text-lg truncate">{sub.platform}</p>
+                                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                                 <span className="text-xs px-2 py-0.5 rounded bg-white/5 text-muted-foreground border border-white/5">
                                                     {sub.category}
                                                 </span>
+                                                {sub.ownerId && (
+                                                    <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                                                        Owner: {getMemberName(sub.ownerId)}
+                                                    </span>
+                                                )}
+                                                {sub.users && sub.users.length > 0 && (
+                                                    <span className="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20" title={getMemberNames(sub.users)}>
+                                                        {sub.users.length} usuario{sub.users.length > 1 ? 's' : ''}
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center gap-8">
+                                    <div className="flex items-center gap-4 flex-shrink-0">
                                         <div className="text-right hidden sm:block">
                                             <p className="text-xs text-muted-foreground mb-0.5">Renovación</p>
                                             <div className="flex items-center gap-1.5 justify-end">
@@ -220,9 +286,16 @@ export default function FinanceDashboard() {
                                             </div>
                                         </div>
                                         <div className="text-right min-w-[100px]">
-                                            <p className="font-bold text-emerald-400 text-xl tracking-tight">${sub.cost}</p>
+                                            <p className="font-bold text-emerald-400 text-xl tracking-tight">${sub.amount || sub.cost || 0}</p>
                                             <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{sub.currency} / MES</p>
                                         </div>
+                                        <button
+                                            onClick={() => handleEditSub(sub)}
+                                            className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors opacity-0 group-hover:opacity-100"
+                                            title="Editar"
+                                        >
+                                            <Pencil className="w-4 h-4" />
+                                        </button>
                                     </div>
                                 </div>
                             ))}
@@ -276,6 +349,26 @@ export default function FinanceDashboard() {
                     </div>
                 </div>
             </div>
+
+            {/* Modals */}
+            <SubscriptionModal
+                isOpen={isSubModalOpen}
+                onClose={() => {
+                    setIsSubModalOpen(false);
+                    setEditingSub(undefined);
+                }}
+                onSave={handleSaveSubscription}
+                initialData={editingSub}
+            />
+            <TransactionModal
+                isOpen={isTransModalOpen}
+                onClose={() => {
+                    setIsTransModalOpen(false);
+                    setEditingTrans(undefined);
+                }}
+                onSave={handleSaveTransaction}
+                initialData={editingTrans}
+            />
         </div>
     );
 }
