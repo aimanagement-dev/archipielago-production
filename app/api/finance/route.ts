@@ -26,25 +26,25 @@ export async function GET() {
         const isValidSubscription = (row: any[]): boolean => {
             const platform = row[1] || ''; // Columna B (Platform)
             if (!platform || typeof platform !== 'string') return false;
-            
+
             // Excluir headers y resúmenes
             const invalidPlatforms = [
                 'RESUMEN MENSUAL', 'Mes', 'Total Proyecto', 'Promedio Mensual',
                 'Platform', 'ID', 'ID', '' // Headers posibles
             ];
             if (invalidPlatforms.includes(platform.trim())) return false;
-            
+
             // Excluir nombres de meses (November 2025, December 2025, etc.)
             if (platform.match(/^(January|February|March|April|May|June|July|August|September|October|November|December)\s\d{4}$/i)) {
                 return false;
             }
-            
+
             // Excluir si el status es "Total" o similar
             const status = row[8] || '';
             if (status && typeof status === 'string' && status.toLowerCase().includes('total')) {
                 return false;
             }
-            
+
             return true;
         };
 
@@ -52,28 +52,28 @@ export async function GET() {
         const subscriptions = subsRows
             .filter(isValidSubscription)
             .map(row => {
-            const sub: Partial<Subscription> = {
-                id: row[0] || '',
-                platform: row[1] || '',
-                category: row[2] || '',
-                amount: parseFloat(row[3] || '0'),
-                currency: (row[4] || 'USD') as 'USD' | 'DOP' | 'EUR',
-                billingCycle: (row[5] || 'Monthly') as 'Monthly' | 'Yearly',
-                renewalDay: parseInt(row[6] || '1'),
-                cardUsed: row[7] || '',
-                status: (row[8] || 'Active') as Subscription['status'],
-                ownerId: row[9] || undefined,
-                users: row[10] ? (typeof row[10] === 'string' ? row[10].split(',').filter(Boolean) : []) : [],
-                receiptUrl: row[11] || undefined,
-                notes: row[12] || undefined,
-                createdAt: row[13] || new Date().toISOString(),
-                updatedAt: row[14] || new Date().toISOString(),
+                const sub: Partial<Subscription> = {
+                    id: row[0] || '',
+                    platform: row[1] || '',
+                    category: row[2] || '',
+                    amount: parseFloat(row[3] || '0'),
+                    currency: (row[4] || 'USD') as 'USD' | 'DOP' | 'EUR',
+                    billingCycle: (row[5] || 'Monthly') as 'Monthly' | 'Yearly',
+                    renewalDay: parseInt(row[6] || '1'),
+                    cardUsed: row[7] || '',
+                    status: (row[8] || 'Active') as Subscription['status'],
+                    ownerId: row[9] || undefined,
+                    users: row[10] ? (typeof row[10] === 'string' ? row[10].split(',').filter(Boolean) : []) : [],
+                    receiptUrl: row[11] || undefined,
+                    notes: row[12] || undefined,
+                    createdAt: row[13] || new Date().toISOString(),
+                    updatedAt: row[14] || new Date().toISOString(),
                     createdBy: row[15] || undefined,
-            };
-            // Legacy compatibility
-            if (!sub.ownerId && row[9]) sub.owner = row[9];
-            if (!sub.amount && row[3]) sub.cost = parseFloat(row[3] || '0');
-            return sub as Subscription;
+                };
+                // Legacy compatibility
+                if (!sub.ownerId && row[9]) sub.owner = row[9];
+                if (!sub.amount && row[3]) sub.cost = parseFloat(row[3] || '0');
+                return sub as Subscription;
             });
 
         // Parse Transactions (nuevo formato)
@@ -160,14 +160,14 @@ export async function POST(req: Request) {
                 .filter(row => {
                     const platform = row[0];
                     if (!platform || typeof platform !== 'string') return false;
-                    
+
                     // Filter out empty rows, summary headers
                     const invalidPlatforms = [
                         'RESUMEN MENSUAL', 'Mes', 'Total Proyecto', 'Promedio Mensual',
                         'Platform', 'ID', '' // Headers posibles
                     ];
                     if (invalidPlatforms.includes(platform.trim())) return false;
-                    
+
                     // Check for dates in platform like "November 2025" or "Nov 2025" (case insensitive)
                     if (platform.match(/^(January|February|March|April|May|June|July|August|September|October|November|December)\s\d{4}$/i)) {
                         return false;
@@ -224,6 +224,79 @@ export async function POST(req: Request) {
                 });
             }
             return NextResponse.json({ success: true, count: newSubs.length });
+
+        } else if (type === 'import_monthly_expenses') {
+            const legacySpreadsheetId = '1ZSVEv_c2bZ1PUpX9uWuiaz32rJSJdch14Psy3J7F_qY';
+            const monthsToImport = ['Noviembre 2025', 'Diciembre 2025']; // Add more if needed or dynamic
+            let totalImported = 0;
+
+            for (const monthSheet of monthsToImport) {
+                try {
+                    const response = await sheetsService['sheets'].spreadsheets.values.get({
+                        spreadsheetId: legacySpreadsheetId,
+                        range: `${monthSheet}!A4:F50`, // Adjust range based on typical sheet structure
+                    });
+
+                    const rows = response.data.values;
+                    if (!rows || rows.length === 0) continue;
+
+                    // Map rows to Expenses
+                    // Assumed Legacy Structure:
+                    // Col A: Date? Or Item Name?
+                    // Typically: Item | Category | ... | Cost | ...
+                    // Let's assume:
+                    // A: Item/Description
+                    // B: Category
+                    // C: ???
+                    // D: Cost (Amount)
+                    // E: Currency?
+
+                    const expenses = rows
+                        .filter(row => row[0] && row[0] !== 'Total' && row[3]) // Basic filter
+                        .map(row => {
+                            const amountStr = row[3] ? row[3].replace(/[$,]/g, '') : '0';
+                            const amount = parseFloat(amountStr);
+
+                            if (isNaN(amount) || amount === 0) return null;
+
+                            // construct a date. 
+                            // If sheet is "Noviembre 2025", we can default to 1st of month or try to find a date column.
+                            // If no date col, use 1st of month.
+                            const monthIndex = monthSheet.includes('Noviembre') ? 10 : 11; // 0-indexed
+                            const year = 2025;
+                            // check if row has a specific date? Maybe Col F? 
+                            // Let's default to Day 1 for now to ensure it lands in the month.
+                            const date = new Date(year, monthIndex, 1).toISOString();
+
+                            return [
+                                crypto.randomUUID(), // ID
+                                date,
+                                row[0], // Description (Item)
+                                amount,
+                                'USD', // Default currency
+                                row[1] || 'General', // Category
+                                'variable', // Type (vs fixed)
+                                '', // Receipt
+                                'Paid' // Status
+                            ];
+                        })
+                        .filter(x => x !== null);
+
+                    if (expenses.length > 0) {
+                        await sheetsService['sheets'].spreadsheets.values.append({
+                            spreadsheetId,
+                            range: 'Expenses!A:I',
+                            valueInputOption: 'USER_ENTERED',
+                            requestBody: { values: expenses }
+                        });
+                        totalImported += expenses.length;
+                    }
+
+                } catch (err) {
+                    console.error(`Failed to import ${monthSheet}:`, err);
+                }
+            }
+            return NextResponse.json({ success: true, count: totalImported, months: monthsToImport });
 
         } else if (type === 'subscription') {
             const now = new Date().toISOString();
@@ -286,9 +359,9 @@ export async function POST(req: Request) {
             // Importar gastos variables desde hojas mensuales (Nov y Dec)
             const legacySpreadsheetId = '1ZSVEv_c2bZ1PUpX9uWuiaz32rJSJdch14Psy3J7F_qY';
             const months = ['November 2025', 'December 2025']; // Solo estos tienen datos
-            
+
             const allTransactions: any[] = [];
-            
+
             for (const monthName of months) {
                 try {
                     // Leer hoja mensual - buscar rango "REGISTRO DE GASTOS"
@@ -296,16 +369,16 @@ export async function POST(req: Request) {
                         spreadsheetId: legacySpreadsheetId,
                         range: `'${monthName}'!A:J`, // Ajustar rango según estructura
                     });
-                    
+
                     const monthRows = monthResponse.data.values || [];
                     if (!monthRows || monthRows.length === 0) continue;
-                    
+
                     // Buscar fila "REGISTRO DE GASTOS" o similar
                     let startRow = -1;
                     for (let i = 0; i < monthRows.length; i++) {
                         const row = monthRows[i];
                         if (row && row[0] && typeof row[0] === 'string') {
-                            if (row[0].toLowerCase().includes('registro') || 
+                            if (row[0].toLowerCase().includes('registro') ||
                                 row[0].toLowerCase().includes('gastos') ||
                                 row[0].toLowerCase().includes('expenses')) {
                                 startRow = i + 1; // Siguiente fila después del header
@@ -313,20 +386,20 @@ export async function POST(req: Request) {
                             }
                         }
                     }
-                    
+
                     if (startRow === -1) {
                         // Si no encuentra header, asumir que empieza después de fila 5
                         startRow = 5;
                     }
-                    
+
                     // Parsear gastos desde startRow
                     for (let i = startRow; i < monthRows.length; i++) {
                         const row = monthRows[i];
                         if (!row || !row[0]) continue; // Skip empty rows
-                        
+
                         const description = row[0] || '';
                         if (!description || description.trim() === '') continue;
-                        
+
                         // Skip headers y totales
                         if (description.toLowerCase().includes('total') ||
                             description.toLowerCase().includes('subtotal') ||
@@ -334,12 +407,12 @@ export async function POST(req: Request) {
                             description.match(/^(January|February|March|April|May|June|July|August|September|October|November|December)\s\d{4}$/i)) {
                             continue;
                         }
-                        
+
                         // Parsear campos (ajustar índices según estructura real del Excel)
                         const amountStr = row[1] || row[2] || '0'; // Ajustar según columna de monto
                         const amount = parseFloat(amountStr.toString().replace(/[$,]/g, '')) || 0;
                         if (amount === 0) continue; // Skip si no hay monto
-                        
+
                         const dateStr = row[2] || row[3] || ''; // Ajustar según columna de fecha
                         let date = new Date().toISOString().split('T')[0];
                         if (dateStr) {
@@ -351,8 +424,8 @@ export async function POST(req: Request) {
                                 // Si no se puede parsear, usar mes del nombre de la hoja
                                 const monthMatch = monthName.match(/(\w+)\s(\d{4})/);
                                 if (monthMatch) {
-                                    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                                                       'July', 'August', 'September', 'October', 'November', 'December'];
+                                    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                                        'July', 'August', 'September', 'October', 'November', 'December'];
                                     const monthIndex = monthNames.indexOf(monthMatch[1]);
                                     if (monthIndex !== -1) {
                                         date = `${monthMatch[2]}-${String(monthIndex + 1).padStart(2, '0')}-01`;
@@ -360,11 +433,11 @@ export async function POST(req: Request) {
                                 }
                             }
                         }
-                        
+
                         // Determinar si es gasto extra de suscripción o one-off
                         let kind: 'fixed' | 'extra' | 'one_off' | 'trial' = 'one_off';
                         let subscriptionId: string | undefined = undefined;
-                        
+
                         // Buscar suscripción por nombre en description
                         const descLower = description.toLowerCase();
                         const allSubs = await sheetsService['sheets'].spreadsheets.values.get({
@@ -382,9 +455,9 @@ export async function POST(req: Request) {
                                 }
                             }
                         }
-                        
+
                         const category = row[3] || row[4] || 'Other'; // Ajustar según columna
-                        
+
                         allTransactions.push({
                             id: crypto.randomUUID(),
                             date,
@@ -410,7 +483,7 @@ export async function POST(req: Request) {
                     // Continuar con siguiente mes
                 }
             }
-            
+
             // Escribir todas las transacciones
             if (allTransactions.length > 0) {
                 const transactionRows = allTransactions.map(t => [
@@ -432,7 +505,7 @@ export async function POST(req: Request) {
                     t.updatedAt,
                     t.createdBy || ''
                 ]);
-                
+
                 await sheetsService['sheets'].spreadsheets.values.append({
                     spreadsheetId,
                     range: 'Transactions!A:Q',
@@ -440,9 +513,9 @@ export async function POST(req: Request) {
                     requestBody: { values: transactionRows }
                 });
             }
-            
+
             return NextResponse.json({ success: true, count: allTransactions.length, months: months });
-            
+
         } else if (type === 'expense') {
             // Legacy support: crear como Transaction
             const now = new Date().toISOString();
@@ -626,7 +699,7 @@ export async function DELETE(req: Request) {
                             range: {
                                 sheetId: await (async () => {
                                     const meta = await sheetsService['sheets'].spreadsheets.get({ spreadsheetId });
-                                    const sheet = meta.data.sheets?.find(s => 
+                                    const sheet = meta.data.sheets?.find(s =>
                                         s.properties?.title === (type === 'subscription' ? 'Subscriptions' : 'Transactions')
                                     );
                                     return sheet?.properties?.sheetId || 0;
