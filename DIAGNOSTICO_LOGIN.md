@@ -114,3 +114,4 @@ Si el login falla, verás un mensaje de error en la página de login explicando 
 ---
 
 **¿Siguen los problemas?** Comparte los logs del servidor cuando intentas hacer login y podremos identificar exactamente qué está fallando.
+
