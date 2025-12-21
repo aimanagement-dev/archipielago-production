@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { Subscription, TeamMember } from '@/lib/types';
-import { X, Plus, Search, Users } from 'lucide-react';
+import { X, Plus, Search, Users, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import TeamModal from '@/components/Team/TeamModal';
+import DrivePicker from '@/components/Drive/DrivePicker';
 
 interface SubscriptionModalProps {
     isOpen: boolean;
@@ -21,6 +22,7 @@ const BILLING_CYCLES: Subscription['billingCycle'][] = ['Monthly', 'Yearly'];
 export default function SubscriptionModal({ isOpen, onClose, onSave, initialData }: SubscriptionModalProps) {
     const { team, fetchTeam, addMember } = useStore();
     const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
+    const [isDrivePickerOpen, setIsDrivePickerOpen] = useState(false);
     const [searchOwner, setSearchOwner] = useState('');
     const [searchUsers, setSearchUsers] = useState('');
 
@@ -355,13 +357,23 @@ export default function SubscriptionModal({ isOpen, onClose, onSave, initialData
                                 <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide">Metadata</h3>
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">URL de Factura</label>
-                                    <input
-                                        type="url"
-                                        value={formData.receiptUrl || ''}
-                                        onChange={(e) => setFormData({ ...formData, receiptUrl: e.target.value })}
-                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/50"
-                                        placeholder="https://drive.google.com/..."
-                                    />
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="url"
+                                            value={formData.receiptUrl || ''}
+                                            onChange={(e) => setFormData({ ...formData, receiptUrl: e.target.value })}
+                                            className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/50"
+                                            placeholder="https://drive.google.com/..."
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsDrivePickerOpen(true)}
+                                            className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/70 hover:text-white transition-colors"
+                                            title="Adjuntar desde Drive"
+                                        >
+                                            <Upload className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Notas</label>
@@ -408,6 +420,22 @@ export default function SubscriptionModal({ isOpen, onClose, onSave, initialData
                     fetchTeam();
                 }}
             />
+
+            {/* Drive Picker Modal */}
+            {isDrivePickerOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsDrivePickerOpen(false)} />
+                    <div className="relative w-full max-w-2xl z-10">
+                        <DrivePicker
+                            onSelect={(link) => {
+                                setFormData({ ...formData, receiptUrl: link });
+                                setIsDrivePickerOpen(false);
+                            }}
+                            onCancel={() => setIsDrivePickerOpen(false)}
+                        />
+                    </div>
+                </div>
+            )}
         </>
     );
 }

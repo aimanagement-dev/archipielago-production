@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Task, TaskArea, TaskStatus, Month } from '@/lib/types';
+import { Task, TaskArea, TaskStatus, Month, Attachment } from '@/lib/types';
 import TaskAttachments from './TaskAttachments';
+import { X, Plus, Search, Users, Upload, FileText, Trash2, Link as LinkIcon } from 'lucide-react';
+import DrivePicker from '@/components/Drive/DrivePicker';
 
 
 interface TaskModalProps {
@@ -32,6 +34,7 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
         visibility: 'all',
         visibleTo: [],
     });
+    const [isDrivePickerOpen, setIsDrivePickerOpen] = useState(false);
 
     // Auto-calculate Month and Week when date changes
     useEffect(() => {
@@ -220,38 +223,50 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                         )}
                     </div>
 
-                    {/* Drive Integration (Simple) */}
+                    {/* Attachments Section */}
                     <div className="space-y-2 pt-2 border-t border-white/10">
-                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                            Recursos (Drive)
-                            {formData.notes?.includes('drive.google.com') && (
-                                <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Linked</span>
-                            )}
-                        </label>
-                        <p className="text-xs text-muted-foreground mb-1">
-                            Pega el enlace a la carpeta o archivo de Drive para esta tarea.
-                        </p>
-                        <input
-                            type="text"
-                            value={formData.notes?.split('\n').find(l => l.includes('drive.google.com')) || ''}
-                            onChange={(e) => {
-                                const newLink = e.target.value;
-                                const currentNotes = formData.notes || '';
-                                const lines = currentNotes.split('\n');
-                                const existingLinkIndex = lines.findIndex(l => l.includes('drive.google.com'));
+                        <div className="flex items-center justify-between">
+                            <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                Recursos & Archivos
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => setIsDrivePickerOpen(true)}
+                                className="text-xs flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-blue-400 font-medium transition-colors"
+                            >
+                                <Plus className="w-3 h-3" /> Adjuntar desde Drive
+                            </button>
+                        </div>
 
-                                if (existingLinkIndex !== -1) {
-                                    if (newLink) lines[existingLinkIndex] = newLink;
-                                    else lines.splice(existingLinkIndex, 1);
-                                } else if (newLink) {
-                                    lines.push(newLink);
-                                }
-
-                                setFormData({ ...formData, notes: lines.join('\n').trim() });
-                            }}
-                            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-foreground text-sm focus:outline-none focus:border-blue-500/50 placeholder:text-muted-foreground/50"
-                            placeholder="https://drive.google.com/..."
-                        />
+                        {/* Attachments List */}
+                        {formData.attachments && formData.attachments.length > 0 ? (
+                            <div className="grid grid-cols-1 gap-2">
+                                {formData.attachments.map((att) => (
+                                    <div key={att.id} className="flex items-center justify-between p-2 bg-white/5 rounded border border-white/5 hover:border-white/10 group">
+                                        <div className="flex items-center gap-2 overflow-hidden">
+                                            {att.type === 'file' ? <FileText className="w-4 h-4 text-blue-400" /> : <LinkIcon className="w-4 h-4 text-purple-400" />}
+                                            <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-sm text-foreground truncate hover:underline">
+                                                {att.name}
+                                            </a>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setFormData({
+                                                    ...formData,
+                                                    attachments: formData.attachments?.filter(a => a.id !== att.id)
+                                                });
+                                            }}
+                                            className="p-1 text-white/40 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                                        >
+                                            <Trash2 className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-xs text-muted-foreground italic">No hay archivos adjuntos.</p>
+                        )}
                     </div>
 
                     {/* Attachments and Permissions (Advanced) */}
@@ -294,6 +309,33 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                     </div>
                 </form>
             </div>
+
+            {/* Drive Picker Overlay */}
+            {isDrivePickerOpen && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsDrivePickerOpen(false)} />
+                    <div className="relative w-full max-w-2xl z-10">
+                        <DrivePicker
+                            onSelect={(link, id, name) => {
+                                const newAttachment: Attachment = {
+                                    id: crypto.randomUUID(),
+                                    name: name,
+                                    type: 'file',
+                                    url: link,
+                                    addedBy: 'me',
+                                    addedAt: new Date().toISOString()
+                                };
+                                setFormData({
+                                    ...formData,
+                                    attachments: [...(formData.attachments || []), newAttachment]
+                                });
+                                setIsDrivePickerOpen(false);
+                            }}
+                            onCancel={() => setIsDrivePickerOpen(false)}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

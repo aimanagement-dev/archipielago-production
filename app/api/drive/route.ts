@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth-options'; // Assuming this checks for valid session
+import { authOptions } from '@/lib/auth-config';
 import { GoogleDriveService } from '@/lib/google-drive';
 
 export async function GET(req: NextRequest) {
