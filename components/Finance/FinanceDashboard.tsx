@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { Subscription, Transaction } from '@/lib/types';
 import SubscriptionModal from './SubscriptionModal';
 import TransactionModal from './TransactionModal';
+import TransactionsTable from './TransactionsTable';
 
 export default function FinanceDashboard() {
     const { finance, team, fetchFinance, fetchTeam, addSubscription, addTransaction } = useStore();
@@ -91,22 +92,87 @@ export default function FinanceDashboard() {
         }
     };
 
+    const handleImportMonthlyExpenses = async () => {
+        if (!confirm('¿Importar gastos variables de Nov y Dec 2025? Esto agregará las transacciones desde las hojas mensuales del Excel.')) return;
+        try {
+            const res = await fetch('/api/finance', {
+                method: 'POST',
+                body: JSON.stringify({ type: 'import_monthly_expenses' })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                alert(`¡Importación exitosa! Se importaron ${data.count} transacciones desde ${data.months.join(' y ')}.`);
+                fetchFinance(); // Refresh
+            } else {
+                const error = await res.json();
+                alert(`Error: ${error.error || 'Error al importar'}`);
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error al importar gastos mensuales');
+        }
+    };
+
     const handleExportReport = () => {
-        const headers = ['Platform', 'Category', 'Cost', 'Currency', 'RenewalDay', 'Status'];
+        const timestamp = new Date().toISOString().split('T')[0];
+        
+        // Export Subscriptions
+        const subHeaders = ['ID', 'Platform', 'Category', 'Amount', 'Currency', 'BillingCycle', 'RenewalDay', 'CardUsed', 'Status', 'Owner', 'Users', 'Notes'];
+        const subRows = finance.subscriptions.map(s => [
+            s.id,
+            s.platform,
+            s.category,
+            s.amount || s.cost || 0,
+            s.currency,
+            s.billingCycle,
+            s.renewalDay,
+            s.cardUsed || '',
+            s.status,
+            s.ownerId ? getMemberName(s.ownerId) : (s.owner || ''),
+            s.users.length > 0 ? getMemberNames(s.users) : '',
+            s.notes || ''
+        ]);
+
+        // Export Transactions
+        const transHeaders = ['ID', 'Date', 'Vendor', 'Kind', 'Amount', 'Currency', 'Category', 'Payer', 'Users', 'Subscription', 'Status', 'Notes'];
+        const transRows = finance.transactions.map(t => {
+            const sub = finance.subscriptions.find(s => s.id === t.subscriptionId);
+            return [
+                t.id,
+                t.date,
+                t.vendor,
+                t.kind,
+                t.amount,
+                t.currency,
+                t.category,
+                t.payerId ? getMemberName(t.payerId) : '',
+                t.users.length > 0 ? getMemberNames(t.users) : '',
+                sub ? sub.platform : '',
+                t.status,
+                t.notes || ''
+            ];
+        });
+
+        // Combine into CSV
         const csvContent = [
-            headers.join(','),
-            ...finance.subscriptions.map(s =>
-                `"${s.platform}","${s.category}",${s.cost},"${s.currency}",${s.renewalDay},"${s.status}"`
-            )
+            '=== SUSCRIPCIONES ===',
+            subHeaders.join(','),
+            ...subRows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')),
+            '',
+            '=== TRANSACCIONES ===',
+            transHeaders.join(','),
+            ...transRows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
         ].join('\n');
 
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', 'finance_report_2025.csv');
+        link.setAttribute('download', `finance_report_${timestamp}.csv`);
         document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     };
 
     const handleClearData = async () => {
@@ -122,15 +188,6 @@ export default function FinanceDashboard() {
         } catch (e) { alert('Error al reiniciar'); }
     };
 
-    const handleSaveSubscription = async (data: Partial<Subscription>) => {
-        await addSubscription(data);
-        fetchFinance();
-    };
-
-    const handleSaveTransaction = async (data: Partial<Transaction>) => {
-        await addTransaction(data);
-        fetchFinance();
-    };
 
     const handleEditSub = (sub: Subscription) => {
         setEditingSub(sub);
@@ -140,6 +197,38 @@ export default function FinanceDashboard() {
     const handleEditTrans = (trans: Transaction) => {
         setEditingTrans(trans);
         setIsTransModalOpen(true);
+    };
+
+    const handleSaveSubscription = async (data: Partial<Subscription>) => {
+        if (editingSub) {
+            const { updateSubscription } = useStore.getState();
+            await updateSubscription(editingSub.id, data);
+        } else {
+            await addSubscription(data);
+        }
+        fetchFinance();
+    };
+
+    const handleSaveTransaction = async (data: Partial<Transaction>) => {
+        if (editingTrans) {
+            const { updateTransaction } = useStore.getState();
+            await updateTransaction(editingTrans.id, data);
+        } else {
+            await addTransaction(data);
+        }
+        fetchFinance();
+    };
+
+    const handleDeleteSub = async (id: string, platform: string) => {
+        if (!confirm(`¿Estás seguro de eliminar la suscripción "${platform}"?`)) return;
+        try {
+            const { deleteSubscription } = useStore.getState();
+            await deleteSubscription(id);
+            fetchFinance();
+        } catch (error) {
+            console.error('Error deleting subscription:', error);
+            alert('Error al eliminar suscripción');
+        }
     };
 
     return (
@@ -183,6 +272,11 @@ export default function FinanceDashboard() {
                         onClick={handleExportReport}
                         className="flex-1 md:flex-none px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white text-xs font-medium rounded-lg border border-white/10 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
                         📄 Exportar
+                    </button>
+                    <button
+                        onClick={handleImportMonthlyExpenses}
+                        className="flex-1 md:flex-none px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-purple-500/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
+                        📅 Importar Gastos Mensuales
                     </button>
                     {activeSubs.length > 0 && (
                         <button
@@ -289,13 +383,22 @@ export default function FinanceDashboard() {
                                             <p className="font-bold text-emerald-400 text-xl tracking-tight">${sub.amount || sub.cost || 0}</p>
                                             <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{sub.currency} / MES</p>
                                         </div>
-                                        <button
-                                            onClick={() => handleEditSub(sub)}
-                                            className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors opacity-0 group-hover:opacity-100"
-                                            title="Editar"
-                                        >
-                                            <Pencil className="w-4 h-4" />
-                                        </button>
+                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => handleEditSub(sub)}
+                                                className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                                                title="Editar"
+                                            >
+                                                <Pencil className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteSub(sub.id, sub.platform)}
+                                                className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                                title="Eliminar"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
@@ -348,6 +451,11 @@ export default function FinanceDashboard() {
                         </p>
                     </div>
                 </div>
+            </div>
+
+            {/* Transactions Table */}
+            <div className="mt-8">
+                <TransactionsTable />
             </div>
 
             {/* Modals */}

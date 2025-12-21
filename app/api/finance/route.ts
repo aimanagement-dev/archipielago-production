@@ -22,8 +22,36 @@ export async function GET() {
         const subsRows = response.data.valueRanges?.[0].values || [];
         const transRows = response.data.valueRanges?.[1].values || [];
 
-        // Parse Subscriptions (nuevo formato con integración Crew)
-        const subscriptions = subsRows.map(row => {
+        // Helper: Validar si una fila de suscripción es válida
+        const isValidSubscription = (row: any[]): boolean => {
+            const platform = row[1] || ''; // Columna B (Platform)
+            if (!platform || typeof platform !== 'string') return false;
+            
+            // Excluir headers y resúmenes
+            const invalidPlatforms = [
+                'RESUMEN MENSUAL', 'Mes', 'Total Proyecto', 'Promedio Mensual',
+                'Platform', 'ID', 'ID', '' // Headers posibles
+            ];
+            if (invalidPlatforms.includes(platform.trim())) return false;
+            
+            // Excluir nombres de meses (November 2025, December 2025, etc.)
+            if (platform.match(/^(January|February|March|April|May|June|July|August|September|October|November|December)\s\d{4}$/i)) {
+                return false;
+            }
+            
+            // Excluir si el status es "Total" o similar
+            const status = row[8] || '';
+            if (status && typeof status === 'string' && status.toLowerCase().includes('total')) {
+                return false;
+            }
+            
+            return true;
+        };
+
+        // Parse Subscriptions (nuevo formato con integración Crew) - FILTRAR inválidas
+        const subscriptions = subsRows
+            .filter(isValidSubscription)
+            .map(row => {
             const sub: Partial<Subscription> = {
                 id: row[0] || '',
                 platform: row[1] || '',
@@ -40,13 +68,13 @@ export async function GET() {
                 notes: row[12] || undefined,
                 createdAt: row[13] || new Date().toISOString(),
                 updatedAt: row[14] || new Date().toISOString(),
-                createdBy: row[15] || undefined,
+                    createdBy: row[15] || undefined,
             };
             // Legacy compatibility
             if (!sub.ownerId && row[9]) sub.owner = row[9];
             if (!sub.amount && row[3]) sub.cost = parseFloat(row[3] || '0');
             return sub as Subscription;
-        });
+            });
 
         // Parse Transactions (nuevo formato)
         const transactions = transRows.map(row => {
@@ -127,18 +155,29 @@ export async function POST(req: Request) {
             const rows = response.data.values;
             if (!rows || rows.length === 0) return NextResponse.json({ success: true, message: 'No data found' });
 
-            // 2. Map to New Schema
+            // 2. Map to New Schema - Filtro mejorado
             const newSubs = rows
                 .filter(row => {
                     const platform = row[0];
-                    // Filter out empty rows, summary headers, and rows without a valid status-like look
-                    if (!platform) return false;
-                    if (['RESUMEN MENSUAL', 'Mes', 'Total Proyecto', 'Promedio Mensual'].includes(platform)) return false;
-                    // Check for dates in platform like "November 2025" or "Nov 2025"
-                    if (platform.match(/^(January|February|March|April|May|June|July|August|September|October|November|December)\s\d{4}$/)) return false;
+                    if (!platform || typeof platform !== 'string') return false;
+                    
+                    // Filter out empty rows, summary headers
+                    const invalidPlatforms = [
+                        'RESUMEN MENSUAL', 'Mes', 'Total Proyecto', 'Promedio Mensual',
+                        'Platform', 'ID', '' // Headers posibles
+                    ];
+                    if (invalidPlatforms.includes(platform.trim())) return false;
+                    
+                    // Check for dates in platform like "November 2025" or "Nov 2025" (case insensitive)
+                    if (platform.match(/^(January|February|March|April|May|June|July|August|September|October|November|December)\s\d{4}$/i)) {
+                        return false;
+                    }
 
                     // Check Col G (Status). If it is "Total", it's a summary row.
-                    if (row[6] === 'Total') return false;
+                    const status = row[6];
+                    if (status && typeof status === 'string' && status.toLowerCase().includes('total')) {
+                        return false;
+                    }
 
                     return true;
                 })
@@ -243,6 +282,167 @@ export async function POST(req: Request) {
                     ]]
                 }
             });
+        } else if (type === 'import_monthly_expenses') {
+            // Importar gastos variables desde hojas mensuales (Nov y Dec)
+            const legacySpreadsheetId = '1ZSVEv_c2bZ1PUpX9uWuiaz32rJSJdch14Psy3J7F_qY';
+            const months = ['November 2025', 'December 2025']; // Solo estos tienen datos
+            
+            const allTransactions: any[] = [];
+            
+            for (const monthName of months) {
+                try {
+                    // Leer hoja mensual - buscar rango "REGISTRO DE GASTOS"
+                    const monthResponse = await sheetsService['sheets'].spreadsheets.values.get({
+                        spreadsheetId: legacySpreadsheetId,
+                        range: `'${monthName}'!A:J`, // Ajustar rango según estructura
+                    });
+                    
+                    const monthRows = monthResponse.data.values || [];
+                    if (!monthRows || monthRows.length === 0) continue;
+                    
+                    // Buscar fila "REGISTRO DE GASTOS" o similar
+                    let startRow = -1;
+                    for (let i = 0; i < monthRows.length; i++) {
+                        const row = monthRows[i];
+                        if (row && row[0] && typeof row[0] === 'string') {
+                            if (row[0].toLowerCase().includes('registro') || 
+                                row[0].toLowerCase().includes('gastos') ||
+                                row[0].toLowerCase().includes('expenses')) {
+                                startRow = i + 1; // Siguiente fila después del header
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (startRow === -1) {
+                        // Si no encuentra header, asumir que empieza después de fila 5
+                        startRow = 5;
+                    }
+                    
+                    // Parsear gastos desde startRow
+                    for (let i = startRow; i < monthRows.length; i++) {
+                        const row = monthRows[i];
+                        if (!row || !row[0]) continue; // Skip empty rows
+                        
+                        const description = row[0] || '';
+                        if (!description || description.trim() === '') continue;
+                        
+                        // Skip headers y totales
+                        if (description.toLowerCase().includes('total') ||
+                            description.toLowerCase().includes('subtotal') ||
+                            description.toLowerCase().includes('mes') ||
+                            description.match(/^(January|February|March|April|May|June|July|August|September|October|November|December)\s\d{4}$/i)) {
+                            continue;
+                        }
+                        
+                        // Parsear campos (ajustar índices según estructura real del Excel)
+                        const amountStr = row[1] || row[2] || '0'; // Ajustar según columna de monto
+                        const amount = parseFloat(amountStr.toString().replace(/[$,]/g, '')) || 0;
+                        if (amount === 0) continue; // Skip si no hay monto
+                        
+                        const dateStr = row[2] || row[3] || ''; // Ajustar según columna de fecha
+                        let date = new Date().toISOString().split('T')[0];
+                        if (dateStr) {
+                            // Intentar parsear fecha
+                            const parsedDate = new Date(dateStr);
+                            if (!isNaN(parsedDate.getTime())) {
+                                date = parsedDate.toISOString().split('T')[0];
+                            } else {
+                                // Si no se puede parsear, usar mes del nombre de la hoja
+                                const monthMatch = monthName.match(/(\w+)\s(\d{4})/);
+                                if (monthMatch) {
+                                    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                                                       'July', 'August', 'September', 'October', 'November', 'December'];
+                                    const monthIndex = monthNames.indexOf(monthMatch[1]);
+                                    if (monthIndex !== -1) {
+                                        date = `${monthMatch[2]}-${String(monthIndex + 1).padStart(2, '0')}-01`;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Determinar si es gasto extra de suscripción o one-off
+                        let kind: 'fixed' | 'extra' | 'one_off' | 'trial' = 'one_off';
+                        let subscriptionId: string | undefined = undefined;
+                        
+                        // Buscar suscripción por nombre en description
+                        const descLower = description.toLowerCase();
+                        const allSubs = await sheetsService['sheets'].spreadsheets.values.get({
+                            spreadsheetId,
+                            range: 'Subscriptions!A2:B'
+                        });
+                        const existingSubs = allSubs.data.values || [];
+                        for (const subRow of existingSubs) {
+                            if (subRow && subRow[1]) {
+                                const subPlatform = subRow[1].toLowerCase();
+                                if (descLower.includes(subPlatform) || subPlatform.includes(descLower)) {
+                                    subscriptionId = subRow[0]; // ID de suscripción
+                                    kind = 'extra'; // Es gasto extra de suscripción
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        const category = row[3] || row[4] || 'Other'; // Ajustar según columna
+                        
+                        allTransactions.push({
+                            id: crypto.randomUUID(),
+                            date,
+                            vendor: description,
+                            kind,
+                            amount,
+                            currency: 'USD', // Default, ajustar si hay columna de moneda
+                            category: category.toString(),
+                            payerId: '',
+                            users: [],
+                            subscriptionId,
+                            receiptRef: '',
+                            receiptUrl: '',
+                            notes: `Importado de ${monthName}`,
+                            status: 'pending',
+                            createdAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString(),
+                            createdBy: session.user?.email || ''
+                        });
+                    }
+                } catch (error) {
+                    console.error(`Error importing ${monthName}:`, error);
+                    // Continuar con siguiente mes
+                }
+            }
+            
+            // Escribir todas las transacciones
+            if (allTransactions.length > 0) {
+                const transactionRows = allTransactions.map(t => [
+                    t.id,
+                    t.date,
+                    t.vendor,
+                    t.kind,
+                    t.amount,
+                    t.currency,
+                    t.category,
+                    t.payerId || '',
+                    t.users.join(','),
+                    t.subscriptionId || '',
+                    t.receiptRef || '',
+                    t.receiptUrl || '',
+                    t.notes || '',
+                    t.status,
+                    t.createdAt,
+                    t.updatedAt,
+                    t.createdBy || ''
+                ]);
+                
+                await sheetsService['sheets'].spreadsheets.values.append({
+                    spreadsheetId,
+                    range: 'Transactions!A:Q',
+                    valueInputOption: 'USER_ENTERED',
+                    requestBody: { values: transactionRows }
+                });
+            }
+            
+            return NextResponse.json({ success: true, count: allTransactions.length, months: months });
+            
         } else if (type === 'expense') {
             // Legacy support: crear como Transaction
             const now = new Date().toISOString();
@@ -281,6 +481,91 @@ export async function POST(req: Request) {
     }
 }
 
+export async function PUT(req: Request) {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const accessToken = (session as any).accessToken;
+    const sheetsService = new GoogleSheetsService(accessToken);
+    const spreadsheetId = await sheetsService.getOrCreateDatabase();
+
+    const body = await req.json();
+    const { type, id, data } = body; // type: 'subscription' | 'transaction'
+
+    try {
+        // Obtener todas las filas
+        const response = await sheetsService['sheets'].spreadsheets.values.get({
+            spreadsheetId,
+            range: type === 'subscription' ? 'Subscriptions!A2:P' : 'Transactions!A2:Q'
+        });
+
+        const rows = response.data.values || [];
+        const rowIndex = rows.findIndex(row => row[0] === id);
+
+        if (rowIndex === -1) {
+            return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        }
+
+        const now = new Date().toISOString();
+        let updatedRow: any[];
+
+        if (type === 'subscription') {
+            updatedRow = [
+                id, // Mantener ID
+                data.platform || rows[rowIndex][1] || '',
+                data.category || rows[rowIndex][2] || '',
+                parseFloat(data.amount || data.cost || rows[rowIndex][3] || '0'),
+                data.currency || rows[rowIndex][4] || 'USD',
+                data.billingCycle || rows[rowIndex][5] || 'Monthly',
+                parseInt(data.renewalDay || rows[rowIndex][6] || '1'),
+                data.cardUsed !== undefined ? data.cardUsed : (rows[rowIndex][7] || ''),
+                data.status || rows[rowIndex][8] || 'Active',
+                data.ownerId !== undefined ? data.ownerId : (rows[rowIndex][9] || ''),
+                (data.users && Array.isArray(data.users) ? data.users.join(',') : '') || (rows[rowIndex][10] || ''),
+                data.receiptUrl !== undefined ? data.receiptUrl : (rows[rowIndex][11] || ''),
+                data.notes !== undefined ? data.notes : (rows[rowIndex][12] || ''),
+                rows[rowIndex][13] || now, // createdAt (mantener original)
+                now, // updatedAt
+                session.user?.email || rows[rowIndex][15] || '' // createdBy
+            ];
+        } else {
+            // transaction
+            updatedRow = [
+                id, // Mantener ID
+                data.date || rows[rowIndex][1] || new Date().toISOString().split('T')[0],
+                data.vendor || rows[rowIndex][2] || '',
+                data.kind || rows[rowIndex][3] || 'one_off',
+                parseFloat(data.amount || rows[rowIndex][4] || '0'),
+                data.currency || rows[rowIndex][5] || 'USD',
+                data.category || rows[rowIndex][6] || '',
+                data.payerId !== undefined ? data.payerId : (rows[rowIndex][7] || ''),
+                (data.users && Array.isArray(data.users) ? data.users.join(',') : '') || (rows[rowIndex][8] || ''),
+                data.subscriptionId !== undefined ? data.subscriptionId : (rows[rowIndex][9] || ''),
+                data.receiptRef !== undefined ? data.receiptRef : (rows[rowIndex][10] || ''),
+                data.receiptUrl !== undefined ? data.receiptUrl : (rows[rowIndex][11] || ''),
+                data.notes !== undefined ? data.notes : (rows[rowIndex][12] || ''),
+                data.status || rows[rowIndex][13] || 'pending',
+                rows[rowIndex][14] || now, // createdAt (mantener original)
+                now, // updatedAt
+                session.user?.email || rows[rowIndex][16] || '' // createdBy
+            ];
+        }
+
+        // Actualizar fila específica (rowIndex + 2 porque empieza en A2)
+        await sheetsService['sheets'].spreadsheets.values.update({
+            spreadsheetId,
+            range: `${type === 'subscription' ? 'Subscriptions' : 'Transactions'}!A${rowIndex + 2}:${type === 'subscription' ? 'P' : 'Q'}${rowIndex + 2}`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values: [updatedRow] }
+        });
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Error updating finance data:', error);
+        return NextResponse.json({ error: 'Failed to update' }, { status: 500 });
+    }
+}
+
 export async function DELETE(req: Request) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -291,6 +576,8 @@ export async function DELETE(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const action = searchParams.get('action');
+    const type = searchParams.get('type'); // 'subscription' | 'transaction'
+    const id = searchParams.get('id');
 
     try {
         if (action === 'reset_all') {
@@ -315,7 +602,48 @@ export async function DELETE(req: Request) {
             return NextResponse.json({ success: true, message: 'Reset complete' });
         }
 
-        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+        // Delete specific item
+        if (type && id) {
+            const range = type === 'subscription' ? 'Subscriptions!A2:P' : 'Transactions!A2:Q';
+            const response = await sheetsService['sheets'].spreadsheets.values.get({
+                spreadsheetId,
+                range
+            });
+
+            const rows = response.data.values || [];
+            const rowIndex = rows.findIndex(row => row[0] === id);
+
+            if (rowIndex === -1) {
+                return NextResponse.json({ error: 'Not found' }, { status: 404 });
+            }
+
+            // Eliminar fila (rowIndex + 2 porque empieza en A2)
+            await sheetsService['sheets'].spreadsheets.batchUpdate({
+                spreadsheetId,
+                requestBody: {
+                    requests: [{
+                        deleteDimension: {
+                            range: {
+                                sheetId: await (async () => {
+                                    const meta = await sheetsService['sheets'].spreadsheets.get({ spreadsheetId });
+                                    const sheet = meta.data.sheets?.find(s => 
+                                        s.properties?.title === (type === 'subscription' ? 'Subscriptions' : 'Transactions')
+                                    );
+                                    return sheet?.properties?.sheetId || 0;
+                                })(),
+                                dimension: 'ROWS',
+                                startIndex: rowIndex + 1, // +1 porque el header está en fila 1
+                                endIndex: rowIndex + 2
+                            }
+                        }
+                    }]
+                }
+            });
+
+            return NextResponse.json({ success: true, deleted: id });
+        }
+
+        return NextResponse.json({ error: 'Invalid action or missing parameters' }, { status: 400 });
     } catch (error) {
         console.error('Error deleting finance data:', error);
         return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });

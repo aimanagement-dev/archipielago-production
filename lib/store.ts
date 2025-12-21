@@ -385,23 +385,97 @@ export const useStore = create<AppState>()(
       },
 
       updateSubscription: async (id: string, data: Partial<Subscription>) => {
-        // TODO: Implementar PUT endpoint
-        console.log('updateSubscription not yet implemented');
+        try {
+          const response = await fetch('/api/finance', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'subscription', id, data })
+          });
+          if (response.ok) {
+            set((state) => ({
+              finance: {
+                ...state.finance,
+                subscriptions: state.finance.subscriptions.map(s => 
+                  s.id === id ? { ...s, ...data, updatedAt: new Date().toISOString() } : s
+                )
+              }
+            }));
+            get().fetchFinance(); // Refresh
+          } else {
+            throw new Error('Failed to update subscription');
+          }
+        } catch (error) {
+          console.error('Error updating subscription:', error);
+          throw error;
+        }
       },
 
       updateTransaction: async (id: string, data: Partial<Transaction>) => {
-        // TODO: Implementar PUT endpoint
-        console.log('updateTransaction not yet implemented');
+        try {
+          const response = await fetch('/api/finance', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'transaction', id, data })
+          });
+          if (response.ok) {
+            set((state) => ({
+              finance: {
+                ...state.finance,
+                transactions: state.finance.transactions.map(t => 
+                  t.id === id ? { ...t, ...data, updatedAt: new Date().toISOString() } : t
+                )
+              }
+            }));
+            get().fetchFinance(); // Refresh
+          } else {
+            throw new Error('Failed to update transaction');
+          }
+        } catch (error) {
+          console.error('Error updating transaction:', error);
+          throw error;
+        }
       },
 
       deleteSubscription: async (id: string) => {
-        // TODO: Implementar DELETE endpoint
-        console.log('deleteSubscription not yet implemented');
+        try {
+          const response = await fetch(`/api/finance?type=subscription&id=${id}`, {
+            method: 'DELETE'
+          });
+          if (response.ok) {
+            set((state) => ({
+              finance: {
+                ...state.finance,
+                subscriptions: state.finance.subscriptions.filter(s => s.id !== id)
+              }
+            }));
+          } else {
+            throw new Error('Failed to delete subscription');
+          }
+        } catch (error) {
+          console.error('Error deleting subscription:', error);
+          throw error;
+        }
       },
 
       deleteTransaction: async (id: string) => {
-        // TODO: Implementar DELETE endpoint
-        console.log('deleteTransaction not yet implemented');
+        try {
+          const response = await fetch(`/api/finance?type=transaction&id=${id}`, {
+            method: 'DELETE'
+          });
+          if (response.ok) {
+            set((state) => ({
+              finance: {
+                ...state.finance,
+                transactions: state.finance.transactions.filter(t => t.id !== id)
+              }
+            }));
+          } else {
+            throw new Error('Failed to delete transaction');
+          }
+        } catch (error) {
+          console.error('Error deleting transaction:', error);
+          throw error;
+        }
       },
 
 
