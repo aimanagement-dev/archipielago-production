@@ -31,6 +31,27 @@ const Input = ({ label, value, onChange, placeholder, type = 'text', required = 
     </div>
 );
 
+
+// Constants for Dropdowns
+const DEPARTMENTS = [
+    'Producción', 'Dirección', 'Cámara', 'Iluminación (G&E)', 'Arte',
+    'Sonido', 'Vestuario', 'Maquillaje', 'Locaciones', 'Post-Producción', 'Otro'
+];
+
+const ROLES: Record<string, string[]> = {
+    'Producción': ['Productor Ejecutivo', 'Productor de Línea', 'Gerente de Producción (UPM)', 'Coordinador de Producción', 'Asistente de Producción (PA)', 'Runner'],
+    'Dirección': ['Director', '1er Asistente de Dirección (1AD)', '2do Asistente de Dirección (2AD)', 'Script Supervisor'],
+    'Cámara': ['Director de Fotografía (DoP)', 'Operador de Cámara', '1er Asistente de Cámara (Fists AC)', '2do Asistente de Cámara (Second AC)', 'DIT', 'Video Assist'],
+    'Iluminación (G&E)': ['Gaffer', 'Best Boy Electric', 'Key Grip', 'Best Boy Grip', 'Dolly Grip', 'Eléctrico', 'Grip'],
+    'Arte': ['Diseñador de Producción', 'Director de Arte', 'Set Decorator', 'Prop Master', 'Utilero', 'Leadman', 'Swing'],
+    'Sonido': ['Sonidista (Mixer)', 'Boom Operator', 'Utilero de Sonido'],
+    'Vestuario': ['Diseñador de Vestuario', 'Supervisor de Vestuario', 'Asistente de Vestuario'],
+    'Maquillaje': ['Jefe de Maquillaje', 'Maquillador', 'Peluquero'],
+    'Locaciones': ['Gerente de Locaciones', 'Asistente de Locaciones'],
+    'Post-Producción': ['Editor', 'Asistente de Edición', 'Colorista', 'Supervisor VFX', 'Diseñador de Sonido'],
+    'Otro': ['Consultor', 'Talento', 'Extra', 'Chofer', 'Catering', 'Seguridad']
+};
+
 export default function TeamModal({ isOpen, onClose, onSave, initialData }: TeamModalProps) {
     const [activeTab, setActiveTab] = useState<Tab>('general');
     const [formData, setFormData] = useState<Partial<TeamMember>>({
@@ -43,6 +64,9 @@ export default function TeamModal({ isOpen, onClose, onSave, initialData }: Team
         notes: '',
         socials: {}
     });
+
+    // Auto-update department if role is selected from a known mapping? 
+    // Or just simple independent dropdowns. Let's do Standard Dependent Dropdowns.
 
     useEffect(() => {
         if (initialData) {
@@ -68,10 +92,13 @@ export default function TeamModal({ isOpen, onClose, onSave, initialData }: Team
 
     if (!isOpen) return null;
 
+    const availableRoles = (formData.department && ROLES[formData.department]) ? ROLES[formData.department] : [];
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
             <div className="relative w-full max-w-2xl bg-card border border-white/10 rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
+
 
                 {/* Header */}
                 <div className="p-6 border-b border-white/5 flex justify-between items-center">
@@ -154,9 +181,50 @@ export default function TeamModal({ isOpen, onClose, onSave, initialData }: Team
                         {activeTab === 'professional' && (
                             <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                                 <div className="grid grid-cols-2 gap-4">
-                                    <Input label="Departamento" value={formData.department} onChange={(v: string) => setFormData({ ...formData, department: v })} placeholder="Ej: Camera" />
-                                    <Input label="Posición / Cargo" value={formData.position} onChange={(v: string) => setFormData({ ...formData, position: v, role: v })} placeholder="Ej: DoP" required />
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Departamento</label>
+                                        <select
+                                            value={formData.department || ''}
+                                            onChange={(e) => {
+                                                const newDept = e.target.value;
+                                                setFormData({
+                                                    ...formData,
+                                                    department: newDept,
+                                                    position: '', // Reset position when dept changes
+                                                    role: ''
+                                                });
+                                            }}
+                                            className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/50 appearance-none"
+                                            required
+                                        >
+                                            <option value="" disabled>Seleccionar...</option>
+                                            {DEPARTMENTS.map(dept => <option key={dept} value={dept} className="bg-card text-foreground">{dept}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Posición / Cargo</label>
+                                        <select
+                                            value={formData.position || ''}
+                                            onChange={(e) => setFormData({ ...formData, position: e.target.value, role: e.target.value })} // Sync role with position
+                                            className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/50 appearance-none"
+                                            required
+                                            disabled={!formData.department}
+                                        >
+                                            <option value="" disabled>Seleccionar...</option>
+                                            {availableRoles.map(role => <option key={role} value={role} className="bg-card text-foreground">{role}</option>)}
+                                            <option value="Otro" className="bg-card text-foreground">Otro / Escribir manual...</option>
+                                        </select>
+                                    </div>
                                 </div>
+                                {/* Allow manual override if needed or specific role not in list? For now just dropdowns as requested */}
+                                {formData.position === 'Otro' && (
+                                    <Input
+                                        label="Especificar Cargo"
+                                        value={formData.role}
+                                        onChange={(v: string) => setFormData({ ...formData, role: v, position: 'Otro' })}
+                                        placeholder="Escribe el cargo manual..."
+                                    />
+                                )}
                                 <Input label="Sindicato / Guild" value={formData.union} onChange={(v: string) => setFormData({ ...formData, union: v })} placeholder="Ej: ADOCINE" />
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
