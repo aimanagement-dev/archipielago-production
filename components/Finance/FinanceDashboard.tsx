@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useStore } from '@/lib/store';
-import { CreditCard, DollarSign, Calendar, Plus, TrendingUp, AlertCircle, RefreshCw, Pencil, Trash2 } from 'lucide-react';
+import { CreditCard, DollarSign, Calendar, Plus, TrendingUp, AlertCircle, RefreshCw, Pencil, Trash2, List, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Subscription, Transaction } from '@/lib/types';
 import SubscriptionModal from './SubscriptionModal';
 import TransactionModal from './TransactionModal';
 import TransactionsTable from './TransactionsTable';
+import MonthlyFinanceView from './MonthlyFinanceView';
+
+type Tab = 'month' | 'subscriptions' | 'history';
 
 export default function FinanceDashboard() {
     const { finance, team, fetchFinance, fetchTeam, addSubscription, addTransaction } = useStore();
@@ -16,6 +19,11 @@ export default function FinanceDashboard() {
     const [isTransModalOpen, setIsTransModalOpen] = useState(false);
     const [editingSub, setEditingSub] = useState<Subscription | undefined>(undefined);
     const [editingTrans, setEditingTrans] = useState<Transaction | undefined>(undefined);
+    const [activeTab, setActiveTab] = useState<Tab>('month');
+    
+    // Month selector state
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
 
     useEffect(() => {
         fetchFinance();
@@ -39,17 +47,6 @@ export default function FinanceDashboard() {
     // Calculations
     const activeSubs = finance.subscriptions.filter(s => s.status === 'Active');
     const totalMonthlyFixed = activeSubs.reduce((acc, sub) => acc + (sub.amount || sub.cost || 0), 0);
-
-    // Get current month transactions
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
-    const monthlyTransactions = finance.transactions.filter(t => {
-        const transDate = new Date(t.date);
-        return transDate.getMonth() === currentMonth && transDate.getFullYear() === currentYear;
-    });
-    const totalVariable = monthlyTransactions.reduce((acc, trans) => acc + trans.amount, 0);
-
-    const projectedBurn = totalMonthlyFixed + totalVariable;
 
     // Upcoming Renewals Logic
     const nextRenewals = activeSubs
@@ -231,10 +228,32 @@ export default function FinanceDashboard() {
         }
     };
 
+    // Get available months from transactions
+    const availableMonths = Array.from(new Set(
+        finance.transactions.map(t => {
+            const date = new Date(t.date);
+            return `${date.getFullYear()}-${date.getMonth()}`;
+        })
+    )).sort().reverse();
+
+    // Month options for selector
+    const monthOptions = [];
+    const currentDate = new Date();
+    for (let i = 0; i < 12; i++) {
+        const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+        monthOptions.push({
+            year: date.getFullYear(),
+            month: date.getMonth(),
+            label: date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
+        });
+    }
+
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
-            {/* Action Bar */}
-            <div className="flex flex-col md:flex-row justify-between items-center bg-black/40 p-4 rounded-xl border border-white/5 backdrop-blur-md gap-4">
+        <div className="space-y-6 animate-in fade-in duration-500">
+            {/* Header con Selector de Mes y Tabs */}
+            <div className="bg-card/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
+                {/* Action Bar */}
+                <div className="flex flex-col md:flex-row justify-between items-center p-4 bg-white/5 border-b border-white/5 gap-4">
                 <div className="flex items-center gap-3 w-full md:w-auto">
                     <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-purple-500/20">
                         <DollarSign className="w-6 h-6 text-white" />
@@ -244,218 +263,230 @@ export default function FinanceDashboard() {
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <span className="bg-white/10 px-2 py-0.5 rounded-full text-white/70">{activeSubs.length} suscripciones</span>
                             <span>&bull;</span>
-                            <span className="text-emerald-400 font-medium">${projectedBurn.toFixed(2)}/mes</span>
+                            <span className="text-emerald-400 font-medium">${totalMonthlyFixed.toFixed(2)}/mes fijo</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex gap-3 w-full md:w-auto flex-wrap">
-                    <button
-                        onClick={() => {
-                            setEditingSub(undefined);
-                            setIsSubModalOpen(true);
-                        }}
-                        className="flex-1 md:flex-none px-4 py-2.5 bg-primary hover:bg-primary/90 text-white text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
-                        <Plus className="w-4 h-4" />
-                        Nueva Suscripción
-                    </button>
-                    <button
-                        onClick={() => {
-                            setEditingTrans(undefined);
-                            setIsTransModalOpen(true);
-                        }}
-                        className="flex-1 md:flex-none px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
-                        <Plus className="w-4 h-4" />
-                        Nueva Transacción
-                    </button>
-                    <button
-                        onClick={handleExportReport}
-                        className="flex-1 md:flex-none px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white text-xs font-medium rounded-lg border border-white/10 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
-                        📄 Exportar
-                    </button>
-                    <button
-                        onClick={handleImportMonthlyExpenses}
-                        className="flex-1 md:flex-none px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-purple-500/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
-                        📅 Importar Gastos Mensuales
-                    </button>
-                    {activeSubs.length > 0 && (
-                        <button
-                            onClick={handleClearData}
-                            className="flex-1 md:flex-none px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium rounded-lg border border-red-500/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 group">
-                            <RefreshCw className="w-3 h-3 group-hover:rotate-180 transition-transform" />
-                            Reiniciar
-                        </button>
+                    {/* Selector de Mes (solo en tab "Este Mes") */}
+                    {activeTab === 'month' && (
+                        <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-muted-foreground" />
+                            <select
+                                value={`${selectedYear}-${selectedMonth}`}
+                                onChange={(e) => {
+                                    const [year, month] = e.target.value.split('-').map(Number);
+                                    setSelectedYear(year);
+                                    setSelectedMonth(month);
+                                }}
+                                className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/50"
+                            >
+                                {monthOptions.map(opt => (
+                                    <option key={`${opt.year}-${opt.month}`} value={`${opt.year}-${opt.month}`}>
+                                        {opt.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     )}
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 w-full md:w-auto flex-wrap">
+                        <button
+                            onClick={() => {
+                                setEditingSub(undefined);
+                                setIsSubModalOpen(true);
+                            }}
+                            className="flex-1 md:flex-none px-4 py-2.5 bg-primary hover:bg-primary/90 text-white text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
+                            <Plus className="w-4 h-4" />
+                            Nueva Suscripción
+                        </button>
+                        <button
+                            onClick={() => {
+                                setEditingTrans(undefined);
+                                setIsTransModalOpen(true);
+                            }}
+                            className="flex-1 md:flex-none px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
+                            <Plus className="w-4 h-4" />
+                            Nueva Transacción
+                        </button>
+                        <button
+                            onClick={handleExportReport}
+                            className="flex-1 md:flex-none px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white text-xs font-medium rounded-lg border border-white/10 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
+                            📄 Exportar
+                        </button>
+                        {activeTab === 'month' && (
+                            <button
+                                onClick={handleImportMonthlyExpenses}
+                                className="flex-1 md:flex-none px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-purple-500/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
+                                📅 Importar Gastos
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Tabs */}
+                <div className="flex border-b border-white/5 bg-black/20">
+                    <button
+                        onClick={() => setActiveTab('month')}
+                        className={cn(
+                            "flex-1 px-6 py-4 text-sm font-medium transition-colors flex items-center justify-center gap-2",
+                            activeTab === 'month'
+                                ? "text-primary border-b-2 border-primary bg-primary/5"
+                                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                        )}
+                    >
+                        <Calendar className="w-4 h-4" />
+                        Este Mes
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('subscriptions')}
+                        className={cn(
+                            "flex-1 px-6 py-4 text-sm font-medium transition-colors flex items-center justify-center gap-2",
+                            activeTab === 'subscriptions'
+                                ? "text-primary border-b-2 border-primary bg-primary/5"
+                                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                        )}
+                    >
+                        <List className="w-4 h-4" />
+                        Suscripciones ({activeSubs.length})
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('history')}
+                        className={cn(
+                            "flex-1 px-6 py-4 text-sm font-medium transition-colors flex items-center justify-center gap-2",
+                            activeTab === 'history'
+                                ? "text-primary border-b-2 border-primary bg-primary/5"
+                                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                        )}
+                    >
+                        <History className="w-4 h-4" />
+                        Historial ({finance.transactions.length})
+                    </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Main Stats Card */}
-                <div className="lg:col-span-2 space-y-6">
-                    {/* Projection Card */}
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-900 to-black border border-white/10 p-8 shadow-2xl group">
-                        <div className="absolute top-0 right-0 p-40 bg-emerald-500/5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none group-hover:bg-emerald-500/10 transition-all duration-1000" />
+            {/* Tab Content */}
+            <div className="min-h-[400px]">
+                {activeTab === 'month' && (
+                    <MonthlyFinanceView year={selectedYear} month={selectedMonth} />
+                )}
 
-                        <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-                            <div>
-                                <p className="text-emerald-400 font-medium mb-1 flex items-center gap-2 text-sm uppercase tracking-wider">
-                                    <TrendingUp className="w-4 h-4" /> Proyección Mensual
-                                </p>
-                                <h1 className="text-5xl md:text-6xl font-bold text-white tracking-tighter">
-                                    ${projectedBurn.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    <span className="text-xl text-muted-foreground font-normal ml-2">USD</span>
-                                </h1>
+                {activeTab === 'subscriptions' && (
+                    <div className="space-y-6">
+                        {/* Subscription List */}
+                        <div className="bg-card/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-xl">
+                            <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-white/5">
+                                <h3 className="font-bold text-white flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                                    Suscripciones Activas ({activeSubs.length})
+                                </h3>
                             </div>
-                            <div className="text-left sm:text-right bg-white/5 p-3 rounded-lg border border-white/5 backdrop-blur-sm">
-                                <p className="text-xs text-muted-foreground mb-1">Costo Anual Estimado</p>
-                                <p className="text-xl font-bold text-white">
-                                    ${(projectedBurn * 12).toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                                </p>
+
+                            <div className="divide-y divide-white/5">
+                                {activeSubs.map(sub => (
+                                    <div key={sub.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors group">
+                                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-800 to-black border border-white/10 flex items-center justify-center text-xl font-bold text-white/40 group-hover:text-white group-hover:border-blue-500/50 transition-all shadow-lg flex-shrink-0">
+                                                {sub.platform.slice(0, 2).toUpperCase()}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-bold text-white leading-none text-lg truncate">{sub.platform}</p>
+                                                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                                    <span className="text-xs px-2 py-0.5 rounded bg-white/5 text-muted-foreground border border-white/5">
+                                                        {sub.category}
+                                                    </span>
+                                                    {sub.ownerId && (
+                                                        <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                                                            Owner: {getMemberName(sub.ownerId)}
+                                                        </span>
+                                                    )}
+                                                    {sub.users && sub.users.length > 0 && (
+                                                        <span className="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20" title={getMemberNames(sub.users)}>
+                                                            {sub.users.length} usuario{sub.users.length > 1 ? 's' : ''}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-4 flex-shrink-0">
+                                            <div className="text-right hidden sm:block">
+                                                <p className="text-xs text-muted-foreground mb-0.5">Renovación</p>
+                                                <div className="flex items-center gap-1.5 justify-end">
+                                                    <Calendar className="w-3 h-3 text-blue-400" />
+                                                    <p className="text-sm text-white font-medium">Día {sub.renewalDay}</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right min-w-[100px]">
+                                                <p className="font-bold text-emerald-400 text-xl tracking-tight">${sub.amount || sub.cost || 0}</p>
+                                                <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{sub.currency} / MES</p>
+                                            </div>
+                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => handleEditSub(sub)}
+                                                    className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                                                    title="Editar"
+                                                >
+                                                    <Pencil className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteSub(sub.id, sub.platform)}
+                                                    className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                                    title="Eliminar"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {activeSubs.length === 0 && (
+                                    <div className="p-12 text-center text-muted-foreground flex flex-col items-center gap-4">
+                                        <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
+                                            <CreditCard className="w-8 h-8 text-white/20" />
+                                        </div>
+                                        <p>No hay suscripciones registradas.</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
-                        {/* Visual Bar */}
-                        <div className="mt-8 relative pt-2">
-                            <div className="flex justify-between text-xs font-mono text-muted-foreground mb-2">
-                                <span>Software & SaaS ({Math.round((totalMonthlyFixed / (projectedBurn || 1)) * 100)}%)</span>
-                                <span>Gastos Variables ({Math.round((totalVariable / (projectedBurn || 1)) * 100)}%)</span>
-                            </div>
-                            <div className="flex gap-1 h-3 rounded-full overflow-hidden bg-white/5">
-                                {/* Fixed Costs Segment */}
-                                <div
-                                    className="bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] relative group/bar"
-                                    style={{ width: `${(totalMonthlyFixed / (projectedBurn || 1)) * 100}%` }}
-                                >
-                                    <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover/bar:translate-x-full transition-transform duration-1000 skew-x-12" />
-                                </div>
-                                {/* Variable Segment */}
-                                <div className="bg-amber-500/80" style={{ width: `${(totalVariable / (projectedBurn || 1)) * 100}%` }} />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Subscription List */}
-                    <div className="bg-card/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-xl">
-                        <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-white/5">
-                            <h3 className="font-bold text-white flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                                Suscripciones Activas
+                        {/* Próximos Pagos */}
+                        <div className="bg-card/30 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl">
+                            <h3 className="font-bold text-white mb-6 flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-purple-400" />
+                                Próximos Pagos
                             </h3>
 
-                        </div>
-
-                        <div className="divide-y divide-white/5">
-                            {activeSubs.map(sub => (
-                                <div key={sub.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors group">
-                                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-800 to-black border border-white/10 flex items-center justify-center text-xl font-bold text-white/40 group-hover:text-white group-hover:border-blue-500/50 transition-all shadow-lg flex-shrink-0">
-                                            {sub.platform.slice(0, 2).toUpperCase()}
+                            <div className="space-y-4">
+                                {nextRenewals.map((item, idx) => (
+                                    <div key={idx} className="relative bg-black/40 rounded-xl p-4 border border-white/5 flex gap-4 items-center group hover:border-purple-500/30 transition-colors">
+                                        <div className="bg-white/5 w-14 h-14 rounded-xl flex flex-col items-center justify-center border border-white/10 group-hover:bg-purple-500/10 group-hover:text-purple-400 transition-colors">
+                                            <span className="text-[10px] text-muted-foreground uppercase font-bold">{item.nextDate.toLocaleString('default', { month: 'short' })}</span>
+                                            <span className="text-xl font-bold text-white leading-none mt-0.5">{item.nextDate.getDate()}</span>
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="font-bold text-white leading-none text-lg truncate">{sub.platform}</p>
-                                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                                                <span className="text-xs px-2 py-0.5 rounded bg-white/5 text-muted-foreground border border-white/5">
-                                                    {sub.category}
-                                                </span>
-                                                {sub.ownerId && (
-                                                    <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
-                                                        Owner: {getMemberName(sub.ownerId)}
-                                                    </span>
-                                                )}
-                                                {sub.users && sub.users.length > 0 && (
-                                                    <span className="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20" title={getMemberNames(sub.users)}>
-                                                        {sub.users.length} usuario{sub.users.length > 1 ? 's' : ''}
-                                                    </span>
-                                                )}
+                                            <p className="text-sm font-bold text-white truncate">{item.platform}</p>
+                                            <div className="flex items-center gap-1.5 mt-1">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+                                                <p className="text-xs text-purple-300 font-medium">en {item.daysLeft} días</p>
                                             </div>
                                         </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-4 flex-shrink-0">
-                                        <div className="text-right hidden sm:block">
-                                            <p className="text-xs text-muted-foreground mb-0.5">Renovación</p>
-                                            <div className="flex items-center gap-1.5 justify-end">
-                                                <Calendar className="w-3 h-3 text-blue-400" />
-                                                <p className="text-sm text-white font-medium">Día {sub.renewalDay}</p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right min-w-[100px]">
-                                            <p className="font-bold text-emerald-400 text-xl tracking-tight">${sub.amount || sub.cost || 0}</p>
-                                            <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{sub.currency} / MES</p>
-                                        </div>
-                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                                onClick={() => handleEditSub(sub)}
-                                                className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                                                title="Editar"
-                                            >
-                                                <Pencil className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDeleteSub(sub.id, sub.platform)}
-                                                className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                                title="Eliminar"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                        <div className="text-right">
+                                            <span className="text-sm font-bold text-white">${item.amount || item.cost || 0}</span>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
-                            {activeSubs.length === 0 && (
-                                <div className="p-12 text-center text-muted-foreground flex flex-col items-center gap-4">
-                                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
-                                        <CreditCard className="w-8 h-8 text-white/20" />
-                                    </div>
-                                    <p>No hay suscripciones registradas.</p>
-                                </div>
-                            )}
+                                ))}
+                                {nextRenewals.length === 0 && <p className="text-sm text-muted-foreground italic">Nada pendiente por ahora.</p>}
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
 
-                {/* Sidebar - Upcoming */}
-                <div className="space-y-6">
-                    <div className="bg-card/30 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl">
-                        <h3 className="font-bold text-white mb-6 flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-purple-400" />
-                            Próximos Pagos
-                        </h3>
-
-                        <div className="space-y-4">
-                            {nextRenewals.map((item, idx) => (
-                                <div key={idx} className="relative bg-black/40 rounded-xl p-4 border border-white/5 flex gap-4 items-center group hover:border-purple-500/30 transition-colors">
-                                    <div className="bg-white/5 w-14 h-14 rounded-xl flex flex-col items-center justify-center border border-white/10 group-hover:bg-purple-500/10 group-hover:text-purple-400 transition-colors">
-                                        <span className="text-[10px] text-muted-foreground uppercase font-bold">{item.nextDate.toLocaleString('default', { month: 'short' })}</span>
-                                        <span className="text-xl font-bold text-white leading-none mt-0.5">{item.nextDate.getDate()}</span>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-bold text-white truncate">{item.platform}</p>
-                                        <div className="flex items-center gap-1.5 mt-1">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
-                                            <p className="text-xs text-purple-300 font-medium">en {item.daysLeft} días</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className="text-sm font-bold text-white">${item.cost}</span>
-                                    </div>
-                                </div>
-                            ))}
-                            {nextRenewals.length === 0 && <p className="text-sm text-muted-foreground italic">Nada pendiente por ahora.</p>}
-                        </div>
-                    </div>
-
-                    <div className="p-4 rounded-xl border border-dashed border-white/10 bg-white/5 text-center">
-                        <p className="text-xs text-muted-foreground">
-                            Tip: Mantén tus gastos actualizados para tener una proyección real.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Transactions Table */}
-            <div className="mt-8">
-                <TransactionsTable />
+                {activeTab === 'history' && (
+                    <TransactionsTable />
+                )}
             </div>
 
             {/* Modals */}
