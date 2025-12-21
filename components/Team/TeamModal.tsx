@@ -17,6 +17,20 @@ const TYPES: MemberType[] = ['Full-time', 'Part-time'];
 
 type Tab = 'general' | 'professional' | 'contact' | 'emergency';
 
+const Input = ({ label, value, onChange, placeholder, type = 'text', required = false }: any) => (
+    <div className="space-y-1.5">
+        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</label>
+        <input
+            type={type}
+            required={required}
+            value={value || ''}
+            onChange={e => onChange(e.target.value)}
+            className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
+            placeholder={placeholder}
+        />
+    </div>
+);
+
 export default function TeamModal({ isOpen, onClose, onSave, initialData }: TeamModalProps) {
     const [activeTab, setActiveTab] = useState<Tab>('general');
     const [formData, setFormData] = useState<Partial<TeamMember>>({
@@ -53,20 +67,6 @@ export default function TeamModal({ isOpen, onClose, onSave, initialData }: Team
     };
 
     if (!isOpen) return null;
-
-    const Input = ({ label, value, onChange, placeholder, type = 'text', required = false }: any) => (
-        <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</label>
-            <input
-                type={type}
-                required={required}
-                value={value || ''}
-                onChange={e => onChange(e.target.value)}
-                className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all placeholder:text-muted-foreground/50"
-                placeholder={placeholder}
-            />
-        </div>
-    );
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
