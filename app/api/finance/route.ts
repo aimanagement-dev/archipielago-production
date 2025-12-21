@@ -13,35 +13,33 @@ export async function GET() {
     const spreadsheetId = await sheetsService.getOrCreateDatabase();
 
     try {
-        // Fetch Subscriptions
-        const subsResponse = await sheetsService['sheets'].spreadsheets.values.get({
+        const response = await sheetsService['sheets'].spreadsheets.values.batchGet({
             spreadsheetId,
-            range: 'Subscriptions!A2:K',
+            ranges: ['Subscriptions!A2:K', 'Expenses!A2:I']
         });
-        const subscriptions = (subsResponse.data.values || []).map(row => ({
+
+        const subsRows = response.data.valueRanges?.[0].values || [];
+        const expRows = response.data.valueRanges?.[1].values || [];
+
+        const subscriptions = subsRows.map(row => ({
             id: row[0],
             platform: row[1],
             category: row[2],
-            cost: parseFloat(row[3] || '0'),
+            cost: parseFloat(row[3]),
             currency: row[4],
             billingCycle: row[5],
-            renewalDay: parseInt(row[6] || '1'),
+            renewalDay: parseInt(row[6]),
             cardUsed: row[7],
             status: row[8],
             owner: row[9],
             notes: row[10]
         }));
 
-        // Fetch Expenses
-        const expResponse = await sheetsService['sheets'].spreadsheets.values.get({
-            spreadsheetId,
-            range: 'Expenses!A2:I',
-        });
-        const expenses = (expResponse.data.values || []).map(row => ({
+        const expenses = expRows.map(row => ({
             id: row[0],
             date: row[1],
             description: row[2],
-            amount: parseFloat(row[3] || '0'),
+            amount: parseFloat(row[3]),
             currency: row[4],
             category: row[5],
             type: row[6],
@@ -52,7 +50,7 @@ export async function GET() {
         return NextResponse.json({ subscriptions, expenses });
     } catch (error) {
         console.error('Error fetching finance data:', error);
-        return NextResponse.json({ error: 'Failed to fetch finance data' }, { status: 500 });
+        return NextResponse.json({ error: 'Failed to fetch' }, { status: 500 });
     }
 }
 
@@ -73,7 +71,7 @@ export async function POST(req: Request) {
             const legacySpreadsheetId = '1ZSVEv_c2bZ1PUpX9uWuiaz32rJSJdch14Psy3J7F_qY';
             const response = await sheetsService['sheets'].spreadsheets.values.get({
                 spreadsheetId: legacySpreadsheetId,
-                range: 'OVERVIEW!A5:I30', // Read enough rows
+                range: 'OVERVIEW!A5:I60', // Read enough rows
             });
 
             const rows = response.data.values;
@@ -81,15 +79,36 @@ export async function POST(req: Request) {
 
             // 2. Map to New Schema
             const newSubs = rows
-                .filter(row => row[0]) // Ensure Platform exists
+                .filter(row => {
+                    const platform = row[0];
+                    // Filter out empty rows, summary headers, and rows without a valid status-like look
+                    if (!platform) return false;
+                    if (['RESUMEN MENSUAL', 'Mes', 'Total Proyecto', 'Promedio Mensual'].includes(platform)) return false;
+                    // Check for dates in platform like "November 2025" or "Nov 2025"
+                    if (platform.match(/^(January|February|March|April|May|June|July|August|September|October|November|December)\s\d{4}$/)) return false;
+
+                    // Check Col G (Status). If it is "Total", it's a summary row.
+                    if (row[6] === 'Total') return false;
+
+                    return true;
+                })
                 .map(row => {
                     // Parse Cost: "$11.00" -> 11.00
                     const costString = row[3] ? row[3].replace(/[$,]/g, '') : '0';
                     const renewalMonthStr = row[2] || '';
-                    // Try to extract Day from "Day 21" or "21/11/2025" or just "21"
+
                     let day = 1;
                     const dayMatch = renewalMonthStr.match(/\d+/);
                     if (dayMatch) day = parseInt(dayMatch[0]);
+
+                    // Map Status (Col G / index 6)
+                    let status = 'Active';
+                    if (row[6]) {
+                        const s = row[6].toLowerCase();
+                        if (s.includes('cancel')) status = 'Cancelled';
+                        else if (s.includes('activ')) status = 'Active';
+                        else if (s.includes('paus')) status = 'Paused';
+                    }
 
                     return [
                         crypto.randomUUID(), // ID
@@ -100,7 +119,7 @@ export async function POST(req: Request) {
                         'Monthly', // BillingCycle (Default)
                         day, // RenewalDay
                         row[5], // CardUsed
-                        'Active', // Status (Default active)
+                        status, // Status (Mapped)
                         row[7], // Owner
                         row[8] // Notes
                     ];
@@ -124,9 +143,17 @@ export async function POST(req: Request) {
                 valueInputOption: 'USER_ENTERED',
                 requestBody: {
                     values: [[
-                        data.id, data.platform, data.category, data.cost, data.currency,
-                        data.billingCycle, data.renewalDay, data.cardUsed, data.status,
-                        data.owner, data.notes
+                        crypto.randomUUID(),
+                        data.platform,
+                        data.category,
+                        parseFloat(data.cost),
+                        data.currency,
+                        data.billingCycle,
+                        parseInt(data.renewalDay),
+                        data.cardUsed,
+                        data.status,
+                        data.owner,
+                        data.notes
                     ]]
                 }
             });
@@ -137,47 +164,56 @@ export async function POST(req: Request) {
                 valueInputOption: 'USER_ENTERED',
                 requestBody: {
                     values: [[
-                        data.id, data.date, data.description, data.amount, data.currency,
-                        data.category, data.type, data.receiptUrl, data.status
+                        crypto.randomUUID(),
+                        new Date().toISOString(),
+                        data.description,
+                        parseFloat(data.amount),
+                        data.currency,
+                        data.category,
+                        data.type,
+                        '', // Receipt URL placeholder
+                        'Pending'
                     ]]
                 }
             });
         }
+
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error saving finance data:', error);
+        return NextResponse.json({ error: 'Failed to save' }, { status: 500 });
+    }
+}
 
-        export async function DELETE(req: Request) {
-            const session = await getServerSession(authOptions);
-            if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function DELETE(req: Request) {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-            const accessToken = (session as any).accessToken;
-            const sheetsService = new GoogleSheetsService(accessToken);
-            const spreadsheetId = await sheetsService.getOrCreateDatabase();
+    const accessToken = (session as any).accessToken;
+    const sheetsService = new GoogleSheetsService(accessToken);
+    const spreadsheetId = await sheetsService.getOrCreateDatabase();
 
-            // Check if query params or body to determine type of delete
-            // For now, simpler: user wants to CLEAR ALL for reset. 
-            // BUT we should be careful. 
-            // Let's rely on a specific header or just assume this route is flexible. 
-            // Actually, `fetch` DELETE usually doesn't have body. 
-            // Let's use ?action=reset_all
-            const { searchParams } = new URL(req.url);
-            const action = searchParams.get('action');
+    const { searchParams } = new URL(req.url);
+    const action = searchParams.get('action');
 
-            try {
-                if (action === 'reset_all') {
-                    const sheetId = await sheetsService['getSheetId'](spreadsheetId, 'Subscriptions');
-                    // Clear all data leaving header
-                    await sheetsService['sheets'].spreadsheets.values.clear({
-                        spreadsheetId,
-                        range: 'Subscriptions!A2:K',
-                    });
-                    return NextResponse.json({ success: true, message: 'Reset complete' });
-                }
-
-                return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-            } catch (error) {
-                console.error('Error deleting finance data:', error);
-                return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
-            }
+    try {
+        if (action === 'reset_all') {
+            // Clear all data leaving header
+            await sheetsService['sheets'].spreadsheets.values.clear({
+                spreadsheetId,
+                range: 'Subscriptions!A2:K',
+            });
+            // Also clear expenses? potentially.
+            await sheetsService['sheets'].spreadsheets.values.clear({
+                spreadsheetId,
+                range: 'Expenses!A2:I',
+            });
+            return NextResponse.json({ success: true, message: 'Reset complete' });
         }
+
+        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+    } catch (error) {
+        console.error('Error deleting finance data:', error);
+        return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
+    }
+}
