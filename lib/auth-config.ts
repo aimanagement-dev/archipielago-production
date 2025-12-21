@@ -40,23 +40,55 @@ export const authOptions: NextAuthOptions = {
         }),
     ],
     callbacks: {
-        async signIn({ user }) {
-            // Limitar quién puede iniciar sesión
+        async signIn({ user, account }) {
+            // 1. Super Admin Bypass (Hardcoded + Env)
             const allowedEmails = (process.env.ALLOWED_LOGIN_EMAILS ||
-                'ai.management@archipielagofilm.com,ia.lantica@lanticastudios.com')
+                'ai.management@archipielagofilm.com,ia.lantica@lanticastudios.com,federico.beron@lanticastudios.com')
                 .split(',')
-                .map((email) => email.trim().toLowerCase())
+                .map((e) => e.trim().toLowerCase())
                 .filter(Boolean);
 
             const email = user?.email?.toLowerCase();
-            const isAllowed = email ? allowedEmails.includes(email) : false;
+            if (!email) return false;
 
-            if (!isAllowed) {
-                console.warn('Intento de login bloqueado para', user?.email);
-                return false;
+            if (allowedEmails.includes(email)) {
+                return true; // Always allow Admins
             }
 
-            return true;
+            // 2. Dynamic Check via Google Sheets
+            // Requires Access Token to read the DB
+            if (account?.access_token) {
+                try {
+                    // Lazy import to avoid circular dep issues in some contexts? 
+                    // No, standard import should be fine if built correctly.
+                    // But we need to use the Service we defined.
+                    const { GoogleSheetsService } = await import("@/lib/google-sheets");
+                    const service = new GoogleSheetsService(account.access_token);
+
+                    // Attempt to find the DB. 
+                    // NOTE: The user MUST have the 'Archipielago_DB' shared with them to find it.
+                    const dbId = await service.findDatabase();
+
+                    if (dbId) {
+                        const team = await service.getTeam(dbId);
+                        const member = team.find((m: any) => m.email?.toLowerCase() === email);
+
+                        if (member && member.accessGranted) {
+                            console.log(`[Auth] Access Granted dynamically for: ${email}`);
+                            return true;
+                        } else {
+                            console.warn(`[Auth] User found but Access DENIED: ${email}`);
+                        }
+                    } else {
+                        console.warn(`[Auth] DB not found for user (Not shared?): ${email}`);
+                    }
+                } catch (error) {
+                    console.error("[Auth] Error checking dynamic access:", error);
+                }
+            }
+
+            console.warn('Intento de login bloqueado para', user?.email);
+            return false;
         },
         async jwt({ token, account, user }) {
             // Initial sign in

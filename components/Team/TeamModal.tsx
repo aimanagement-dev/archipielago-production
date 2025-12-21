@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { TeamMember, MemberStatus, MemberType } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { User, Briefcase, Phone, Heart } from 'lucide-react';
+import { User, Briefcase, Phone, Heart, Shield } from 'lucide-react';
+import { isUserAdmin, DEPARTMENTS, ROLES } from '@/lib/constants';
 
 interface TeamModalProps {
     isOpen: boolean;
@@ -31,28 +33,10 @@ const Input = ({ label, value, onChange, placeholder, type = 'text', required = 
     </div>
 );
 
-
-// Constants for Dropdowns
-const DEPARTMENTS = [
-    'Producción', 'Dirección', 'Cámara', 'Iluminación (G&E)', 'Arte',
-    'Sonido', 'Vestuario', 'Maquillaje', 'Locaciones', 'Post-Producción', 'Otro'
-];
-
-const ROLES: Record<string, string[]> = {
-    'Producción': ['Productor Ejecutivo', 'Productor de Línea', 'Gerente de Producción (UPM)', 'Coordinador de Producción', 'Asistente de Producción (PA)', 'Runner'],
-    'Dirección': ['Director', '1er Asistente de Dirección (1AD)', '2do Asistente de Dirección (2AD)', 'Script Supervisor'],
-    'Cámara': ['Director de Fotografía (DoP)', 'Operador de Cámara', '1er Asistente de Cámara (Fists AC)', '2do Asistente de Cámara (Second AC)', 'DIT', 'Video Assist'],
-    'Iluminación (G&E)': ['Gaffer', 'Best Boy Electric', 'Key Grip', 'Best Boy Grip', 'Dolly Grip', 'Eléctrico', 'Grip'],
-    'Arte': ['Diseñador de Producción', 'Director de Arte', 'Set Decorator', 'Prop Master', 'Utilero', 'Leadman', 'Swing'],
-    'Sonido': ['Sonidista (Mixer)', 'Boom Operator', 'Utilero de Sonido'],
-    'Vestuario': ['Diseñador de Vestuario', 'Supervisor de Vestuario', 'Asistente de Vestuario'],
-    'Maquillaje': ['Jefe de Maquillaje', 'Maquillador', 'Peluquero'],
-    'Locaciones': ['Gerente de Locaciones', 'Asistente de Locaciones'],
-    'Post-Producción': ['Editor', 'Asistente de Edición', 'Colorista', 'Supervisor VFX', 'Diseñador de Sonido'],
-    'Otro': ['Consultor', 'Talento', 'Extra', 'Chofer', 'Catering', 'Seguridad']
-};
-
 export default function TeamModal({ isOpen, onClose, onSave, initialData }: TeamModalProps) {
+    const { data: session } = useSession();
+    const isAdmin = isUserAdmin(session?.user?.email);
+
     const [activeTab, setActiveTab] = useState<Tab>('general');
     const [formData, setFormData] = useState<Partial<TeamMember>>({
         name: '',
@@ -62,6 +46,7 @@ export default function TeamModal({ isOpen, onClose, onSave, initialData }: Team
         email: '',
         phone: '',
         notes: '',
+        accessGranted: false,
         socials: {}
     });
 
@@ -175,6 +160,37 @@ export default function TeamModal({ isOpen, onClose, onSave, initialData }: Team
                                         placeholder="Información general..."
                                     />
                                 </div>
+
+                                {isAdmin && (
+                                    <div className="pt-2 border-t border-white/5">
+                                        <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-3 flex items-start gap-3">
+                                            <div className="p-2 bg-yellow-500/10 rounded-full">
+                                                <Shield className="w-4 h-4 text-yellow-500" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <h4 className="text-sm font-bold text-yellow-500">Permisos de Sistema</h4>
+                                                <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+                                                    Habilitar el acceso permitirá que este usuario inicie sesión con su correo.
+                                                </p>
+
+                                                <label className="flex items-center gap-2 cursor-pointer group">
+                                                    <div className="relative">
+                                                        <input
+                                                            type="checkbox"
+                                                            className="sr-only peer"
+                                                            checked={formData.accessGranted || false}
+                                                            onChange={(e) => setFormData({ ...formData, accessGranted: e.target.checked })}
+                                                        />
+                                                        <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-yellow-500" />
+                                                    </div>
+                                                    <span className="text-xs font-medium text-foreground group-hover:text-yellow-400 transition-colors">
+                                                        {formData.accessGranted ? 'Acceso Habilitado' : 'Acceso Revocado'}
+                                                    </span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
 

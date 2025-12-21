@@ -45,6 +45,7 @@ export interface TeamMember {
   role: string; // To be deprecated in favor of position/department
   status: MemberStatus;
   type: MemberType;
+  accessGranted?: boolean; // System Access Toggle
 
   // Contácto y Personal
   email?: string;

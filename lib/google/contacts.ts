@@ -32,10 +32,9 @@ export async function getGoogleContacts(accessToken: string): Promise<Partial<Te
             const email = person.emailAddresses?.[0]?.value || '';
             const phone = person.phoneNumbers?.[0]?.value || '';
             const organization = person.organizations?.[0];
-            const photo = person.photos?.[0]?.url;
 
             // Try to map organization info
-            let department = undefined;
+            const department = undefined;
             let position = undefined;
             let union = undefined;
 

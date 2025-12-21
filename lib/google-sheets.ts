@@ -16,16 +16,32 @@ export class GoogleSheetsService {
     /**
      * Finds the Archipielago DB spreadsheet or creates it if it doesn't exist.
      */
-    async getOrCreateDatabase(): Promise<string> {
-        // Search for the file
-        const search = await this.drive.files.list({
-            q: "name = 'Archipielago_DB' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false",
-            fields: 'files(id, name)',
-        });
+    /**
+     * Finds the Archipielago DB spreadsheet. Returns null if not found.
+     */
+    async findDatabase(): Promise<string | null> {
+        try {
+            const search = await this.drive.files.list({
+                q: "name = 'Archipielago_DB' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false",
+                fields: 'files(id, name)',
+            });
 
-        if (search.data.files && search.data.files.length > 0) {
-            return search.data.files[0].id!;
+            if (search.data.files && search.data.files.length > 0) {
+                return search.data.files[0].id!;
+            }
+            return null;
+        } catch (error) {
+            console.error("Error searching for database:", error);
+            return null;
         }
+    }
+
+    /**
+     * Finds the Archipielago DB spreadsheet or creates it if it doesn't exist.
+     */
+    async getOrCreateDatabase(): Promise<string> {
+        const existingId = await this.findDatabase();
+        if (existingId) return existingId;
 
         // Create if not found
         const resource = {
@@ -86,7 +102,7 @@ export class GoogleSheetsService {
                     },
                     {
                         range: 'Team!A1',
-                        values: [['ID', 'Name', 'Email', 'Role', 'Avatar']],
+                        values: [['ID', 'Name', 'Email', 'Role', 'Department', 'Position', 'Status', 'Type', 'Phone', 'AccessGranted', 'Metadata']],
                     },
                 ],
             },
@@ -241,6 +257,133 @@ export class GoogleSheetsService {
 
         return -1;
     }
+
+    // --- Team Methods ---
+
+    async getTeam(spreadsheetId: string): Promise<any[]> {
+        const response = await this.sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: 'Team!A2:K', // Extended range for all fields
+        });
+
+        const rows = response.data.values;
+        if (!rows) return [];
+
+        return rows
+            .filter((row) => row.length > 0 && row[0])
+            .map((row) => ({
+                id: row[0],
+                name: row[1],
+                email: row[2],
+                role: row[3], // Legacy/Display Role
+                department: row[4],
+                position: row[5],
+                status: row[6],
+                type: row[7],
+                phone: row[8],
+                accessGranted: row[9] === 'TRUE', // Persisted Access Flag
+                metadata: row[10] ? JSON.parse(row[10]) : {}, // Store extras in JSON to save columns? Or flatten.
+            }));
+    }
+
+    async addMember(spreadsheetId: string, member: any) {
+        const values = [
+            [
+                member.id,
+                member.name,
+                member.email || '',
+                member.role || '',
+                member.department || '',
+                member.position || '',
+                member.status || '',
+                member.type || '',
+                member.phone || '',
+                member.accessGranted === true ? 'TRUE' : 'FALSE',
+                JSON.stringify({
+                    socials: member.socials,
+                    union: member.union,
+                    notes: member.notes
+                })
+            ],
+        ];
+
+        await this.sheets.spreadsheets.values.append({
+            spreadsheetId,
+            range: 'Team!A:K',
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values },
+        });
+    }
+
+    async updateMember(spreadsheetId: string, member: any) {
+        const rowIndex = await this.findMemberRowIndex(spreadsheetId, member.id);
+        if (rowIndex === -1) throw new Error(`Member ${member.id} not found`);
+
+        const values = [
+            [
+                member.id,
+                member.name,
+                member.email || '',
+                member.role || '',
+                member.department || '',
+                member.position || '',
+                member.status || '',
+                member.type || '',
+                member.phone || '',
+                member.accessGranted === true ? 'TRUE' : 'FALSE',
+                JSON.stringify({
+                    socials: member.socials,
+                    union: member.union,
+                    notes: member.notes
+                })
+            ],
+        ];
+
+        await this.sheets.spreadsheets.values.update({
+            spreadsheetId,
+            range: `Team!A${rowIndex}:K${rowIndex}`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: { values },
+        });
+    }
+
+    async deleteMember(spreadsheetId: string, memberId: string) {
+        const rowIndex = await this.findMemberRowIndex(spreadsheetId, memberId);
+        if (rowIndex === -1) throw new Error(`Member ${memberId} not found`);
+
+        const sheetId = await this.getSheetId(spreadsheetId, 'Team');
+
+        await this.sheets.spreadsheets.batchUpdate({
+            spreadsheetId,
+            requestBody: {
+                requests: [{
+                    deleteDimension: {
+                        range: {
+                            sheetId,
+                            dimension: 'ROWS',
+                            startIndex: rowIndex - 1,
+                            endIndex: rowIndex,
+                        },
+                    },
+                }],
+            },
+        });
+    }
+
+    private async findMemberRowIndex(spreadsheetId: string, memberId: string): Promise<number> {
+        const response = await this.sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: 'Team!A:A',
+        });
+        const rows = response.data.values;
+        if (!rows) return -1;
+        for (let i = 0; i < rows.length; i++) {
+            if (rows[i][0] === memberId) return i + 1;
+        }
+        return -1;
+    }
+
+    // ... existing helpers ...
 
     private async getSheetId(spreadsheetId: string, sheetName: string): Promise<number> {
         const response = await this.sheets.spreadsheets.get({

@@ -18,6 +18,7 @@ interface AppState {
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
   fetchTasks: () => Promise<void>;
+  fetchTeam: () => Promise<void>;
 
   // Gate actions
   addGate: (gate: Omit<Gate, 'id'>) => void;
@@ -202,17 +203,89 @@ export const useStore = create<AppState>()(
         gates: state.gates.filter(g => g.id !== id)
       })),
 
-      addMember: (member) => set((state) => ({
-        team: [...state.team, { ...member, id: generateId() }]
-      })),
+      fetchTeam: async () => {
+        set({ isLoading: true });
+        try {
+          const response = await fetch('/api/team');
+          if (response.ok) {
+            const data = await response.json();
+            if (data.team && Array.isArray(data.team)) {
+              console.log("[Store] Team fetched from API:", data.team.length);
+              set({ team: data.team, isLoading: false, error: null });
+            } else {
+              set({ team: [], isLoading: false, error: null });
+            }
+          } else {
+            console.warn('Failed to fetch team from API');
+            // If failed, fall back to local data if empty? Or keep loading?
+            // Better to show error but maybe keep static as backup is dangerous if we want sync.
+            // Let's just set error.
+            set({ isLoading: false, error: 'Error sincronizando equipo.' });
+          }
+        } catch (error) {
+          console.error('Error fetching team:', error);
+          set({ isLoading: false, error: 'Error de conexión (Equipo).' });
+        }
+      },
 
-      updateMember: (id, updates) => set((state) => ({
-        team: state.team.map(m => m.id === id ? { ...m, ...updates } : m)
-      })),
+      addMember: async (member) => {
+        const newMember = { ...member, id: generateId() };
+        // Optimistic
+        set((state) => ({ team: [...state.team, newMember] }));
 
-      deleteMember: (id) => set((state) => ({
-        team: state.team.filter(m => m.id !== id)
-      })),
+        try {
+          const response = await fetch('/api/team', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newMember),
+          });
+          if (!response.ok) throw new Error('Failed to create member');
+          // Reload to sync ID or other server fields
+          get().fetchTeam();
+        } catch (e) {
+          console.error(e);
+          set({ error: 'Error al guardar miembro nueva.' });
+        }
+      },
+
+      updateMember: async (id, updates) => {
+        // Optimistic
+        set((state) => ({
+          team: state.team.map(m => m.id === id ? { ...m, ...updates } : m)
+        }));
+
+        try {
+          // Need to send full object or partial? API expects just ID + updates usually, 
+          // but my API route expects a "member" object to update. 
+          // Let's construct the full updated member to send.
+          const attributeState = get().team.find(m => m.id === id);
+          const fullUpdated = { ...attributeState, ...updates };
+
+          const response = await fetch('/api/team', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(fullUpdated),
+          });
+          if (!response.ok) throw new Error('Failed to update member');
+        } catch (e) {
+          console.error(e);
+          set({ error: 'Error al actualizar miembro.' });
+        }
+      },
+
+      deleteMember: async (id) => {
+        const prevTeam = get().team;
+        // Optimistic
+        set((state) => ({ team: state.team.filter(m => m.id !== id) }));
+
+        try {
+          const response = await fetch(`/api/team?id=${id}`, { method: 'DELETE' });
+          if (!response.ok) throw new Error('Failed to delete member');
+        } catch (e) {
+          console.error(e);
+          set({ team: prevTeam, error: 'Error al eliminar miembro.' });
+        }
+      },
 
       getStats: () => {
         const { tasks, gates } = get();

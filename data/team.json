@@ -1,106 +1,170 @@
 [
   {
-    "id": "m1",
+    "id": "1",
     "name": "Israel Cárdenas",
     "role": "Director",
+    "department": "Creative Leadership",
+    "position": "Director",
     "status": "Activo",
-    "type": "Full-time"
+    "type": "Part-time",
+    "email": "israel.cardenas@archipielagofilm.com",
+    "phone": "+1 (829) 111-1111",
+    "socials": {}
   },
   {
-    "id": "m2",
+    "id": "2",
     "name": "Laura Amelia Guzmán",
-    "role": "Directora",
+    "role": "Director",
+    "department": "Creative Leadership",
+    "position": "Director",
     "status": "Activo",
-    "type": "Full-time"
+    "type": "Part-time",
+    "email": "laura.guzman@archipielagofilm.com",
+    "phone": "+1 (829) 222-2222",
+    "socials": {}
   },
   {
-    "id": "m3",
-    "name": "Rafael E. Muñoz",
-    "role": "Productor",
+    "id": "3",
+    "name": "Rafael Elías Muñoz",
+    "role": "Line Producer",
+    "department": "Management & Technical",
+    "position": "Line Producer",
     "status": "Activo",
-    "type": "Full-time"
+    "type": "Full-time",
+    "email": "rafael.munoz@lanticastudios.com",
+    "phone": "+1 (829) 333-3333",
+    "socials": {}
   },
   {
-    "id": "m4",
+    "id": "4",
     "name": "Jordi Gassó",
-    "role": "Gerente de producción",
+    "role": "Coordinator",
+    "department": "Management & Technical",
+    "position": "Production Coordinator",
     "status": "Activo",
-    "type": "Full-time"
+    "type": "Full-time",
+    "email": "jordi.gasso@lanticastudios.com",
+    "phone": "+1 (829) 444-4444",
+    "socials": {}
   },
   {
-    "id": "m5",
-    "name": "Sarah",
-    "role": "Line producer",
+    "id": "5",
+    "name": "Gabriel Sarag",
+    "role": "Legal",
+    "department": "Business Operations",
+    "position": "Legal Specialist",
     "status": "Activo",
-    "type": "Part-time"
+    "type": "Part-time",
+    "email": "gabriel.sarag@lanticastudios.com",
+    "phone": "+1 (829) 555-5555",
+    "socials": {}
   },
   {
-    "id": "m6",
+    "id": "6",
+    "name": "Diego Garcia",
+    "role": "Accounting",
+    "department": "Business Operations",
+    "position": "Accounting",
+    "status": "Activo",
+    "type": "Full-time",
+    "email": "diego.garcia@lanticastudios.com",
+    "phone": "+1 (829) 666-6666",
+    "socials": {}
+  },
+  {
+    "id": "7",
+    "name": "Jose Luis Jimenez",
+    "role": "DoP",
+    "department": "Creative Leadership",
+    "position": "Cinematographer (DoP)",
+    "status": "Activo",
+    "type": "Part-time",
+    "email": "joseluis.jimenez@archipielagofilm.com",
+    "phone": "+1 (829) 777-7777",
+    "socials": {}
+  },
+  {
+    "id": "8",
+    "name": "Miguel Ceara",
+    "role": "Writer",
+    "department": "Creative Leadership",
+    "position": "Writer",
+    "status": "Activo",
+    "type": "Part-time",
+    "email": "miguel.ceara@archipielagofilm.com",
+    "phone": "+1 (829) 888-8888",
+    "socials": {}
+  },
+  {
+    "id": "9",
+    "name": "Maia Gonzalez",
+    "role": "Art Director",
+    "department": "Creative Leadership",
+    "position": "Art Director",
+    "status": "Activo",
+    "type": "Part-time",
+    "email": "maia.gonzalez@archipielagofilm.com",
+    "phone": "+1 (829) 999-9999",
+    "socials": {}
+  },
+  {
+    "id": "10",
+    "name": "Valerie Hernandez",
+    "role": "Casting",
+    "department": "Creative Leadership",
+    "position": "Character Design / Casting",
+    "status": "Activo",
+    "type": "Part-time",
+    "email": "valerie.hernandez@archipielagofilm.com",
+    "phone": "+1 (829) 000-0001",
+    "socials": {}
+  },
+  {
+    "id": "11",
+    "name": "Cindy Vejar",
+    "role": "Data Engineer",
+    "department": "Management & Technical",
+    "position": "Data & Systems Engineer",
+    "status": "Activo",
+    "type": "Full-time",
+    "email": "cindy.vejar@lanticastudios.com",
+    "phone": "+1 (829) 000-0002",
+    "socials": {}
+  },
+  {
+    "id": "12",
+    "name": "Leticia Tonos",
+    "role": "Consultant",
+    "department": "Management & Technical",
+    "position": "A.I. Project Manager",
+    "status": "Activo",
+    "type": "Part-time",
+    "email": "leticia.tonos@archipielagofilm.com",
+    "phone": "+1 (829) 000-0003",
+    "socials": {}
+  },
+  {
+    "id": "13",
+    "name": "Federico Berón",
+    "role": "AI Lead",
+    "department": "Management & Technical",
+    "position": "A.I. R&D Lead",
+    "status": "Activo",
+    "type": "Part-time",
+    "email": "federico.beron@lanticastudios.com",
+    "phone": "+1 (829) 000-0004",
+    "socials": {}
+  },
+  {
+    "id": "14",
     "name": "AI Management",
-    "role": "AI Project Manager QA",
-    "status": "Activo",
-    "type": "Full-time"
-  },
-  {
-    "id": "m7",
-    "name": "Cindy Toribio",
-    "role": "AI Project Manager Assistant / Asset Manager",
-    "status": "Activo",
-    "type": "Full-time"
-  },
-  {
-    "id": "m8",
-    "name": "Diego Amando",
-    "role": "AI Artist Head",
-    "status": "Activo",
-    "type": "Full-time"
-  },
-  {
-    "id": "m9",
-    "name": "José Luis",
-    "role": "Data & System Engineer",
-    "status": "Activo",
-    "type": "Part-time",
-    "notes": "En prueba"
-  },
-  {
-    "id": "m10",
-    "name": "Miguel de Mena",
-    "role": "Research Head",
-    "status": "Inactivo",
-    "type": "Part-time",
-    "notes": "No se ha incorporado oficialmente"
-  },
-  {
-    "id": "m11",
-    "name": "Maia",
-    "role": "Research Assistant",
-    "status": "Inactivo",
-    "type": "Part-time",
-    "notes": "No se ha incorporado oficialmente"
-  },
-  {
-    "id": "m12",
-    "name": "Juliano",
-    "role": "AD",
-    "status": "Inactivo",
-    "type": "Full-time",
-    "notes": "No se ha incorporado oficialmente"
-  },
-  {
-    "id": "m13",
-    "name": "Valerie",
-    "role": "Casting Director",
-    "status": "Inactivo",
-    "type": "Part-time",
-    "notes": "Nuevo en Diciembre"
-  },
-  {
-    "id": "m14",
-    "name": "ia.Lantica",
-    "role": "AI Assistant",
+    "role": "A.I. Project Manager",
+    "department": "Management & Technical",
+    "position": "A.I. Project Manager",
     "status": "Activo",
     "type": "Full-time",
-    "email": "ia.lantica@lanticastudios.com"
+    "email": "ai.management@archipielagofilm.com",
+    "phone": "+1 (800) AI-CORE",
+    "socials": {}
   }
 ]
