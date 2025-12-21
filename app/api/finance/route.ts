@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth-config';
 import { GoogleSheetsService } from '@/lib/google-sheets';
+import crypto from 'crypto';
 
 export async function GET() {
     const session = await getServerSession(authOptions);
@@ -64,10 +65,59 @@ export async function POST(req: Request) {
     const spreadsheetId = await sheetsService.getOrCreateDatabase();
 
     const body = await req.json();
-    const { type, data } = body; // type: 'subscription' | 'expense'
+    const { type, data } = body; // type: 'subscription' | 'expense' | 'import_legacy'
 
     try {
-        if (type === 'subscription') {
+        if (type === 'import_legacy') {
+            // 1. Read from Legacy Sheet
+            const legacySpreadsheetId = '1ZSVEv_c2bZ1PUpX9uWuiaz32rJSJdch14Psy3J7F_qY';
+            const response = await sheetsService['sheets'].spreadsheets.values.get({
+                spreadsheetId: legacySpreadsheetId,
+                range: 'OVERVIEW!A5:I30', // Read enough rows
+            });
+
+            const rows = response.data.values;
+            if (!rows || rows.length === 0) return NextResponse.json({ success: true, message: 'No data found' });
+
+            // 2. Map to New Schema
+            const newSubs = rows
+                .filter(row => row[0]) // Ensure Platform exists
+                .map(row => {
+                    // Parse Cost: "$11.00" -> 11.00
+                    const costString = row[3] ? row[3].replace(/[$,]/g, '') : '0';
+                    const renewalMonthStr = row[2] || '';
+                    // Try to extract Day from "Day 21" or "21/11/2025" or just "21"
+                    let day = 1;
+                    const dayMatch = renewalMonthStr.match(/\d+/);
+                    if (dayMatch) day = parseInt(dayMatch[0]);
+
+                    return [
+                        crypto.randomUUID(), // ID
+                        row[0], // Platform
+                        row[1], // Category
+                        parseFloat(costString), // Cost
+                        row[4] || 'USD', // Currency
+                        'Monthly', // BillingCycle (Default)
+                        day, // RenewalDay
+                        row[5], // CardUsed
+                        'Active', // Status (Default active)
+                        row[7], // Owner
+                        row[8] // Notes
+                    ];
+                });
+
+            // 3. Write to Subscriptions
+            if (newSubs.length > 0) {
+                await sheetsService['sheets'].spreadsheets.values.append({
+                    spreadsheetId,
+                    range: 'Subscriptions!A:K',
+                    valueInputOption: 'USER_ENTERED',
+                    requestBody: { values: newSubs }
+                });
+            }
+            return NextResponse.json({ success: true, count: newSubs.length });
+
+        } else if (type === 'subscription') {
             await sheetsService['sheets'].spreadsheets.values.append({
                 spreadsheetId,
                 range: 'Subscriptions!A:K',

@@ -25,8 +25,58 @@ export default function FinanceDashboard() {
 
     const projectedBurn = totalMonthlyFixed + totalVariable;
 
+    const handleImportLegacy = async () => {
+        if (!confirm('¿Importar datos del Excel antiguo? Esto agregará las suscripciones al sistema.')) return;
+        try {
+            const res = await fetch('/api/finance', {
+                method: 'POST',
+                body: JSON.stringify({ type: 'import_legacy' })
+            });
+            if (res.ok) {
+                alert('¡Datos migrados exitosamente!');
+                fetchFinance(); // Refresh
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error al importar');
+        }
+    };
+
+    const handleExportReport = () => {
+        const headers = ['Platform', 'Category', 'Cost', 'Currency', 'RenewalDay', 'Status'];
+        const csvContent = [
+            headers.join(','),
+            ...finance.subscriptions.map(s =>
+                `"${s.platform}","${s.category}",${s.cost},"${s.currency}",${s.renewalDay},"${s.status}"`
+            )
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'finance_report_2025.csv');
+        document.body.appendChild(link);
+        link.click();
+    };
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="flex justify-end gap-2">
+                <button
+                    onClick={handleExportReport}
+                    className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-xs rounded-lg border border-white/10 transition-colors">
+                    📄 Exportar Reporte
+                </button>
+                {activeSubs.length === 0 && (
+                    <button
+                        onClick={handleImportLegacy}
+                        className="px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs rounded-lg border border-blue-500/20 transition-colors">
+                        🔄 Importar Legacy Data
+                    </button>
+                )}
+            </div>
+
             {/* Header Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 backdrop-blur-sm">
