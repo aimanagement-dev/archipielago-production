@@ -25,19 +25,21 @@ export default function ComposeModal({ isOpen, onClose, initialData }: ComposeMo
 
     useEffect(() => {
         if (isOpen) {
+            // Fetch team only when opening
             fetchTeam();
+
+            // Set initial data
             if (initialData) {
                 setTo(initialData.to || []);
                 setSubject(initialData.subject || '');
                 setBody(initialData.body || '');
             } else {
-                // Reset defaults
                 setTo([]);
                 setSubject('');
                 setBody('');
             }
         }
-    }, [isOpen, initialData, fetchTeam]);
+    }, [isOpen]); // Only run when opening status changes
 
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();

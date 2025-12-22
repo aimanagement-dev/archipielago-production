@@ -297,7 +297,7 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
 
             {/* Drive Picker Overlay */}
             {isDrivePickerOpen && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsDrivePickerOpen(false)} />
                     <div className="relative w-full max-w-2xl z-10">
                         <DrivePicker

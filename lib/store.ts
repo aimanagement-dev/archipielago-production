@@ -215,8 +215,14 @@ export const useStore = create<AppState>()(
           if (response.ok) {
             const data = await response.json();
             if (data.team && Array.isArray(data.team)) {
-              console.log("[Store] Team fetched from API:", data.team.length);
-              set({ team: data.team, isLoading: false, error: null });
+              // Avoid unnecessary updates if data is identical
+              const currentTeam = get().team;
+              if (JSON.stringify(currentTeam) !== JSON.stringify(data.team)) {
+                console.log("[Store] Team updated from API:", data.team.length);
+                set({ team: data.team, isLoading: false, error: null });
+              } else {
+                set({ isLoading: false, error: null });
+              }
             } else {
               set({ team: [], isLoading: false, error: null });
             }
@@ -395,7 +401,7 @@ export const useStore = create<AppState>()(
             set((state) => ({
               finance: {
                 ...state.finance,
-                subscriptions: state.finance.subscriptions.map(s => 
+                subscriptions: state.finance.subscriptions.map(s =>
                   s.id === id ? { ...s, ...data, updatedAt: new Date().toISOString() } : s
                 )
               }
@@ -421,7 +427,7 @@ export const useStore = create<AppState>()(
             set((state) => ({
               finance: {
                 ...state.finance,
-                transactions: state.finance.transactions.map(t => 
+                transactions: state.finance.transactions.map(t =>
                   t.id === id ? { ...t, ...data, updatedAt: new Date().toISOString() } : t
                 )
               }
