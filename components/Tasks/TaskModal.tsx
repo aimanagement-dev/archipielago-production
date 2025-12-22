@@ -107,12 +107,14 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
     return (
         <div className={`fixed inset-0 z-50 flex items-center justify-center ${isOpen ? 'visible' : 'invisible'}`}>
             <div className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0'}`} onClick={onClose} />
-            <div className={`relative w-full max-w-lg bg-card border border-white/10 rounded-xl shadow-2xl p-6 transform transition-all ${isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}>
-                <h2 className="text-xl font-bold text-foreground mb-4">
-                    {initialData ? 'Edit Task' : 'New Task'}
-                </h2>
+            <div className={`relative w-full max-w-lg bg-card border border-white/10 rounded-xl shadow-2xl flex flex-col max-h-[90vh] transform transition-all ${isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}>
+                <div className="p-6 border-b border-white/5 flex-shrink-0">
+                    <h2 className="text-xl font-bold text-foreground">
+                        {initialData ? 'Edit Task' : 'New Task'}
+                    </h2>
+                </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-muted-foreground">Title</label>
                         <input
@@ -225,12 +227,10 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                         )}
                     </div>
 
-                    {/* Attachments Section */}
+                    {/* Attachments Section - Consolidated */}
                     <div className="space-y-2 pt-2 border-t border-white/10">
                         <div className="flex items-center justify-between">
-                            <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                                Recursos & Archivos
-                            </label>
+                            <span className="text-sm font-medium text-muted-foreground">Recursos</span>
                             <button
                                 type="button"
                                 onClick={() => setIsDrivePickerOpen(true)}
@@ -239,36 +239,6 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                                 <Plus className="w-3 h-3" /> Adjuntar desde Drive
                             </button>
                         </div>
-
-                        {/* Attachments List */}
-                        {formData.attachments && formData.attachments.length > 0 ? (
-                            <div className="grid grid-cols-1 gap-2">
-                                {formData.attachments.map((att) => (
-                                    <div key={att.id} className="flex items-center justify-between p-2 bg-white/5 rounded border border-white/5 hover:border-white/10 group">
-                                        <div className="flex items-center gap-2 overflow-hidden">
-                                            {att.type === 'file' ? <FileText className="w-4 h-4 text-blue-400" /> : <LinkIcon className="w-4 h-4 text-purple-400" />}
-                                            <a href={att.url} target="_blank" rel="noopener noreferrer" className="text-sm text-foreground truncate hover:underline">
-                                                {att.name}
-                                            </a>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setFormData({
-                                                    ...formData,
-                                                    attachments: formData.attachments?.filter(a => a.id !== att.id)
-                                                });
-                                            }}
-                                            className="p-1 text-white/40 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                                        >
-                                            <Trash2 className="w-3 h-3" />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-xs text-muted-foreground italic">No hay archivos adjuntos.</p>
-                        )}
                     </div>
 
                     {/* Attachments and Permissions (Advanced) */}
@@ -276,8 +246,11 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                         task={formData}
                         onChange={(updates) => setFormData({ ...formData, ...updates })}
                     />
+                </form>
 
-                    <div className="flex justify-between items-center gap-3 pt-4">
+                {/* Footer buttons */}
+                <div className="p-6 border-t border-white/5 bg-black/20 flex-shrink-0">
+                    <div className="flex justify-between items-center gap-3">
                         {onDelete && initialData ? (
                             <div className="flex gap-2">
                                 <button
@@ -311,14 +284,15 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                                 Cancel
                             </button>
                             <button
-                                type="submit"
+                                type="button"
+                                onClick={handleSubmit}
                                 className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.3)]"
                             >
                                 {initialData ? 'Save Changes' : 'Create Task'}
                             </button>
                         </div>
                     </div>
-                </form>
+                </div>
             </div>
 
             {/* Drive Picker Overlay */}

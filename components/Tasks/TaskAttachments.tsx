@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Task, Attachment, VisibilityLevel } from '@/lib/types';
-import { Paperclip, Link as LinkIcon, X, Lock, Users, Globe } from 'lucide-react';
+import { Paperclip, Link as LinkIcon, X, Lock, Users, Globe, FileText } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 
 interface TaskAttachmentsProps {
@@ -139,7 +139,11 @@ export default function TaskAttachments({ task, onChange }: TaskAttachmentsProps
                                 className="flex items-center justify-between p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
                             >
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                                    <LinkIcon className="w-4 h-4 text-primary flex-shrink-0" />
+                                    {attachment.type === 'file' ? (
+                                        <FileText className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                                    ) : (
+                                        <LinkIcon className="w-4 h-4 text-primary flex-shrink-0" />
+                                    )}
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm text-foreground truncate">{attachment.name}</p>
                                         <p className="text-xs text-muted-foreground truncate">{attachment.url}</p>
