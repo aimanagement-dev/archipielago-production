@@ -5,6 +5,7 @@ import { Task, TaskArea, TaskStatus, Month, Attachment } from '@/lib/types';
 import TaskAttachments from './TaskAttachments';
 import { X, Plus, Search, Users, Upload, FileText, Trash2, Link as LinkIcon } from 'lucide-react';
 import DrivePicker from '@/components/Drive/DrivePicker';
+import ComposeModal from '@/components/Comms/ComposeModal';
 
 
 interface TaskModalProps {
@@ -35,6 +36,7 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
         visibleTo: [],
     });
     const [isDrivePickerOpen, setIsDrivePickerOpen] = useState(false);
+    const [isComposeOpen, setIsComposeOpen] = useState(false);
 
     // Auto-calculate Month and Week when date changes
     useEffect(() => {
@@ -277,17 +279,26 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
 
                     <div className="flex justify-between items-center gap-3 pt-4">
                         {onDelete && initialData ? (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (confirm('¿Estás seguro de que quieres eliminar esta tarea?')) {
-                                        onDelete();
-                                    }
-                                }}
-                                className="px-4 py-2 rounded-lg text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
-                            >
-                                Eliminar
-                            </button>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (confirm('¿Estás seguro de que quieres eliminar esta tarea?')) {
+                                            onDelete();
+                                        }
+                                    }}
+                                    className="px-4 py-2 rounded-lg text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+                                >
+                                    Eliminar
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsComposeOpen(true)}
+                                    className="px-4 py-2 rounded-lg text-sm font-medium text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 transition-colors"
+                                >
+                                    Enviar Notificación
+                                </button>
+                            </div>
                         ) : (
                             <div></div>
                         )}
@@ -336,6 +347,24 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                     </div>
                 </div>
             )}
+
+            {/* Compose Modal for Call Sheets */}
+            <ComposeModal
+                isOpen={isComposeOpen}
+                onClose={() => setIsComposeOpen(false)}
+                initialData={{
+                    subject: `Call Sheet: ${formData.title}`,
+                    body: `
+Title: ${formData.title}
+Date: ${formData.scheduledDate} ${formData.scheduledTime ? '@ ' + formData.scheduledTime : ''}
+Area: ${formData.area}
+Internal Notes: ${formData.notes || 'None'}
+
+--
+Sent via Archipiélago OS
+                    `.trim()
+                }}
+            />
         </div>
     );
 }

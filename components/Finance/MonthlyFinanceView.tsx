@@ -1,11 +1,11 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useStore } from '@/lib/store';
 import { Subscription, Transaction } from '@/lib/types';
-import { DollarSign, TrendingUp, TrendingDown, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, AlertCircle, ChevronDown, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import TransactionModal from './TransactionModal';
 
 interface MonthlyFinanceViewProps {
     year: number;
@@ -13,8 +13,25 @@ interface MonthlyFinanceViewProps {
 }
 
 export default function MonthlyFinanceView({ year, month }: MonthlyFinanceViewProps) {
-    const { finance, team } = useStore();
+    const { finance, team, deleteTransaction, updateTransaction } = useStore();
     const [expandedSubs, setExpandedSubs] = useState<Set<string>>(new Set());
+    const [editingTrans, setEditingTrans] = useState<Transaction | undefined>(undefined);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const handleDelete = async (id: string, vendor: string) => {
+        if (!confirm(`¿Estás seguro de eliminar la transacción "${vendor}"?`)) return;
+        try {
+            await deleteTransaction(id);
+        } catch (error) {
+            console.error('Error deleting transaction:', error);
+            alert('Error al eliminar transacción');
+        }
+    };
+
+    const handleEdit = (trans: Transaction) => {
+        setEditingTrans(trans);
+        setIsModalOpen(true);
+    };
 
     // Helper: Get team member name by ID
     const getMemberName = (id?: string) => {
@@ -112,8 +129,8 @@ export default function MonthlyFinanceView({ year, month }: MonthlyFinanceViewPr
                 {/* Diferencia */}
                 <div className={cn(
                     "bg-card/40 backdrop-blur-md rounded-xl border p-6",
-                    totals.difference >= 0 
-                        ? "border-red-500/20 bg-red-500/5" 
+                    totals.difference >= 0
+                        ? "border-red-500/20 bg-red-500/5"
                         : "border-emerald-500/20 bg-emerald-500/5"
                 )}>
                     <div className="flex items-center justify-between mb-2">
@@ -174,7 +191,7 @@ export default function MonthlyFinanceView({ year, month }: MonthlyFinanceViewPr
 
                         return (
                             <div key={sub.id} className="hover:bg-white/5 transition-colors">
-                                <div 
+                                <div
                                     className="p-4 flex items-center justify-between cursor-pointer"
                                     onClick={() => toggleSub(sub.id)}
                                 >
@@ -228,7 +245,7 @@ export default function MonthlyFinanceView({ year, month }: MonthlyFinanceViewPr
                                                         <span className="text-foreground">{trans.vendor}</span>
                                                         <span className={cn(
                                                             "px-2 py-0.5 rounded-full text-[10px] font-medium border",
-                                                            trans.kind === 'extra' 
+                                                            trans.kind === 'extra'
                                                                 ? "bg-orange-500/10 text-orange-400 border-orange-500/20"
                                                                 : "bg-purple-500/10 text-purple-400 border-purple-500/20"
                                                         )}>
@@ -252,7 +269,7 @@ export default function MonthlyFinanceView({ year, month }: MonthlyFinanceViewPr
                                 <h4 className="font-semibold text-white text-sm">Gastos One-off ({transactionsBySub.oneOffs.length})</h4>
                             </div>
                             {transactionsBySub.oneOffs.map(trans => (
-                                <div key={trans.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
+                                <div key={trans.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors group">
                                     <div className="flex items-center gap-4 flex-1">
                                         <div className="w-10 h-10 rounded-lg bg-gray-800/50 border border-white/10 flex items-center justify-center">
                                             <DollarSign className="w-5 h-5 text-gray-400" />
@@ -269,9 +286,28 @@ export default function MonthlyFinanceView({ year, month }: MonthlyFinanceViewPr
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <div className="text-lg font-bold text-foreground">${trans.amount.toFixed(2)}</div>
-                                        <div className="text-xs text-muted-foreground">{trans.currency}</div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-right">
+                                            <div className="text-lg font-bold text-foreground">${trans.amount.toFixed(2)}</div>
+                                            <div className="text-xs text-muted-foreground">{trans.currency}</div>
+                                        </div>
+                                        {/* Actions */}
+                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => handleEdit(trans)}
+                                                className="p-1.5 rounded-lg bg-white/5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                                                title="Editar"
+                                            >
+                                                <Pencil className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(trans.id, trans.vendor)}
+                                                className="p-1.5 rounded-lg bg-white/5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                                title="Eliminar"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
@@ -296,7 +332,24 @@ export default function MonthlyFinanceView({ year, month }: MonthlyFinanceViewPr
                         </div>
                     </div>
                 </div>
+
+                {/* Edit Modal */}
+                <TransactionModal
+                    isOpen={isModalOpen}
+                    onClose={() => {
+                        setIsModalOpen(false);
+                        setEditingTrans(undefined);
+                    }}
+                    onSave={async (data) => {
+                        if (editingTrans) {
+                            await updateTransaction(editingTrans.id, data);
+                        }
+                        setIsModalOpen(false);
+                        setEditingTrans(undefined);
+                    }}
+                    initialData={editingTrans}
+                />
             </div>
-        </div>
+        </div >
     );
 }

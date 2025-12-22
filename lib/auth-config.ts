@@ -34,7 +34,7 @@ export const authOptions: NextAuthOptions = {
                     prompt: "select_account consent",
                     access_type: "offline",
                     response_type: "code",
-                    scope: "openid email profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/contacts.readonly",
+                    scope: "openid email profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/contacts.readonly https://www.googleapis.com/auth/gmail.send",
                 },
             },
         }),
