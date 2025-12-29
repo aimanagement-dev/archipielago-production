@@ -130,3 +130,4 @@
 3. **Refactorizar `FinanceDashboard`** - Agregar tabs y reorganizar
 4. **Mejorar cálculos** - Agregar comparación proyectado vs real
 5. **Agregar indicadores visuales** - Colores y badges
+
