@@ -29,6 +29,8 @@ export class GoogleDriveService {
             q: query,
             fields: 'files(id, name)',
             spaces: 'drive',
+            supportsAllDrives: true,
+            includeItemsFromAllDrives: true
         });
 
         if (res.data.files && res.data.files.length > 0) {
@@ -43,6 +45,7 @@ export class GoogleDriveService {
         const file = await this.drive.files.create({
             requestBody: fileMetadata,
             fields: 'id',
+            supportsAllDrives: true
         });
 
         return file.data.id!;
@@ -59,7 +62,9 @@ export class GoogleDriveService {
             q: query,
             fields: 'files(id, name, mimeType, webViewLink, thumbnailLink, parents)',
             orderBy: 'folder, name',
-            pageSize: 100
+            pageSize: 100,
+            supportsAllDrives: true,
+            includeItemsFromAllDrives: true
         });
 
         return (res.data.files as DriveFile[]) || [];
@@ -80,6 +85,7 @@ export class GoogleDriveService {
         const file = await this.drive.files.create({
             requestBody: fileMetadata,
             fields: 'id, name, mimeType, webViewLink',
+            supportsAllDrives: true
         });
 
         return file.data as DriveFile;
@@ -109,6 +115,7 @@ export class GoogleDriveService {
             requestBody: fileMetadata,
             media: media,
             fields: 'id, name, mimeType, webViewLink, thumbnailLink',
+            supportsAllDrives: true
         });
 
         return file.data as DriveFile;
@@ -122,6 +129,8 @@ export class GoogleDriveService {
         const res = await this.drive.files.list({
             q: query,
             fields: 'files(id)',
+            supportsAllDrives: true,
+            includeItemsFromAllDrives: true
         });
 
         if (res.data.files && res.data.files.length > 0) {
