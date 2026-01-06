@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { Subscription, TeamMember } from '@/lib/types';
-import { X, Plus, Search, Users, Upload } from 'lucide-react';
+import { X, Plus, Search, Users, Upload, HardDrive } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { FINANCE_DRIVE_FOLDER_ID } from '@/lib/constants';
 import TeamModal from '@/components/Team/TeamModal';
 import DrivePicker from '@/components/Drive/DrivePicker';
 
@@ -355,24 +356,43 @@ export default function SubscriptionModal({ isOpen, onClose, onSave, initialData
                             {/* Metadata */}
                             <div className="space-y-4 pt-4 border-t border-white/5">
                                 <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide">Metadata</h3>
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">URL de Factura</label>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="url"
-                                            value={formData.receiptUrl || ''}
-                                            onChange={(e) => setFormData({ ...formData, receiptUrl: e.target.value })}
-                                            className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-primary/50"
-                                            placeholder="https://drive.google.com/..."
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsDrivePickerOpen(true)}
-                                            className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-white/70 hover:text-white transition-colors"
-                                            title="Adjuntar desde Drive"
-                                        >
-                                            <Upload className="w-4 h-4" />
-                                        </button>
+                                {/* Comprobantes / Facturas */}
+                                <div className="space-y-4 pt-4 border-t border-white/5">
+                                    <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                                        <HardDrive className="w-4 h-4" />
+                                        Comprobantes & Facturas
+                                    </h3>
+                                    <div className="bg-black/20 rounded-lg p-4 border border-white/10">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Archivo en Drive</label>
+                                            {formData.receiptUrl && (
+                                                <span className="text-xs text-emerald-500 font-bold flex items-center gap-1">
+                                                    ✓ Vinculado
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={formData.receiptUrl || ''}
+                                                readOnly
+                                                className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-foreground/70 focus:outline-none cursor-not-allowed"
+                                                placeholder="Sube un comprobante para vincularlo..."
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsDrivePickerOpen(true)}
+                                                className="px-4 py-2 bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-500 border border-yellow-600/30 rounded-lg transition-colors flex items-center gap-2"
+                                                title="Sube directamente al folder de Finanzas"
+                                            >
+                                                <Upload className="w-4 h-4" />
+                                                <span className="hidden sm:inline">Subir Comprobante</span>
+                                            </button>
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground mt-2">
+                                            Los archivos se guardarán automáticamente en la carpeta segura de Finanzas.
+                                        </p>
                                     </div>
                                 </div>
                                 <div className="space-y-1.5">
@@ -427,6 +447,7 @@ export default function SubscriptionModal({ isOpen, onClose, onSave, initialData
                     <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsDrivePickerOpen(false)} />
                     <div className="relative w-full max-w-2xl z-10">
                         <DrivePicker
+                            initialFolderId={FINANCE_DRIVE_FOLDER_ID}
                             onSelect={(link) => {
                                 setFormData({ ...formData, receiptUrl: link });
                                 setIsDrivePickerOpen(false);

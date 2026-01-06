@@ -10,6 +10,7 @@ import SubscriptionModal from './SubscriptionModal';
 import TransactionModal from './TransactionModal';
 import TransactionsTable from './TransactionsTable';
 import MonthlyFinanceView from './MonthlyFinanceView';
+import DrivePicker from '@/components/Drive/DrivePicker';
 
 type Tab = 'month' | 'subscriptions' | 'history';
 
@@ -18,6 +19,7 @@ export default function FinanceDashboard() {
     const [isLoaded, setIsLoaded] = useState(false);
     const [isSubModalOpen, setIsSubModalOpen] = useState(false);
     const [isTransModalOpen, setIsTransModalOpen] = useState(false);
+    const [isDriveModalOpen, setIsDriveModalOpen] = useState(false);
     const [editingSub, setEditingSub] = useState<Subscription | undefined>(undefined);
     const [editingTrans, setEditingTrans] = useState<Transaction | undefined>(undefined);
     const [activeTab, setActiveTab] = useState<Tab>('month');
@@ -324,7 +326,7 @@ export default function FinanceDashboard() {
                             </button>
                         )}
                         <button
-                            onClick={() => window.open(`https://drive.google.com/drive/folders/${FINANCE_DRIVE_FOLDER_ID}`, '_blank')}
+                            onClick={() => setIsDriveModalOpen(true)}
                             className="flex-1 md:flex-none px-4 py-2.5 bg-yellow-600 hover:bg-yellow-500 text-white text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-yellow-500/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
                             <HardDrive className="w-4 h-4" />
                             Drive de Finanzas
@@ -515,6 +517,32 @@ export default function FinanceDashboard() {
                 onSave={handleSaveTransaction}
                 initialData={editingTrans}
             />
+
+            {/* Finance Drive Modal */}
+            {isDriveModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsDriveModalOpen(false)} />
+                    <div className="relative w-full max-w-4xl h-[80vh] bg-card border border-white/10 rounded-xl shadow-2xl overflow-hidden flex flex-col">
+                        <div className="flex justify-between items-center p-4 border-b border-border bg-muted/20">
+                            <h3 className="font-bold flex items-center gap-2">
+                                <HardDrive className="w-5 h-5 text-yellow-500" />
+                                Drive de Finanzas
+                            </h3>
+                            <button onClick={() => setIsDriveModalOpen(false)} className="text-muted-foreground hover:text-foreground">
+                                <span className="sr-only">Cerrar</span>
+                                ×
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-hidden relative">
+                            <DrivePicker
+                                initialFolderId={FINANCE_DRIVE_FOLDER_ID}
+                                onSelect={() => { }} // No action needed on select for this view
+                                className="h-full"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
