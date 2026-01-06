@@ -537,6 +537,7 @@ export default function FinanceDashboard() {
                             <DrivePicker
                                 initialFolderId={FINANCE_DRIVE_FOLDER_ID}
                                 onSelect={() => { }} // No action needed on select for this view
+                                onCancel={() => setIsDriveModalOpen(false)}
                                 className="h-full"
                             />
                         </div>
