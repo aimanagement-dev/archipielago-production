@@ -129,4 +129,15 @@ export class GoogleDriveService {
         }
         return null;
     }
+
+    /**
+     * Ensures a specific subfolder exists inside a parent.
+     */
+    async ensureFolder(name: string, parentId: string): Promise<string> {
+        const existingId = await this.findFolder(name, parentId);
+        if (existingId) return existingId;
+
+        const newFolder = await this.createFolder(name, parentId);
+        return newFolder.id;
+    }
 }

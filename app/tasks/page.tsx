@@ -200,10 +200,10 @@ export default function TasksPage() {
               onClick={handleSyncToCalendar}
               disabled={syncing}
               className={cn(
-                'flex items-center gap-2 px-3 py-2 rounded-lg font-medium border border-white/10 transition-colors',
+                'flex items-center gap-2 px-3 py-2 rounded-lg font-medium border border-border transition-colors',
                 syncing
-                  ? 'bg-white/10 text-muted-foreground cursor-not-allowed'
-                  : 'bg-white/5 hover:bg-white/10 text-foreground'
+                  ? 'bg-muted text-muted-foreground cursor-not-allowed font-bold'
+                  : 'bg-muted/50 hover:bg-muted text-foreground'
               )}
               title="Sincronizar hacia Google Calendar (App → Calendar)"
             >
@@ -214,10 +214,10 @@ export default function TasksPage() {
               onClick={handleSyncFromCalendar}
               disabled={syncingFromCalendar}
               className={cn(
-                'flex items-center gap-2 px-3 py-2 rounded-lg font-medium border border-white/10 transition-colors',
+                'flex items-center gap-2 px-3 py-2 rounded-lg font-medium border border-border transition-colors',
                 syncingFromCalendar
-                  ? 'bg-white/10 text-muted-foreground cursor-not-allowed'
-                  : 'bg-white/5 hover:bg-white/10 text-foreground'
+                  ? 'bg-muted text-muted-foreground cursor-not-allowed font-bold'
+                  : 'bg-muted/50 hover:bg-muted text-foreground'
               )}
               title="Sincronizar desde Google Calendar (Calendar → App)"
             >
@@ -226,12 +226,12 @@ export default function TasksPage() {
             </button>
           </div>
           {syncMessage && (
-            <div className="text-sm text-green-400 bg-green-400/10 px-3 py-1 rounded-lg">
+            <div className="text-sm text-green-700 bg-emerald-500/10 px-3 py-1 rounded-lg font-semibold border border-emerald-500/20">
               {syncMessage}
             </div>
           )}
           {syncError && (
-            <div className="text-sm text-red-400 bg-red-400/10 px-3 py-1 rounded-lg">
+            <div className="text-sm text-red-700 bg-red-500/10 px-3 py-1 rounded-lg font-semibold border border-red-500/20">
               {syncError}
             </div>
           )}
@@ -250,18 +250,18 @@ export default function TasksPage() {
       </div>
 
       {/* View Options */}
-      <div className="bg-card/40 backdrop-blur-md rounded-xl border border-white/5 p-4">
+      <div className="bg-card rounded-xl border border-border p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground">Agrupar por:</span>
+            <span className="text-sm font-bold text-muted-foreground">Agrupar por:</span>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setGroupBy('none')}
                 className={cn(
-                  'px-3 py-1.5 rounded text-xs font-medium transition-all',
+                  'px-3 py-1.5 rounded text-xs font-bold transition-all uppercase tracking-wider',
                   groupBy === 'none'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 )}
               >
                 Sin agrupar
@@ -269,10 +269,10 @@ export default function TasksPage() {
               <button
                 onClick={() => setGroupBy('month')}
                 className={cn(
-                  'px-3 py-1.5 rounded text-xs font-medium transition-all',
+                  'px-3 py-1.5 rounded text-xs font-bold transition-all uppercase tracking-wider',
                   groupBy === 'month'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 )}
               >
                 Mes
@@ -280,10 +280,10 @@ export default function TasksPage() {
               <button
                 onClick={() => setGroupBy('week')}
                 className={cn(
-                  'px-3 py-1.5 rounded text-xs font-medium transition-all',
+                  'px-3 py-1.5 rounded text-xs font-bold transition-all uppercase tracking-wider',
                   groupBy === 'week'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 )}
               >
                 Semana
@@ -291,10 +291,10 @@ export default function TasksPage() {
               <button
                 onClick={() => setGroupBy('area')}
                 className={cn(
-                  'px-3 py-1.5 rounded text-xs font-medium transition-all',
+                  'px-3 py-1.5 rounded text-xs font-bold transition-all uppercase tracking-wider',
                   groupBy === 'area'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 )}
               >
                 Área
@@ -302,10 +302,10 @@ export default function TasksPage() {
               <button
                 onClick={() => setGroupBy('status')}
                 className={cn(
-                  'px-3 py-1.5 rounded text-xs font-medium transition-all',
+                  'px-3 py-1.5 rounded text-xs font-bold transition-all uppercase tracking-wider',
                   groupBy === 'status'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 )}
               >
                 Estado
@@ -313,7 +313,7 @@ export default function TasksPage() {
             </div>
           </div>
 
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground font-medium">
             Total: <span className="font-bold text-foreground">{filteredTasks.length}</span> tareas
           </div>
         </div>
@@ -322,8 +322,8 @@ export default function TasksPage() {
       {(syncMessage || syncError) && (
         <div
           className={cn(
-            'rounded-lg border px-4 py-3 text-sm',
-            syncError ? 'border-red-500/40 bg-red-500/10 text-red-200' : 'border-primary/40 bg-primary/10 text-primary-foreground'
+            'rounded-lg border px-4 py-3 text-sm font-medium',
+            syncError ? 'border-red-500/40 bg-red-500/10 text-red-700' : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
           )}
         >
           {syncError || syncMessage}

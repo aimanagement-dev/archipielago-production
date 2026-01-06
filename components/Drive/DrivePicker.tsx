@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useStore } from '@/lib/store';
-import { Folder, FileText, Download, Upload, ArrowLeft, Loader2, Check, ChevronRight } from 'lucide-react';
+import { Folder, FileText, Download, Upload, ArrowLeft, Loader2, Check, ChevronRight, Cloud } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DriveFile {
@@ -18,33 +18,53 @@ interface DrivePickerProps {
     onSelect: (fileLink: string, fileId: string, fileName: string) => void;
     onCancel: () => void;
     initialFolderId?: string;
+    area?: string;
 }
 
-export default function DrivePicker({ onSelect, onCancel, initialFolderId = 'root' }: DrivePickerProps) {
+export default function DrivePicker({ onSelect, onCancel, initialFolderId = 'root', area, className }: DrivePickerProps & { className?: string }) {
     const [currentFolder, setCurrentFolder] = useState<string>(initialFolderId);
     const [path, setPath] = useState<{ id: string, name: string }[]>([{ id: 'root', name: 'Home' }]);
     const [files, setFiles] = useState<DriveFile[]>([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
+    const [magicJumpOccurred, setMagicJumpOccurred] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Fetch files when folder changes
     useEffect(() => {
+        // Prevent double-fetch if we just did a magic jump
+        if (magicJumpOccurred) return;
         fetchFiles(currentFolder);
-    }, [currentFolder]);
+    }, [currentFolder, magicJumpOccurred]);
 
     const fetchFiles = async (folderId: string) => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/drive?folderId=${folderId}`);
+            // Include area param only if we are at root/initial load
+            const areaParam = (folderId === 'root' && area) ? `&area=${encodeURIComponent(area)}` : '';
+            const res = await fetch(`/api/drive?folderId=${folderId}${areaParam}`);
             if (!res.ok) throw new Error('Failed to fetch');
             const data = await res.json();
             setFiles(data.files);
 
-            // Update root ID if we started with 'root' alias
-            if (folderId === 'root' && data.parentId) {
-                // Adjust path logic if needed, for now just load content
+            // Handle Magic Jump (Deep Linking to Area Folder)
+            if (folderId === 'root' && data.parentId && data.parentId !== 'root' && area) {
+                // We were redirected to a subfolder (e.g. Produccion)
+                // Update state silently to avoid re-fetch loop
+                setCurrentFolder(data.parentId);
+                setPath([
+                    { id: 'root', name: 'Home' },
+                    { id: data.parentId, name: area }
+                ]);
+                setMagicJumpOccurred(true);
+                // Reset magic flag after a moment so user can navigate normally later?
+                // Actually, just setting currentFolder is enough, but we need to stop the effect from firing again immediately with the new ID if we already have the data.
+                // But wait, the API returned files for the TARGET folder. So we don't need to fetch again.
+                // The effect dependency [currentFolder] will trigger.
+            } else {
+                setMagicJumpOccurred(false);
             }
+
         } catch (error) {
             console.error(error);
         } finally {
@@ -55,6 +75,7 @@ export default function DrivePicker({ onSelect, onCancel, initialFolderId = 'roo
     const handleNavigate = (folder: DriveFile) => {
         setPath([...path, { id: folder.id, name: folder.name }]);
         setCurrentFolder(folder.id);
+        setMagicJumpOccurred(false);
     };
 
     const handleNavigateUp = () => {
@@ -64,6 +85,7 @@ export default function DrivePicker({ onSelect, onCancel, initialFolderId = 'roo
             const prev = newPath[newPath.length - 1];
             setPath(newPath);
             setCurrentFolder(prev.id);
+            setMagicJumpOccurred(false);
         }
     };
 
@@ -75,7 +97,7 @@ export default function DrivePicker({ onSelect, onCancel, initialFolderId = 'roo
         const formData = new FormData();
         formData.append('type', 'upload');
         formData.append('file', file);
-        formData.append('parentId', currentFolder);
+        formData.append('parentId', currentFolder); // Uses resolved ID
 
         try {
             const res = await fetch('/api/drive', {
@@ -84,7 +106,10 @@ export default function DrivePicker({ onSelect, onCancel, initialFolderId = 'roo
             });
 
             if (res.ok) {
-                // Refresh
+                // Force Refresh
+                const resJson = await res.json();
+                console.log('Upload success', resJson);
+                // Manually trigger fetch or just reset state to trigger effect
                 fetchFiles(currentFolder);
             } else {
                 alert('Upload failed');
@@ -112,7 +137,10 @@ export default function DrivePicker({ onSelect, onCancel, initialFolderId = 'roo
     };
 
     return (
-        <div className="flex flex-col h-[500px] w-full bg-black/90 rounded-xl overflow-hidden border border-white/10">
+        <div className={cn(
+            "flex flex-col w-full bg-black/90 rounded-xl overflow-hidden border border-white/10 shadow-2xl",
+            className || "h-[500px]"
+        )}>
             {/* Header / Breadcrumb */}
             <div className="flex items-center gap-2 p-4 border-b border-white/10 bg-white/5">
                 {path.length > 1 && (
@@ -136,16 +164,27 @@ export default function DrivePicker({ onSelect, onCancel, initialFolderId = 'roo
 
                 <div className="ml-auto flex gap-2">
                     <button
+                        onClick={() => {
+                            setCurrentFolder('user_root');
+                            setPath([{ id: 'user_root', name: 'My Drive' }]);
+                        }}
+                        className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
+                        title="Ir a Mi Unidad"
+                    >
+                        <Cloud className="w-4 h-4" />
+                    </button>
+                    <button
                         onClick={handleCreateFolder}
                         className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
                         title="Nueva Carpeta"
                     >
                         <Folder className="w-4 h-4" />
-                        <span className="sr-only">Nueva carpeta</span>
                     </button>
-                    <label className="p-2 hover:bg-white/10 rounded-lg text-blue-400 hover:text-blue-300 transition-colors cursor-pointer flex items-center gap-2">
+                    <label className={`p-2 rounded-lg transition-colors cursor-pointer flex items-center gap-2
+                        ${uploading ? 'bg-white/10 text-white/40 cursor-not-allowed' : 'hover:bg-white/10 text-primary hover:text-white'}
+                    `}>
                         {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                        <span className="text-xs font-bold">Subir</span>
+                        <span className="text-xs font-bold">{uploading ? 'Subiendo...' : 'Subir'}</span>
                         <input
                             ref={fileInputRef}
                             type="file"
@@ -158,15 +197,23 @@ export default function DrivePicker({ onSelect, onCancel, initialFolderId = 'roo
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-y-auto p-2">
+            <div className="flex-1 overflow-y-auto p-2 bg-gradient-to-b from-white/5 to-transparent">
                 {loading ? (
-                    <div className="flex items-center justify-center h-full text-white/40">
-                        <Loader2 className="w-8 h-8 animate-spin" />
+                    <div className="flex items-center justify-center h-full text-white/40 flex-col gap-2">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                        <span className="text-xs">Cargando Drive...</span>
                     </div>
                 ) : files.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-white/30 gap-2">
-                        <Folder className="w-12 h-12" />
-                        <p className="text-sm">Carpeta vacía</p>
+                    <div className="flex flex-col items-center justify-center h-full text-white/30 gap-4">
+                        <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
+                            <Cloud className="w-8 h-8 text-white/20" />
+                        </div>
+                        <div className="text-center">
+                            <p className="font-medium text-white mb-1">Carpeta vacía</p>
+                            <p className="text-xs text-white/50 max-w-[200px]">
+                                Esta carpeta se creó automáticamente. Sube archivos aquí para adjuntarlos a la tarea.
+                            </p>
+                        </div>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-1">
@@ -180,8 +227,8 @@ export default function DrivePicker({ onSelect, onCancel, initialFolderId = 'roo
                                 >
                                     <div className="flex items-center gap-3 min-w-0">
                                         <div className={cn(
-                                            "w-8 h-8 rounded flex items-center justify-center",
-                                            isFolder ? "bg-blue-500/20 text-blue-400" : "bg-white/5 text-white/60"
+                                            "w-8 h-8 rounded flex items-center justify-center shadow-sm",
+                                            isFolder ? "bg-amber-500/20 text-amber-400" : "bg-blue-500/20 text-blue-400"
                                         )}>
                                             {isFolder ? <Folder className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                                         </div>
@@ -191,7 +238,7 @@ export default function DrivePicker({ onSelect, onCancel, initialFolderId = 'roo
                                     </div>
 
                                     {!isFolder && (
-                                        <button className="text-xs px-2 py-1 bg-white/5 rounded text-white/60 group-hover:bg-primary group-hover:text-white transition-colors">
+                                        <button className="text-xs px-2 py-1 bg-primary/20 text-primary border border-primary/30 rounded group-hover:bg-primary group-hover:text-white transition-colors">
                                             Seleccionar
                                         </button>
                                     )}

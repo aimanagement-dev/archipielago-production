@@ -301,6 +301,7 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                     <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsDrivePickerOpen(false)} />
                     <div className="relative w-full max-w-2xl z-10">
                         <DrivePicker
+                            area={formData.area}
                             onSelect={(link, id, name) => {
                                 const newAttachment: Attachment = {
                                     id: crypto.randomUUID(),

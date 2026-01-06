@@ -83,7 +83,7 @@ export interface Gate {
   id: string;
   name: string;
   week: string;
-  deliverables: string[];
+  deliverables: { name: string; completed: boolean }[];
   responsible: string;
   criteria: string;
   status: GateStatus;
@@ -144,18 +144,18 @@ export interface Subscription {
   renewalDay: number; // 1-31
   cardUsed?: string; // e.g. "VISA 4237"
   status: SubscriptionStatus;
-  
+
   // INTEGRACIÓN CON CREW
   ownerId?: string; // ID del TeamMember que "paga" (dropdown)
   users: string[]; // IDs de TeamMembers que "usan" (multi-select)
-  
+
   // Metadata
   notes?: string;
   receiptUrl?: string; // Link a factura en Drive
   createdAt: string;
   updatedAt: string;
   createdBy?: string; // Email del admin que creó
-  
+
   // Legacy compatibility (deprecated, use ownerId instead)
   owner?: string; // Email (mantener para migración)
   cost?: number; // Alias de amount (mantener para compatibilidad)
@@ -172,19 +172,19 @@ export interface Transaction {
   amount: number;
   currency: 'USD' | 'DOP' | 'EUR';
   category: string; // "LLMS", "Ed. Video", etc.
-  
+
   // INTEGRACIÓN CON CREW
   payerId?: string; // ID del TeamMember que pagó (dropdown)
   users: string[]; // IDs de TeamMembers que usaron (multi-select)
-  
+
   // Vinculación opcional
   subscriptionId?: string; // Si este gasto viene de una suscripción
-  
+
   // Receipt & Control
   receiptRef?: string; // "invoice", "receipt", "factura", o texto libre
   receiptUrl?: string; // Link al archivo
   notes?: string;
-  
+
   status: TransactionStatus;
   createdAt: string;
   updatedAt: string;

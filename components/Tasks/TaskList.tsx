@@ -12,8 +12,8 @@ interface Props {
 export default function TaskList({ tasks, onEdit, onDelete }: Props) {
   if (tasks.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 text-center">
-        <p className="text-gray-500">No hay tareas que coincidan con los filtros</p>
+      <div className="bg-card rounded-xl border border-border shadow-sm p-8 text-center">
+        <p className="text-muted-foreground font-medium">No hay tareas que coincidan con los filtros</p>
       </div>
     );
   }

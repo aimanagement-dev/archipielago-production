@@ -1,4 +1,5 @@
 import { useSession, signIn, signOut } from "next-auth/react";
+import { useStore } from "@/lib/store";
 
 export type UserRole = 'admin' | 'user' | 'viewer';
 
@@ -12,21 +13,45 @@ export interface User {
 
 export const useAuth = () => {
     const { data: session, status } = useSession();
+    const { team } = useStore();
 
     const isLoading = status === 'loading';
     const isAuthenticated = status === 'authenticated';
 
-    // Simple role mapping based on email
-    // In the future, this should come from the Google Sheet 'Team' tab
     const getRole = (email?: string | null): UserRole => {
         if (!email) return 'viewer';
-        // Admin emails - se alinean con la lista de login permitido
-        const admins = [
+
+        // 1. Check Hardcoded Super Admins
+        const superAdmins = [
             'ai.management@archipielagofilm.com',
-            'ia.lantica@lanticastudios.com'
+            'ai.lantica@lanticastudios.com',
+            'federico.beron@lanticastudios.com'
         ];
-        if (admins.includes(email)) return 'admin';
-        return 'user'; // Default to user for non-admins
+        if (superAdmins.includes(email)) return 'admin';
+
+        // 2. Check Team Data for Role or Name Match
+        if (team && team.length > 0) {
+            const member = team.find(m =>
+                (m.email?.toLowerCase() === email.toLowerCase()) ||
+                (m.secondaryEmail?.toLowerCase() === email.toLowerCase())
+            );
+
+            if (member) {
+                // If member found, check if they are designated as 'Admin' in sheet
+                // Or if their name matches the Super Admin Users
+                const adminNames = ['Cindy Toribio', 'Federico Beron', 'Archipielago AI Management'];
+
+                // Flexible check: Exact name match or if name contains substring (riskier but covers user request)
+                // User said: "Cindy toribio" and "Federico Beron".
+                const isNamedAdmin = adminNames.some(n => member.name.toLowerCase().includes(n.toLowerCase()));
+
+                if (isNamedAdmin) return 'admin';
+                if (member.role?.toLowerCase().includes('admin')) return 'admin';
+                if (member.department?.toLowerCase() === 'production' && member.position?.toLowerCase() === 'producer') return 'admin';
+            }
+        }
+
+        return 'user';
     };
 
     const user: User | null = session?.user ? {

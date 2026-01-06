@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const folderId = searchParams.get('folderId') || 'root';
     const action = searchParams.get('action'); // 'list' | 'root_id'
+    const area = searchParams.get('area');
 
     const drive = new GoogleDriveService(accessToken);
 
@@ -26,12 +27,19 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ rootId });
         }
 
-        // Default: List files
-        // If folderId is 'root', getting the ACTUAL root of "Archipielago_Assets"
-        // NOT the User's Root.
         let targetId = folderId;
-        if (folderId === 'root') {
+
+        // Logic A: Standard Navigation
+        if (folderId === 'user_root') {
+            targetId = 'root';
+        } else if (folderId === 'root') {
             targetId = await drive.ensureRootFolder();
+
+            // Logic B: Deep Drive (Area-specific)
+            // Only apply if we are effectively asking for 'root' AND an area is specified
+            if (area) {
+                targetId = await drive.ensureFolder(area, targetId);
+            }
         }
 
         const files = await drive.listFiles(targetId);

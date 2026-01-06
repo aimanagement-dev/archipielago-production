@@ -1,98 +1,122 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
- 
+
 @layer base {
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
- 
+
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
- 
+
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
- 
+
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
- 
+
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
- 
+
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
- 
+
     --accent: 210 40% 96.1%;
     --accent-foreground: 222.2 47.4% 11.2%;
- 
+
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
- 
+
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
- 
+
     --radius: 0.5rem;
   }
- 
+
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
- 
+
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
- 
+
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
- 
+
     --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 222.2 47.4% 11.2%;
- 
+
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
- 
+
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
- 
+
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
- 
+
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
- 
+
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --ring: 217.2 91.2% 59.8%;
+  }
+
+  .sunset {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+
+    --card: 217 33% 17%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 217 33% 17%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 38 92% 50%;
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 38 92% 50%;
   }
 }
 
 /* Custom Cinematic Theme Overrides */
 :root {
-  --background: 220 15% 96%; /* Light gray-blue */
-  --foreground: 222 47% 11%; /* Dark blue */
+  --background: 220 20% 96%;
+  /* Slightly darker blue-gray for better card contrast in light mode */
   --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --primary: 38 92% 50%; /* Amber/Gold */
-  --primary-foreground: 0 0% 100%;
-  --secondary: 215 25% 90%;
-  --secondary-foreground: 222 47% 11%;
-  --muted: 215 25% 90%;
-  --muted-foreground: 215 16% 47%;
-  --accent: 38 92% 50%;
-  --accent-foreground: 0 0% 100%;
-  --border: 214 32% 91%;
-  --input: 214 32% 91%;
-  --ring: 38 92% 50%;
-  --radius: 0.75rem;
+  --foreground: 222 47% 11%;
+  --muted-foreground: 220 15% 30%;
+  /* Darkened for better readability in light mode */
+  --border: 220 13% 88%;
+  /* More visible border in light mode */
+  --surface-hover: 0 0% 0% / 0.05;
+  --surface-border: 0 0% 0% / 0.1;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: 222 47% 11%; /* Deep dark blue */
+    --background: 222 47% 11%;
     --foreground: 210 40% 98%;
     --card: 217 33% 17%;
     --card-foreground: 210 40% 98%;
-    --primary: 38 92% 50%; /* Amber/Gold */
+    --primary: 38 92% 50%;
     --primary-foreground: 222 47% 11%;
     --secondary: 217 33% 17%;
     --secondary-foreground: 210 40% 98%;
@@ -103,13 +127,17 @@
     --border: 217 33% 17%;
     --input: 217 33% 17%;
     --ring: 38 92% 50%;
+
+    --surface-hover: 0 0% 100% / 0.05;
+    --surface-border: 0 0% 100% / 0.1;
   }
 }
- 
+
 @layer base {
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -117,23 +145,36 @@
 
 /* Glassmorphism Utilities */
 .glass {
-  @apply bg-background/60 backdrop-blur-lg border border-white/10;
+  @apply bg-background/70 backdrop-blur-xl border border-border/50;
 }
 
 .glass-card {
-  @apply bg-card/50 backdrop-blur-md border border-white/5 shadow-xl;
+  @apply bg-card/80 backdrop-blur-lg border border-border shadow-2xl;
 }
 
 /* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/40 transition-colors;
+}
+
+/* Global scrollbar fallback */
 ::-webkit-scrollbar {
   width: 8px;
 }
+
 ::-webkit-scrollbar-track {
   @apply bg-transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  @apply bg-muted rounded-full;
-}
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-muted-foreground;
+  @apply bg-muted-foreground/10 rounded-full hover:bg-muted-foreground/30 transition-colors;
 }

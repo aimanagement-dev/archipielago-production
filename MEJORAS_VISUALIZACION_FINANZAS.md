@@ -131,3 +131,4 @@
 4. **Mejorar cálculos** - Agregar comparación proyectado vs real
 5. **Agregar indicadores visuales** - Colores y badges
 
+

@@ -61,11 +61,14 @@ export default function GatesTimeline() {
                   <span>{gate.week}</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {gate.deliverables.slice(0, 3).map((d, i) => (
-                    <span key={i} className="text-[10px] bg-black/20 px-2 py-1 rounded text-muted-foreground">
-                      {d}
-                    </span>
-                  ))}
+                  {gate.deliverables.slice(0, 3).map((d, i) => {
+                    const name = typeof d === 'string' ? d : d.name;
+                    return (
+                      <span key={i} className="text-[10px] bg-black/20 px-2 py-1 rounded text-muted-foreground">
+                        {name}
+                      </span>
+                    )
+                  })}
                   {gate.deliverables.length > 3 && (
                     <span className="text-[10px] px-1 text-muted-foreground">+{gate.deliverables.length - 3}</span>
                   )}

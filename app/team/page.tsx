@@ -94,60 +94,60 @@ export default function TeamPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-card/40 backdrop-blur-md rounded-lg border border-white/5 p-4">
+        <div className="bg-card rounded-lg border border-border p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-primary/10 rounded-lg">
               <Users className="w-5 h-5 text-primary" />
             </div>
             <div>
               <div className="text-2xl font-bold text-foreground">{team.length}</div>
-              <div className="text-xs text-muted-foreground">Total</div>
+              <div className="text-xs text-muted-foreground font-medium">Total</div>
             </div>
           </div>
         </div>
-        <div className="bg-card/40 backdrop-blur-md rounded-lg border border-white/5 p-4">
+        <div className="bg-card rounded-lg border border-border p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-emerald-500/10 rounded-lg">
-              <Users className="w-5 h-5 text-emerald-500" />
+              <Users className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
               <div className="text-2xl font-bold text-foreground">
                 {team.filter(m => m.status === 'Activo').length}
               </div>
-              <div className="text-xs text-muted-foreground">Activos</div>
+              <div className="text-xs text-muted-foreground font-medium">Activos</div>
             </div>
           </div>
         </div>
-        <div className="bg-card/40 backdrop-blur-md rounded-lg border border-white/5 p-4">
+        <div className="bg-card rounded-lg border border-border p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-500/10 rounded-lg">
-              <Users className="w-5 h-5 text-blue-500" />
+              <Users className="w-5 h-5 text-blue-600" />
             </div>
             <div>
               <div className="text-2xl font-bold text-foreground">
                 {team.filter(m => m.type === 'Full-time').length}
               </div>
-              <div className="text-xs text-muted-foreground">Full-time</div>
+              <div className="text-xs text-muted-foreground font-medium">Full-time</div>
             </div>
           </div>
         </div>
-        <div className="bg-card/40 backdrop-blur-md rounded-lg border border-white/5 p-4">
+        <div className="bg-card rounded-lg border border-border p-4 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-amber-500/10 rounded-lg">
-              <Users className="w-5 h-5 text-amber-500" />
+              <Users className="w-5 h-5 text-amber-600" />
             </div>
             <div>
               <div className="text-2xl font-bold text-foreground">
                 {team.filter(m => m.type === 'Part-time').length}
               </div>
-              <div className="text-xs text-muted-foreground">Part-time</div>
+              <div className="text-xs text-muted-foreground font-medium">Part-time</div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Search */}
-      <div className="bg-card/40 backdrop-blur-md rounded-xl border border-white/5 p-4">
+      <div className="bg-card rounded-xl border border-border p-4 shadow-sm">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <input
@@ -155,7 +155,7 @@ export default function TeamPage() {
             placeholder="Buscar por nombre, rol o email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-3 text-foreground focus:outline-none focus:border-primary/50 transition-colors"
+            className="w-full bg-background border border-border rounded-lg pl-10 pr-4 py-3 text-foreground focus:outline-none focus:border-primary/50 transition-colors shadow-inner"
           />
         </div>
       </div>
@@ -165,26 +165,26 @@ export default function TeamPage() {
         {filteredTeam.map((member) => (
           <div
             key={member.id}
-            className="group bg-card/40 backdrop-blur-md rounded-xl border border-white/5 p-6 hover:border-primary/20 transition-all"
+            className="group bg-card rounded-xl border border-border p-6 hover:border-primary/40 hover:shadow-lg transition-all"
           >
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary/30">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center border-2 border-primary/20">
                   <span className="text-lg font-bold text-primary">
                     {member.name.charAt(0).toUpperCase()}
                   </span>
                 </div>
                 <div>
                   <h3 className="font-bold text-foreground">{member.name}</h3>
-                  <p className="text-sm text-muted-foreground">{member.role}</p>
+                  <p className="text-sm text-muted-foreground font-medium">{member.role}</p>
                 </div>
               </div>
 
               {user?.role === 'admin' && (
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => handleEdit(member)}
-                    className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                    className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                     title="Editar"
                   >
                     <Pencil className="w-4 h-4" />
@@ -194,7 +194,7 @@ export default function TeamPage() {
                       e.stopPropagation();
                       handleDelete(member.id, member.name);
                     }}
-                    className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                     title="Eliminar"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -205,7 +205,7 @@ export default function TeamPage() {
 
             <div className="space-y-2">
               {member.email && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
                   <Mail className="w-4 h-4" />
                   <a href={`mailto:${member.email}`} className="hover:text-primary transition-colors">
                     {member.email}
@@ -215,20 +215,20 @@ export default function TeamPage() {
 
               <div className="flex items-center gap-2 flex-wrap mt-3">
                 <span className={cn(
-                  'px-2 py-0.5 rounded-full text-[10px] font-medium border',
+                  'px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase',
                   member.status === 'Activo'
-                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                    : 'bg-red-500/10 text-red-500 border-red-500/20'
+                    ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
+                    : 'bg-red-500/10 text-red-600 border-red-500/30'
                 )}>
                   {member.status}
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/5 text-muted-foreground border border-white/10">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground border border-border uppercase">
                   {member.type}
                 </span>
               </div>
 
               {member.notes && (
-                <p className="text-xs text-muted-foreground mt-3 line-clamp-2">
+                <p className="text-xs text-muted-foreground mt-3 line-clamp-2 font-medium">
                   {member.notes}
                 </p>
               )}

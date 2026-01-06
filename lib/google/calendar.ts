@@ -13,6 +13,8 @@ export interface CalendarTaskPayload {
   hasMeet?: boolean;
 }
 
+const DEFAULT_CALENDAR_ID = 'ai.management@archipielagofilm.com';
+
 function getCalendarClient(accessToken: string) {
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: accessToken });
@@ -185,8 +187,8 @@ export async function syncTasksToCalendar(
   accessToken: string,
   options?: { calendarId?: string; timezone?: string }
 ) {
-  // Use 'primary' to sync to the user's main calendar
-  const calendarId = options?.calendarId || process.env.GOOGLE_CALENDAR_ID || 'primary';
+  // Use MASTER_CALENDAR_ID to sync to the project's shared calendar
+  const calendarId = options?.calendarId || process.env.GOOGLE_CALENDAR_ID || DEFAULT_CALENDAR_ID;
   const timezone = options?.timezone || process.env.GOOGLE_CALENDAR_TIMEZONE || 'America/Santo_Domingo';
   const calendar = getCalendarClient(accessToken);
 
@@ -249,7 +251,7 @@ export async function syncCalendarToTasks(
   created: number;
   errors: { id: string; message: string }[];
 }> {
-  const calendarId = options?.calendarId || process.env.GOOGLE_CALENDAR_ID || 'primary';
+  const calendarId = options?.calendarId || process.env.GOOGLE_CALENDAR_ID || DEFAULT_CALENDAR_ID;
   const calendar = getCalendarClient(accessToken);
 
   const result = {
@@ -433,7 +435,7 @@ export async function createCalendarEventWithAttendees(
     timezone?: string;
   }
 ): Promise<{ success: boolean; eventId?: string; eventLink?: string; error?: string }> {
-  const calendarId = options.calendarId || process.env.GOOGLE_CALENDAR_ID || 'primary';
+  const calendarId = options.calendarId || process.env.GOOGLE_CALENDAR_ID || DEFAULT_CALENDAR_ID;
   const timezone = options.timezone || process.env.GOOGLE_CALENDAR_TIMEZONE || 'America/Santo_Domingo';
   const calendar = getCalendarClient(accessToken);
 
@@ -511,14 +513,18 @@ export async function getCalendarEvents(
     const calendars = calendarList.data.items || [];
     console.log('Found calendars:', calendars.map(c => ({ id: c.id, summary: c.summary, selected: c.selected, primary: c.primary })));
 
-    // Filter: Include calendars that are primary, selected, or owned by the user
-    // We relax the filter to ensure we catch "ARCH-Producción" even if 'selected' is quirky
-    const targetCalendars = calendars.filter(c => c.primary || c.selected || c.accessRole === 'owner');
+    // Filter: ONLY include the master calendar or project-specific calendars
+    // This prevents personal calendars (Birthdays, personal Tasks, etc.) from leaking into the app
+    const targetCalendars = calendars.filter(c =>
+      c.id === DEFAULT_CALENDAR_ID ||
+      (c.summary && (c.summary.includes('Archipiélago') || c.summary.includes('ARCH-Producción')))
+    );
 
-    console.log('Targeting calendars:', targetCalendars.map(c => c.summary));
+    console.log('Targeting project calendars:', targetCalendars.map(c => c.summary));
 
     if (targetCalendars.length === 0) {
-      targetCalendars.push({ id: 'primary', summary: 'Primary' });
+      // If none found, attempt to fetch from the master ID manually
+      targetCalendars.push({ id: DEFAULT_CALENDAR_ID, summary: 'Archipiélago Master' });
     }
 
     // 2. Fetch events from all target calendars in parallel
@@ -557,7 +563,7 @@ export async function getCalendarEvents(
     // Fallback to original primary fetch if listing fails completely
     try {
       const response = await calendar.events.list({
-        calendarId: 'primary',
+        calendarId: DEFAULT_CALENDAR_ID,
         timeMin: start,
         timeMax: end,
         singleEvents: true,

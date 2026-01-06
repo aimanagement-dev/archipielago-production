@@ -26,55 +26,55 @@ export default function TaskCard({ task, onEdit, onDelete }: Props) {
 
   return (
     <div
-      className="group bg-card/40 backdrop-blur-md rounded-xl border border-white/5 overflow-hidden hover:border-primary/20 transition-all duration-200"
+      className="group bg-card rounded-xl border border-border overflow-hidden hover:border-primary/40 hover:shadow-md transition-all duration-200"
     >
       <div className="p-4 cursor-pointer" onClick={() => setExpanded(!expanded)}>
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <h3 className="font-medium text-foreground group-hover:text-primary transition-colors">{task.title}</h3>
+            <h3 className="font-bold text-foreground group-hover:text-primary transition-colors">{task.title}</h3>
             <div className="flex flex-wrap items-center gap-2 mt-2">
-              <span className={cn('px-2 py-0.5 rounded text-[10px] font-medium tracking-wide', areaColors[task.area])}>
+              <span className={cn('px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase border border-border/50', areaColors[task.area])}>
                 {task.area}
               </span>
-              <span className="text-[10px] text-muted-foreground">{task.week}</span>
-              <span className="text-[10px] text-muted-foreground/50">• {task.month}</span>
+              <span className="text-[10px] text-muted-foreground font-bold uppercase">{task.week}</span>
+              <span className="text-[10px] text-muted-foreground font-bold uppercase">• {task.month}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={cycleStatus}
-              className={cn('px-3 py-1 rounded-full text-[10px] font-medium transition-all hover:scale-105 active:scale-95', statusColors[task.status])}
+              className={cn('px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all hover:scale-105 active:scale-95 border border-border/20', statusColors[task.status])}
             >
               {task.status}
             </button>
-            <div className="p-1 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
+            <div className="p-1 text-muted-foreground group-hover:text-primary transition-colors">
               {expanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
             </div>
           </div>
         </div>
 
         {expanded && (
-          <div className="mt-4 pt-4 border-t border-white/5 animate-accordion-down">
+          <div className="mt-4 pt-4 border-t border-border animate-accordion-down">
             <div className="flex items-center justify-between">
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground font-semibold">
                   <Users className="w-4 h-4" />
                   <span>{task.responsible.join(', ') || 'No assigned members'}</span>
                 </div>
                 {task.notes && (
-                  <p className="text-sm text-muted-foreground/80 leading-relaxed">{task.notes}</p>
+                  <p className="text-sm text-foreground/80 leading-relaxed font-medium bg-muted/30 p-3 rounded-lg border border-border/50">{task.notes}</p>
                 )}
               </div>
 
-              <div className="flex items-center gap-2 ml-4">
+              <div className="flex items-center gap-2 ml-4 self-end pb-1">
                 {onEdit && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       onEdit(task);
                     }}
-                    className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                    className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors border border-border"
                     title="Edit Task"
                   >
                     <Pencil className="w-4 h-4" />
@@ -86,7 +86,7 @@ export default function TaskCard({ task, onEdit, onDelete }: Props) {
                       e.stopPropagation();
                       onDelete(task.id);
                     }}
-                    className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors border border-border"
                     title="Delete Task"
                   >
                     <Trash2 className="w-4 h-4" />

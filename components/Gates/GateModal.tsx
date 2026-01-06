@@ -47,7 +47,7 @@ export default function GateModal({ isOpen, onClose, onSave, initialData }: Gate
         if (newDeliverable.trim()) {
             setFormData({
                 ...formData,
-                deliverables: [...(formData.deliverables || []), newDeliverable.trim()]
+                deliverables: [...(formData.deliverables || []), { name: newDeliverable.trim(), completed: false }]
             });
             setNewDeliverable('');
         }
@@ -59,6 +59,10 @@ export default function GateModal({ isOpen, onClose, onSave, initialData }: Gate
             deliverables: formData.deliverables?.filter((_, i) => i !== index) || []
         });
     };
+
+    // ...
+
+    // And update map loop
 
     if (!isOpen) return null;
 
@@ -143,21 +147,24 @@ export default function GateModal({ isOpen, onClose, onSave, initialData }: Gate
                         </div>
                         {formData.deliverables && formData.deliverables.length > 0 && (
                             <div className="space-y-2 mt-3">
-                                {formData.deliverables.map((deliverable, index) => (
-                                    <div
-                                        key={index}
-                                        className="flex items-center justify-between p-2 bg-white/5 border border-white/5 rounded-lg"
-                                    >
-                                        <span className="text-sm text-foreground">{deliverable}</span>
-                                        <button
-                                            type="button"
-                                            onClick={() => removeDeliverable(index)}
-                                            className="text-destructive hover:text-destructive/80 text-sm"
+                                {formData.deliverables.map((deliverable, index) => {
+                                    const name = typeof deliverable === 'string' ? deliverable : deliverable.name;
+                                    return (
+                                        <div
+                                            key={index}
+                                            className="flex items-center justify-between p-2 bg-white/5 border border-white/5 rounded-lg"
                                         >
-                                            ✕
-                                        </button>
-                                    </div>
-                                ))}
+                                            <span className="text-sm text-foreground">{name}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeDeliverable(index)}
+                                                className="text-destructive hover:text-destructive/80 text-sm"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    )
+                                })}
                             </div>
                         )}
                     </div>

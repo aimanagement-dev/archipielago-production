@@ -9,11 +9,11 @@ import { useAuth } from '@/lib/auth';
 import GateModal from '@/components/Gates/GateModal';
 
 const statusConfig = {
-  'Pendiente': { color: 'bg-amber-500/10 text-amber-500 border-amber-500/20', icon: Clock },
-  'En Progreso': { color: 'bg-blue-500/10 text-blue-500 border-blue-500/20', icon: Clock },
-  'Completado': { color: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20', icon: CheckCircle },
-  'Aprobado': { color: 'bg-green-500/10 text-green-500 border-green-500/20', icon: CheckCircle },
-  'Rechazado': { color: 'bg-red-500/10 text-red-500 border-red-500/20', icon: XCircle },
+  'Pendiente': { color: 'bg-amber-500/10 text-amber-700 border-amber-500/30 font-bold uppercase tracking-wider', icon: Clock },
+  'En Progreso': { color: 'bg-blue-500/10 text-blue-700 border-blue-500/30 font-bold uppercase tracking-wider', icon: Clock },
+  'Completado': { color: 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30 font-bold uppercase tracking-wider', icon: CheckCircle },
+  'Aprobado': { color: 'bg-green-500/10 text-green-700 border-green-500/30 font-bold uppercase tracking-wider', icon: CheckCircle },
+  'Rechazado': { color: 'bg-red-500/10 text-red-700 border-red-500/30 font-bold uppercase tracking-wider', icon: XCircle },
 };
 
 export default function GatesPage() {
@@ -62,8 +62,8 @@ export default function GatesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Production Gates</h1>
-          <p className="text-muted-foreground">Checkpoints y milestones del proyecto</p>
+          <h1 className="text-4xl font-black text-foreground tracking-tight">Production Gates</h1>
+          <p className="text-muted-foreground font-medium">Checkpoints y milestones del proyecto</p>
         </div>
         {user?.role === 'admin' && (
           <button
@@ -71,7 +71,7 @@ export default function GatesPage() {
               setEditingGate(undefined);
               setIsModalOpen(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-[0_0_20px_rgba(245,158,11,0.3)]"
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold hover:bg-primary/90 transition-all shadow-lg active:scale-95"
           >
             <Plus className="w-5 h-5" />
             Nuevo Gate
@@ -81,57 +81,60 @@ export default function GatesPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-card/40 backdrop-blur-md rounded-lg border border-white/5 p-4">
+        <div className="bg-card rounded-2xl border border-border p-5 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
+            <div className="p-2.5 bg-primary/10 rounded-xl border border-primary/20">
               <Flag className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-foreground">{stats.total}</div>
-              <div className="text-xs text-muted-foreground">Total Gates</div>
+              <div className="text-2xl font-black text-foreground">{stats.total}</div>
+              <div className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Total Gates</div>
             </div>
           </div>
         </div>
-        <div className="bg-card/40 backdrop-blur-md rounded-lg border border-white/5 p-4">
+        <div className="bg-card rounded-2xl border border-border p-5 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-500/10 rounded-lg">
-              <CheckCircle className="w-5 h-5 text-emerald-500" />
+            <div className="p-2.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+              <CheckCircle className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-foreground">{stats.completed}</div>
-              <div className="text-xs text-muted-foreground">Completados</div>
+              <div className="text-2xl font-black text-foreground">{stats.completed}</div>
+              <div className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Completados</div>
             </div>
           </div>
         </div>
-        <div className="bg-card/40 backdrop-blur-md rounded-lg border border-white/5 p-4">
+        <div className="bg-card rounded-2xl border border-border p-5 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-500/10 rounded-lg">
-              <Clock className="w-5 h-5 text-blue-500" />
+            <div className="p-2.5 bg-blue-500/10 rounded-xl border border-blue-500/20">
+              <Clock className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-foreground">{stats.inProgress}</div>
-              <div className="text-xs text-muted-foreground">En Progreso</div>
+              <div className="text-2xl font-black text-foreground">{stats.inProgress}</div>
+              <div className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">En Progreso</div>
             </div>
           </div>
         </div>
-        <div className="bg-card/40 backdrop-blur-md rounded-lg border border-white/5 p-4">
+        <div className="bg-card rounded-2xl border border-border p-5 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-500/10 rounded-lg">
-              <AlertCircle className="w-5 h-5 text-amber-500" />
+            <div className="p-2.5 bg-amber-500/10 rounded-xl border border-amber-500/20">
+              <AlertCircle className="w-5 h-5 text-amber-600" />
             </div>
             <div>
-              <div className="text-2xl font-bold text-foreground">{stats.pending}</div>
-              <div className="text-xs text-muted-foreground">Pendientes</div>
+              <div className="text-2xl font-black text-foreground">{stats.pending}</div>
+              <div className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">Pendientes</div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Gates Timeline */}
-      <div className="bg-card/40 backdrop-blur-md rounded-xl border border-white/5 p-6">
-        <h2 className="text-xl font-bold text-foreground mb-6">Timeline de Gates</h2>
+      <div className="bg-card rounded-2xl border border-border p-8 shadow-md">
+        <h2 className="text-2xl font-black text-foreground mb-8 text-center uppercase tracking-widest">Timeline de Gates</h2>
 
-        <div className="space-y-4">
+        <div className="space-y-0 relative">
+          {/* Vertical Timeline Line */}
+          <div className="absolute left-[35px] top-4 bottom-4 w-1 bg-gradient-to-b from-primary via-blue-500 to-emerald-500 opacity-20 hidden md:block" />
+
           {gates.map((gate, index) => {
             const config = statusConfig[gate.status];
             const Icon = config.icon;
@@ -139,65 +142,60 @@ export default function GatesPage() {
             return (
               <div
                 key={gate.id}
-                className="group relative bg-white/5 border border-white/5 rounded-xl p-6 hover:border-primary/20 transition-all"
+                className="group relative bg-muted/20 border border-border rounded-2xl p-6 mb-6 hover:bg-muted/40 hover:border-primary/40 transition-all hover:shadow-lg"
               >
-                {/* Connecting Line */}
-                {index < gates.length - 1 && (
-                  <div className="absolute left-9 top-[60px] w-0.5 h-12 bg-gradient-to-b from-white/20 to-transparent" />
-                )}
-
-                <div className="flex items-start gap-4">
+                <div className="flex flex-col md:flex-row items-start gap-6">
                   {/* Icon */}
                   <div className={cn(
-                    'p-3 rounded-xl border-2 relative z-10',
+                    'p-4 rounded-2xl border-2 relative z-10 shadow-sm transition-transform group-hover:scale-110',
                     gate.status === 'Completado' || gate.status === 'Aprobado'
-                      ? 'bg-emerald-500/20 border-emerald-500/30'
+                      ? 'bg-emerald-500/10 border-emerald-500/30'
                       : gate.status === 'En Progreso'
-                        ? 'bg-blue-500/20 border-blue-500/30'
+                        ? 'bg-blue-500/10 border-blue-500/30'
                         : gate.status === 'Rechazado'
-                          ? 'bg-red-500/20 border-red-500/30'
-                          : 'bg-amber-500/20 border-amber-500/30'
+                          ? 'bg-red-500/10 border-red-500/30'
+                          : 'bg-amber-500/10 border-amber-500/30'
                   )}>
                     <Icon className={cn(
-                      'w-6 h-6',
-                      gate.status === 'Completado' || gate.status === 'Aprobado' ? 'text-emerald-500' :
-                        gate.status === 'En Progreso' ? 'text-blue-500' :
-                          gate.status === 'Rechazado' ? 'text-red-500' :
-                            'text-amber-500'
+                      'w-8 h-8',
+                      gate.status === 'Completado' || gate.status === 'Aprobado' ? 'text-emerald-600' :
+                        gate.status === 'En Progreso' ? 'text-blue-600' :
+                          gate.status === 'Rechazado' ? 'text-red-600' :
+                            'text-amber-600'
                     )} />
                   </div>
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between mb-3">
+                    <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-4">
                       <div>
-                        <h3 className="text-lg font-bold text-foreground mb-1">{gate.name}</h3>
-                        <p className="text-sm text-muted-foreground">{gate.week}</p>
+                        <h3 className="text-2xl font-bold text-foreground mb-1 tracking-tight group-hover:text-primary transition-colors">{gate.name}</h3>
+                        <p className="text-xs font-black text-muted-foreground uppercase tracking-widest tabular-nums bg-muted px-2 py-1 rounded-md border border-border inline-block">{gate.week}</p>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         <span className={cn(
-                          'px-3 py-1 rounded-full text-xs font-medium border',
+                          'px-4 py-1.5 rounded-full text-[10px] font-black border shadow-sm uppercase tracking-wider',
                           config.color
                         )}>
                           {gate.status}
                         </span>
 
                         {user?.role === 'admin' && (
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
                             <button
                               onClick={() => handleEdit(gate)}
-                              className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                              className="p-2.5 rounded-xl bg-card border border-border text-muted-foreground hover:text-primary hover:bg-muted transition-all shadow-sm"
                               title="Editar"
                             >
-                              <Pencil className="w-4 h-4" />
+                              <Pencil className="w-5 h-5" />
                             </button>
                             <button
                               onClick={() => handleDelete(gate.id, gate.name)}
-                              className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              className="p-2.5 rounded-xl bg-card border border-border text-muted-foreground hover:text-destructive hover:bg-muted transition-all shadow-sm"
                               title="Eliminar"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-5 h-5" />
                             </button>
                           </div>
                         )}
@@ -205,42 +203,92 @@ export default function GatesPage() {
                     </div>
 
                     {gate.description && (
-                      <p className="text-sm text-muted-foreground mb-3">
+                      <p className="text-sm font-medium text-foreground/70 mb-5 leading-relaxed bg-card/50 p-4 rounded-xl border border-border/50">
                         {gate.description}
                       </p>
                     )}
 
                     {/* Deliverables */}
-                    {gate.deliverables.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          Entregables:
+                    {gate.deliverables && gate.deliverables.length > 0 && (
+                      <div className="space-y-3">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-2">
+                          <CheckCircle className="w-3.5 h-3.5 text-primary" />
+                          Entregables Requeridos:
                         </p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {gate.deliverables.map((deliverable, i) => (
-                            <div
-                              key={i}
-                              className="flex items-center gap-2 text-sm text-foreground bg-white/5 px-3 py-2 rounded-lg"
-                            >
-                              <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                              {deliverable}
-                            </div>
-                          ))}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {gate.deliverables.map((deliverable, i) => {
+                            // Handle legacy string array if store wasn't cleared
+                            const isLegacy = typeof deliverable === 'string';
+                            const name = isLegacy ? deliverable : deliverable.name;
+                            const isCompleted = !isLegacy && deliverable.completed;
+
+                            return (
+                              <div
+                                key={i}
+                                className={cn(
+                                  "flex items-center gap-3 text-sm font-bold text-foreground bg-card border px-4 py-3 rounded-xl shadow-sm transition-all cursor-pointer group/item",
+                                  isCompleted
+                                    ? "border-emerald-500/50 bg-emerald-500/5"
+                                    : "border-border hover:border-primary/40"
+                                )}
+                                onClick={() => {
+                                  // Determine new completed state
+                                  const newCompleted = !isCompleted;
+
+                                  // Create new deliverables array
+                                  const newDeliverables = [...gate.deliverables];
+                                  if (isLegacy) {
+                                    // Convert string to object
+                                    newDeliverables[i] = { name: deliverable as string, completed: newCompleted };
+                                  } else {
+                                    newDeliverables[i] = { ...deliverable, completed: newCompleted };
+                                  }
+
+                                  // Check if ALL are completed
+                                  const allCompleted = newDeliverables.every(d =>
+                                    typeof d === 'string' ? false : d.completed
+                                  );
+
+                                  // Auto-status update logic
+                                  let newStatus = gate.status;
+                                  if (allCompleted) {
+                                    newStatus = 'Completado';
+                                  } else if (gate.status === 'Completado') {
+                                    newStatus = 'En Progreso';
+                                  }
+
+                                  updateGate(gate.id, { deliverables: newDeliverables, status: newStatus });
+                                }}
+                              >
+                                <div className={cn(
+                                  "w-5 h-5 rounded-md border flex items-center justify-center transition-colors",
+                                  isCompleted
+                                    ? "bg-emerald-500 border-emerald-500 text-white"
+                                    : "bg-muted border-muted-foreground/30 group-hover/item:border-primary"
+                                )}>
+                                  {isCompleted && <CheckCircle className="w-3.5 h-3.5" />}
+                                </div>
+                                <span className={cn(isCompleted && "text-muted-foreground line-through decoration-emerald-500/50")}>
+                                  {name}
+                                </span>
+                              </div>
+                            )
+                          })}
                         </div>
                       </div>
                     )}
 
                     {/* Additional Info */}
-                    <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
+                    <div className="mt-6 pt-5 border-t border-border flex flex-wrap items-center gap-6 text-xs font-bold text-muted-foreground uppercase tracking-wider">
                       {gate.responsible && (
-                        <div className="flex items-center gap-1">
-                          <span>👤</span>
+                        <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-full border border-border">
+                          <span className="text-lg">👤</span>
                           <span>{gate.responsible}</span>
                         </div>
                       )}
                       {gate.date && (
-                        <div className="flex items-center gap-1">
-                          <span>📅</span>
+                        <div className="flex items-center gap-2 bg-muted/50 px-3 py-1.5 rounded-full border border-border">
+                          <span className="text-lg">📅</span>
                           <span>{gate.date}</span>
                         </div>
                       )}

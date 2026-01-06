@@ -34,7 +34,7 @@ export const authOptions: NextAuthOptions = {
                     prompt: "select_account consent",
                     access_type: "offline",
                     response_type: "code",
-                    scope: "openid email profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/contacts.readonly https://www.googleapis.com/auth/gmail.send",
+                    scope: "openid email profile https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/contacts.readonly https://www.googleapis.com/auth/gmail.send",
                 },
             },
         }),
@@ -43,7 +43,7 @@ export const authOptions: NextAuthOptions = {
         async signIn({ user, account }) {
             // 1. Super Admin Bypass (Hardcoded + Env)
             const allowedEmails = (process.env.ALLOWED_LOGIN_EMAILS ||
-                'ai.management@archipielagofilm.com,ia.lantica@lanticastudios.com,federico.beron@lanticastudios.com')
+                'ai.management@archipielagofilm.com,ai.lantica@lanticastudios.com,federico.beron@lanticastudios.com')
                 .split(',')
                 .map((e) => e.trim().toLowerCase())
                 .filter(Boolean);

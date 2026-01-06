@@ -69,7 +69,7 @@ export class GoogleSheetsService {
         const existingTitles = meta.data.sheets?.map(s => s.properties?.title) || [];
 
         const requiredSheets = [
-            { title: 'Tasks', headers: ['ID', 'Title', 'Status', 'Area', 'Month', 'Week', 'Responsible', 'Notes', 'ScheduledDate', 'ScheduledTime'] },
+            { title: 'Tasks', headers: ['ID', 'Title', 'Status', 'Area', 'Month', 'Week', 'Responsible', 'Notes', 'ScheduledDate', 'ScheduledTime', 'Attachments'] },
             { title: 'Gates', headers: ['ID', 'Title', 'Status', 'Date', 'Description'] },
             { title: 'Team', headers: ['ID', 'Name', 'Email', 'Role', 'Department', 'Position', 'Status', 'Type', 'Phone', 'AccessGranted', 'Metadata'] },
             { title: 'Subscriptions', headers: ['ID', 'Platform', 'Category', 'Amount', 'Currency', 'BillingCycle', 'RenewalDay', 'CardUsed', 'Status', 'OwnerId', 'Users', 'ReceiptUrl', 'Notes', 'CreatedAt', 'UpdatedAt', 'CreatedBy'] },
@@ -113,7 +113,7 @@ export class GoogleSheetsService {
     async getTasks(spreadsheetId: string): Promise<Task[]> {
         const response = await this.sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: 'Tasks!A2:J', // Updated range
+            range: 'Tasks!A2:K', // Updated range
         });
 
         const rows = response.data.values;
@@ -144,6 +144,7 @@ export class GoogleSheetsService {
                     scheduledDate: row[8] ? String(row[8]) : undefined,
                     scheduledTime: row[9] ? String(row[9]) : undefined,
                     isScheduled: !!row[8],
+                    attachments: row[10] ? JSON.parse(row[10] as string) : []
                 } as Task;
             });
     }
@@ -161,12 +162,13 @@ export class GoogleSheetsService {
                 task.notes || '',
                 task.scheduledDate || '',
                 task.scheduledTime || '',
+                JSON.stringify(task.attachments || [])
             ],
         ];
 
         await this.sheets.spreadsheets.values.append({
             spreadsheetId,
-            range: 'Tasks!A:J',
+            range: 'Tasks!A:K',
             valueInputOption: 'USER_ENTERED',
             requestBody: {
                 values,
@@ -192,12 +194,13 @@ export class GoogleSheetsService {
                 task.notes || '',
                 task.scheduledDate || '',
                 task.scheduledTime || '',
+                JSON.stringify(task.attachments || [])
             ],
         ];
 
         await this.sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: `Tasks!A${rowIndex}:J${rowIndex}`,
+            range: `Tasks!A${rowIndex}:K${rowIndex}`,
             valueInputOption: 'USER_ENTERED',
             requestBody: {
                 values,

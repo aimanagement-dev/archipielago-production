@@ -20,7 +20,7 @@ export default function FinanceDashboard() {
     const [editingSub, setEditingSub] = useState<Subscription | undefined>(undefined);
     const [editingTrans, setEditingTrans] = useState<Transaction | undefined>(undefined);
     const [activeTab, setActiveTab] = useState<Tab>('month');
-    
+
     // Month selector state
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
@@ -112,7 +112,7 @@ export default function FinanceDashboard() {
 
     const handleExportReport = () => {
         const timestamp = new Date().toISOString().split('T')[0];
-        
+
         // Export Subscriptions
         const subHeaders = ['ID', 'Platform', 'Category', 'Amount', 'Currency', 'BillingCycle', 'RenewalDay', 'CardUsed', 'Status', 'Owner', 'Users', 'Notes'];
         const subRows = finance.subscriptions.map(s => [
@@ -251,22 +251,22 @@ export default function FinanceDashboard() {
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             {/* Header con Selector de Mes y Tabs */}
-            <div className="bg-card/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
+            <div className="bg-card backdrop-blur-xl border border-border rounded-2xl overflow-hidden shadow-sm">
                 {/* Action Bar */}
-                <div className="flex flex-col md:flex-row justify-between items-center p-4 bg-white/5 border-b border-white/5 gap-4">
-                <div className="flex items-center gap-3 w-full md:w-auto">
-                    <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-purple-500/20">
-                        <DollarSign className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                        <h2 className="text-white font-bold text-lg">Control Financiero</h2>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span className="bg-white/10 px-2 py-0.5 rounded-full text-white/70">{activeSubs.length} suscripciones</span>
-                            <span>&bull;</span>
-                            <span className="text-emerald-400 font-medium">${totalMonthlyFixed.toFixed(2)}/mes fijo</span>
+                <div className="flex flex-col md:flex-row justify-between items-center p-4 bg-muted/30 border-b border-border gap-4">
+                    <div className="flex items-center gap-3 w-full md:w-auto">
+                        <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg shadow-purple-500/20">
+                            <DollarSign className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                            <h2 className="text-foreground font-bold text-lg">Control Financiero</h2>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span className="bg-muted px-2 py-0.5 rounded-full text-foreground/70 font-medium">{activeSubs.length} suscripciones</span>
+                                <span>&bull;</span>
+                                <span className="text-emerald-600 font-semibold">${totalMonthlyFixed.toFixed(2)}/mes fijo</span>
+                            </div>
                         </div>
                     </div>
-                </div>
 
                     {/* Selector de Mes (solo en tab "Este Mes") */}
                     {activeTab === 'month' && (
@@ -279,10 +279,10 @@ export default function FinanceDashboard() {
                                     setSelectedYear(year);
                                     setSelectedMonth(month);
                                 }}
-                                className="bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/50"
+                                className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/50"
                             >
                                 {monthOptions.map(opt => (
-                                    <option key={`${opt.year}-${opt.month}`} value={`${opt.year}-${opt.month}`}>
+                                    <option key={`${opt.year}-${opt.month}`} value={`${opt.year}-${opt.month}`} className="bg-background text-foreground">
                                         {opt.label}
                                     </option>
                                 ))}
@@ -297,7 +297,7 @@ export default function FinanceDashboard() {
                                 setEditingSub(undefined);
                                 setIsSubModalOpen(true);
                             }}
-                            className="flex-1 md:flex-none px-4 py-2.5 bg-primary hover:bg-primary/90 text-white text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
+                            className="flex-1 md:flex-none px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
                             <Plus className="w-4 h-4" />
                             Nueva Suscripción
                         </button>
@@ -312,7 +312,7 @@ export default function FinanceDashboard() {
                         </button>
                         <button
                             onClick={handleExportReport}
-                            className="flex-1 md:flex-none px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white text-xs font-medium rounded-lg border border-white/10 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
+                            className="flex-1 md:flex-none px-4 py-2.5 bg-secondary hover:bg-muted text-secondary-foreground text-xs font-bold rounded-lg border border-border transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
                             📄 Exportar
                         </button>
                         {activeTab === 'month' && (
@@ -326,7 +326,7 @@ export default function FinanceDashboard() {
                 </div>
 
                 {/* Tabs */}
-                <div className="flex border-b border-white/5 bg-black/20">
+                <div className="flex border-b border-border bg-muted/50">
                     <button
                         onClick={() => setActiveTab('month')}
                         className={cn(
@@ -375,34 +375,34 @@ export default function FinanceDashboard() {
                 {activeTab === 'subscriptions' && (
                     <div className="space-y-6">
                         {/* Subscription List */}
-                        <div className="bg-card/40 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-xl">
-                            <div className="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-white/5">
-                                <h3 className="font-bold text-white flex items-center gap-2">
+                        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+                            <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/20">
+                                <h3 className="font-bold text-foreground flex items-center gap-2">
                                     <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                                     Suscripciones Activas ({activeSubs.length})
                                 </h3>
                             </div>
 
-                            <div className="divide-y divide-white/5">
+                            <div className="divide-y divide-border">
                                 {activeSubs.map(sub => (
-                                    <div key={sub.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors group">
+                                    <div key={sub.id} className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors group">
                                         <div className="flex items-center gap-4 flex-1 min-w-0">
-                                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gray-800 to-black border border-white/10 flex items-center justify-center text-xl font-bold text-white/40 group-hover:text-white group-hover:border-blue-500/50 transition-all shadow-lg flex-shrink-0">
+                                            <div className="w-12 h-12 rounded-xl bg-muted border border-border flex items-center justify-center text-xl font-bold text-muted-foreground group-hover:text-primary group-hover:border-primary/50 transition-all shadow-sm flex-shrink-0">
                                                 {sub.platform.slice(0, 2).toUpperCase()}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="font-bold text-white leading-none text-lg truncate">{sub.platform}</p>
+                                                <p className="font-bold text-foreground leading-none text-lg truncate">{sub.platform}</p>
                                                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                                                    <span className="text-xs px-2 py-0.5 rounded bg-white/5 text-muted-foreground border border-white/5">
+                                                    <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border">
                                                         {sub.category}
                                                     </span>
                                                     {sub.ownerId && (
-                                                        <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                                                        <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 font-medium">
                                                             Owner: {getMemberName(sub.ownerId)}
                                                         </span>
                                                     )}
                                                     {sub.users && sub.users.length > 0 && (
-                                                        <span className="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20" title={getMemberNames(sub.users)}>
+                                                        <span className="text-xs px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 border border-blue-500/20 font-medium" title={getMemberNames(sub.users)}>
                                                             {sub.users.length} usuario{sub.users.length > 1 ? 's' : ''}
                                                         </span>
                                                     )}
@@ -414,25 +414,25 @@ export default function FinanceDashboard() {
                                             <div className="text-right hidden sm:block">
                                                 <p className="text-xs text-muted-foreground mb-0.5">Renovación</p>
                                                 <div className="flex items-center gap-1.5 justify-end">
-                                                    <Calendar className="w-3 h-3 text-blue-400" />
-                                                    <p className="text-sm text-white font-medium">Día {sub.renewalDay}</p>
+                                                    <Calendar className="w-3 h-3 text-blue-500" />
+                                                    <p className="text-sm text-foreground font-semibold">Día {sub.renewalDay}</p>
                                                 </div>
                                             </div>
                                             <div className="text-right min-w-[100px]">
-                                                <p className="font-bold text-emerald-400 text-xl tracking-tight">${sub.amount || sub.cost || 0}</p>
-                                                <p className="text-[10px] text-muted-foreground uppercase tracking-widest">{sub.currency} / MES</p>
+                                                <p className="font-bold text-emerald-600 text-xl tracking-tight">${sub.amount || sub.cost || 0}</p>
+                                                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">{sub.currency} / MES</p>
                                             </div>
-                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button
                                                     onClick={() => handleEditSub(sub)}
-                                                    className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                                                    className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                                                     title="Editar"
                                                 >
                                                     <Pencil className="w-4 h-4" />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteSub(sub.id, sub.platform)}
-                                                    className="p-2 rounded-lg bg-white/5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                                    className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                                                     title="Eliminar"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
@@ -443,8 +443,8 @@ export default function FinanceDashboard() {
                                 ))}
                                 {activeSubs.length === 0 && (
                                     <div className="p-12 text-center text-muted-foreground flex flex-col items-center gap-4">
-                                        <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
-                                            <CreditCard className="w-8 h-8 text-white/20" />
+                                        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                                            <CreditCard className="w-8 h-8 text-muted-foreground/40" />
                                         </div>
                                         <p>No hay suscripciones registradas.</p>
                                     </div>
@@ -453,28 +453,28 @@ export default function FinanceDashboard() {
                         </div>
 
                         {/* Próximos Pagos */}
-                        <div className="bg-card/30 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-xl">
-                            <h3 className="font-bold text-white mb-6 flex items-center gap-2">
-                                <Calendar className="w-4 h-4 text-purple-400" />
+                        <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+                            <h3 className="font-bold text-foreground mb-6 flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-purple-600" />
                                 Próximos Pagos
                             </h3>
 
                             <div className="space-y-4">
                                 {nextRenewals.map((item, idx) => (
-                                    <div key={idx} className="relative bg-black/40 rounded-xl p-4 border border-white/5 flex gap-4 items-center group hover:border-purple-500/30 transition-colors">
-                                        <div className="bg-white/5 w-14 h-14 rounded-xl flex flex-col items-center justify-center border border-white/10 group-hover:bg-purple-500/10 group-hover:text-purple-400 transition-colors">
+                                    <div key={idx} className="relative bg-muted/20 rounded-xl p-4 border border-border flex gap-4 items-center group hover:border-purple-500/30 transition-colors">
+                                        <div className="bg-muted w-14 h-14 rounded-xl flex flex-col items-center justify-center border border-border group-hover:bg-purple-500/10 group-hover:text-purple-600 transition-colors">
                                             <span className="text-[10px] text-muted-foreground uppercase font-bold">{item.nextDate.toLocaleString('default', { month: 'short' })}</span>
-                                            <span className="text-xl font-bold text-white leading-none mt-0.5">{item.nextDate.getDate()}</span>
+                                            <span className="text-xl font-bold text-foreground leading-none mt-0.5">{item.nextDate.getDate()}</span>
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-bold text-white truncate">{item.platform}</p>
+                                            <p className="text-sm font-bold text-foreground truncate">{item.platform}</p>
                                             <div className="flex items-center gap-1.5 mt-1">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
-                                                <p className="text-xs text-purple-300 font-medium">en {item.daysLeft} días</p>
+                                                <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse shadow-[0_0_8px_rgba(168,85,247,0.4)]" />
+                                                <p className="text-xs text-purple-700 font-semibold">en {item.daysLeft} días</p>
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <span className="text-sm font-bold text-white">${item.amount || item.cost || 0}</span>
+                                            <span className="text-sm font-bold text-foreground">${item.amount || item.cost || 0}</span>
                                         </div>
                                     </div>
                                 ))}
