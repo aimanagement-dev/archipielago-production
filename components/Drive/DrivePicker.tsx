@@ -111,6 +111,12 @@ export default function DrivePicker({ onSelect, onCancel, initialFolderId = 'roo
                 // Force Refresh
                 const resJson = await res.json();
                 console.log('Upload success', resJson);
+
+                // Auto-select the uploaded file if onSelect is provided
+                if (onSelect && resJson.file) {
+                    onSelect(resJson.file.webViewLink, resJson.file.id, resJson.file.name);
+                }
+
                 // Manually trigger fetch or just reset state to trigger effect
                 fetchFiles(currentFolder);
             } else {

@@ -415,6 +415,19 @@ export default function FinanceDashboard() {
                                                             {sub.users.length} usuario{sub.users.length > 1 ? 's' : ''}
                                                         </span>
                                                     )}
+                                                    {sub.receiptUrl && (
+                                                        <a
+                                                            href={sub.receiptUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-xs px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-medium flex items-center gap-1 hover:bg-emerald-500/20 transition-colors"
+                                                            title="Ver Comprobante Adjunto"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <HardDrive className="w-3 h-3" />
+                                                            Adjunto
+                                                        </a>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
