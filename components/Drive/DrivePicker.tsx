@@ -266,6 +266,14 @@ export default function DrivePicker({ onSelect, onCancel, initialFolderId = 'roo
                     </div>
                 )}
             </div>
+            {/* Debug Footer (Temporary) */}
+            <div className="p-1 bg-black text-[10px] text-gray-500 font-mono flex gap-4 overflow-hidden whitespace-nowrap">
+                <span>Status: {loading ? 'LOADING' : 'IDLE'}</span>
+                <span>Files: {files.length}</span>
+                <span>Error: {error || 'None'}</span>
+                <span>Folder: {currentFolder}</span>
+                {/* <span>Token: {!!useStore.getState().team ? 'Yes' : 'Unknown'}</span> */}
+            </div>
         </div>
     );
 }
