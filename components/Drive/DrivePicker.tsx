@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useStore } from '@/lib/store';
-import { Folder, FileText, Download, Upload, ArrowLeft, Loader2, Check, ChevronRight, Cloud } from 'lucide-react';
+import { Folder, FileText, Download, Upload, ArrowLeft, Loader2, Check, ChevronRight, Cloud, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DriveFile {
@@ -27,6 +27,7 @@ export default function DrivePicker({ onSelect, onCancel, initialFolderId = 'roo
     const [files, setFiles] = useState<DriveFile[]>([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [magicJumpOccurred, setMagicJumpOccurred] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -39,34 +40,35 @@ export default function DrivePicker({ onSelect, onCancel, initialFolderId = 'roo
 
     const fetchFiles = async (folderId: string) => {
         setLoading(true);
+        setError(null);
         try {
             // Include area param only if we are at root/initial load
             const areaParam = (folderId === 'root' && area) ? `&area=${encodeURIComponent(area)}` : '';
             const res = await fetch(`/api/drive?folderId=${folderId}${areaParam}`);
-            if (!res.ok) throw new Error('Failed to fetch');
+
             const data = await res.json();
-            setFiles(data.files);
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Failed to fetch files');
+            }
+
+            setFiles(data.files || []);
 
             // Handle Magic Jump (Deep Linking to Area Folder)
             if (folderId === 'root' && data.parentId && data.parentId !== 'root' && area) {
-                // We were redirected to a subfolder (e.g. Produccion)
-                // Update state silently to avoid re-fetch loop
                 setCurrentFolder(data.parentId);
                 setPath([
                     { id: 'root', name: 'Home' },
                     { id: data.parentId, name: area }
                 ]);
                 setMagicJumpOccurred(true);
-                // Reset magic flag after a moment so user can navigate normally later?
-                // Actually, just setting currentFolder is enough, but we need to stop the effect from firing again immediately with the new ID if we already have the data.
-                // But wait, the API returned files for the TARGET folder. So we don't need to fetch again.
-                // The effect dependency [currentFolder] will trigger.
             } else {
                 setMagicJumpOccurred(false);
             }
 
-        } catch (error) {
-            console.error(error);
+        } catch (error: any) {
+            console.error('Drive Fetch Error:', error);
+            setError(error.message || 'Error desconocido al cargar Drive');
         } finally {
             setLoading(false);
         }
@@ -198,7 +200,23 @@ export default function DrivePicker({ onSelect, onCancel, initialFolderId = 'roo
 
             {/* List */}
             <div className="flex-1 overflow-y-auto p-2 bg-gradient-to-b from-white/5 to-transparent">
-                {loading ? (
+                {error ? (
+                    <div className="flex flex-col items-center justify-center h-full text-red-400 gap-4 p-4 text-center">
+                        <div className="p-3 bg-red-500/10 rounded-full">
+                            <AlertCircle className="w-8 h-8" />
+                        </div>
+                        <div>
+                            <p className="font-bold underline mb-2">Error cargando Drive</p>
+                            <p className="text-sm opacity-80 max-w-md">{error}</p>
+                        </div>
+                        <button
+                            onClick={() => fetchFiles(currentFolder)}
+                            className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg text-sm transition-colors"
+                        >
+                            Reintentar
+                        </button>
+                    </div>
+                ) : loading ? (
                     <div className="flex items-center justify-center h-full text-white/40 flex-col gap-2">
                         <Loader2 className="w-8 h-8 animate-spin text-primary" />
                         <span className="text-xs">Cargando Drive...</span>
