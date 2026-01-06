@@ -4,6 +4,9 @@ export const ADMIN_EMAILS = [
     'federico.beron@lanticastudios.com'
 ];
 
+// ID of the dedicated Finance folder in Google Drive for receipts/invoices
+export const FINANCE_DRIVE_FOLDER_ID = '1N91xMmBLVJwYdGOTzLQfWE9SrGZGWbp6';
+
 export const isUserAdmin = (email?: string | null) => {
     if (!email) return false;
     return ADMIN_EMAILS.includes(email.toLowerCase());
