@@ -316,11 +316,12 @@ export default function FinanceDashboard() {
                             className="flex-1 md:flex-none px-4 py-2.5 bg-secondary hover:bg-muted text-secondary-foreground text-xs font-bold rounded-lg border border-border transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
                             📄 Exportar
                         </button>
-                        <button
-                            onClick={handleImportMonthlyExpenses}
-                            className="flex-1 md:flex-none px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-purple-500/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
-                            📅 Importar Gastos
-                        </button>
+                        {activeTab === 'month' && (
+                            <button
+                                onClick={handleImportMonthlyExpenses}
+                                className="flex-1 md:flex-none px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-purple-500/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
+                                📅 Importar Gastos
+                            </button>
                         )}
                         <button
                             onClick={() => window.open(`https://drive.google.com/drive/folders/${FINANCE_DRIVE_FOLDER_ID}`, '_blank')}
