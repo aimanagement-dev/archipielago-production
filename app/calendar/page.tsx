@@ -39,23 +39,32 @@ export default function CalendarPage() {
 
     // 2. Map Google Events to Task-like structure for display
     const googleEvents = events.map(event => {
-      // Avoid duplicates: if event has private property 'taskId', it's likely an internal task
-      // But we only have access to what the API returns.
-      // For now, let's just map them.
-      // Note: The API 'getCalendarEvents' returns full event objects.
+      // Avoid duplicates
+      // Check extendedProperties OR description for TaskID
+      const description = event.description || '';
+      const hasPropSource = event.extendedProperties?.private?.source === 'arch-pm';
+      const hasTaskIdProp = !!event.extendedProperties?.private?.taskId;
+      const hasTaskIdDesc = /TaskID:\s*(.+)/.test(description);
 
-      // Using 'extendedProperties' to check source
-      const isInternal = event.extendedProperties?.private?.source === 'arch-pm';
-      if (isInternal) return null; // Skip internally created events to avoid duplication if using both lists
+      const isInternal = hasPropSource || hasTaskIdProp || hasTaskIdDesc;
+
+      if (isInternal) return null; // Skip internally created events to avoid duplication
 
       const start = event.start?.dateTime || event.start?.date;
       if (!start) return null;
 
+      // Parse metadata from description if available
+      const statusMatch = description.match(/Estado:\s*(.+)/);
+      const areaMatch = description.match(/Área:\s*(.+)/);
+
+      const parsedStatus = statusMatch ? statusMatch[1].trim() : 'Pendiente';
+      const parsedArea = areaMatch ? areaMatch[1].trim() : 'Planificación';
+
       return {
         id: event.id || 'google-event',
         title: `${event.summary || '(Sin título)'}${event.sourceCalendar ? ` [${event.sourceCalendar}]` : ' [Google]'}`,
-        status: 'Pendiente', // Default status for external events
-        area: 'Planificación', // Default area
+        status: parsedStatus,
+        area: parsedArea,
         month: 'Ene',
         week: 'Week 1',
         responsible: [],
@@ -708,9 +717,18 @@ export default function CalendarPage() {
           setSelectedTask(null);
         }}
         onSave={async (task) => {
-          if (selectedTask) {
-            await updateTask(selectedTask.id, task);
+          if (selectedTask && !selectedTask.isGoogleEvent) {
+            // Es una tarea interna existente: actualizar
+            const exists = tasks.find(t => t.id === selectedTask.id);
+            if (exists) {
+              await updateTask(selectedTask.id, task);
+            } else {
+              // Fallback: si tiene ID pero no está en store (raro), intentar crearla
+              await addTask(task);
+            }
           } else {
+            // Es una tarea nueva O un evento de Google (externo) que estamos "importando"
+            // Al guardar, se convierte en una tarea interna nueva
             await addTask(task);
           }
 
@@ -721,7 +739,14 @@ export default function CalendarPage() {
         }}
         onDelete={selectedTask ? async () => {
           // La eliminación de Calendar se hace automáticamente en el endpoint /api/tasks
-          await deleteTask(selectedTask.id);
+          if (!selectedTask.isGoogleEvent) {
+            await deleteTask(selectedTask.id);
+          } else {
+            // TODO: Manejar borrado de eventos externos si es necesario
+            // Por seguridad, solo permitimos borrar tareas internas por ahora desde la UI
+            alert("Solo se pueden eliminar tareas creadas en la aplicación.");
+            return;
+          }
           setIsModalOpen(false);
           setSelectedTask(null);
           await fetchTasks();
