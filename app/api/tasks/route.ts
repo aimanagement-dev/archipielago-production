@@ -174,31 +174,48 @@ export async function POST(req: Request) {
                 const syncResult = await syncTasksToCalendar([calendarTask], accessToken);
                 console.log(`[POST /api/tasks] Sincronización a Calendar exitosa:`, syncResult);
                 
-                // Obtener el link de Meet del evento creado/actualizado
+                // syncTasksToCalendar modifica el calendarTask directamente con el meetLink
+                // Verificar si se obtuvo el meetLink
                 if (task.hasMeet && (syncResult.created > 0 || syncResult.updated > 0)) {
-                    try {
-                        const { getCalendarClient } = await import('@/lib/google/calendar');
-                        const calendar = getCalendarClient(accessToken);
-                        const calendarId = process.env.GOOGLE_CALENDAR_ID || 'ai.management@archipielagofilm.com';
-                        const eventId = task.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
-                        const event = await calendar.events.get({
-                            calendarId,
-                            eventId,
-                        });
-                        
-                        if (event.data.conferenceData?.entryPoints) {
-                            const meetEntry = event.data.conferenceData.entryPoints.find(
-                                (ep: any) => ep.entryPointType === 'video' || ep.uri?.includes('meet.google.com')
-                            );
-                            if (meetEntry?.uri) {
-                                meetLink = meetEntry.uri;
-                                // Actualizar la tarea con el meetLink
-                                taskToSave.meetLink = meetLink;
-                                await service.updateTask(spreadsheetId, taskToSave);
+                    // El meetLink debería estar en calendarTask después de syncTasksToCalendar
+                    if ((calendarTask as any).meetLink) {
+                        meetLink = (calendarTask as any).meetLink;
+                        console.log(`[POST /api/tasks] MeetLink obtenido de syncTasksToCalendar: ${meetLink}`);
+                        taskToSave.meetLink = meetLink;
+                        await service.updateTask(spreadsheetId, taskToSave);
+                        console.log(`[POST /api/tasks] Tarea actualizada con meetLink en Sheets`);
+                    } else {
+                        // Si no está disponible inmediatamente, intentar obtenerlo del evento
+                        console.log(`[POST /api/tasks] MeetLink no disponible inmediatamente, intentando obtener del evento...`);
+                        try {
+                            const { getCalendarClient } = await import('@/lib/google/calendar');
+                            const calendar = getCalendarClient(accessToken);
+                            const calendarId = process.env.GOOGLE_CALENDAR_ID || 'ai.management@archipielagofilm.com';
+                            const eventId = task.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
+                            
+                            // Esperar un momento para que Google Calendar procese el evento
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+                            
+                            const event = await calendar.events.get({
+                                calendarId,
+                                eventId,
+                            });
+                            
+                            if (event.data.conferenceData?.entryPoints) {
+                                const meetEntry = event.data.conferenceData.entryPoints.find(
+                                    (ep: any) => ep.entryPointType === 'video' || ep.uri?.includes('meet.google.com')
+                                );
+                                if (meetEntry?.uri) {
+                                    meetLink = meetEntry.uri;
+                                    console.log(`[POST /api/tasks] MeetLink obtenido del evento: ${meetLink}`);
+                                    taskToSave.meetLink = meetLink;
+                                    await service.updateTask(spreadsheetId, taskToSave);
+                                    console.log(`[POST /api/tasks] Tarea actualizada con meetLink en Sheets`);
+                                }
                             }
+                        } catch (meetError) {
+                            console.error("[POST /api/tasks] Error obteniendo link de Meet:", meetError);
                         }
-                    } catch (meetError) {
-                        console.error("[POST /api/tasks] Error obteniendo link de Meet:", meetError);
                     }
                 }
             } catch (calendarError) {

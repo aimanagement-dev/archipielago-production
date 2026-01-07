@@ -260,20 +260,23 @@ export default function Dashboard() {
                         )}
                       </div>
 
-                      {/* Meeting button - more prominent */}
-                      {hasMeeting && (
-                        <div className="mt-3 pt-3 border-t border-border/50">
+                      {/* Meeting button - MUY VISIBLE y prominente */}
+                      {hasMeeting && task.meetLink && (
+                        <div className="mt-3 pt-3 border-t-2 border-blue-500/30">
                           <a
                             href={task.meetLink}
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm font-bold transition-colors border border-blue-500/30 hover:border-blue-500/50 shadow-sm hover:shadow-md"
+                            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm font-bold transition-all border-2 border-blue-500/40 hover:border-blue-500/60 shadow-lg hover:shadow-xl hover:scale-105"
                           >
-                            <Video className="w-4 h-4" />
-                            {timeUntil?.isPast ? 'Unirse a la Reunión' : 'Entrar a la Reunión'}
-                            <ArrowRight className="w-3 h-3" />
+                            <Video className="w-5 h-5" />
+                            <span>{timeUntil?.isPast ? 'Unirse a la Reunión' : 'Entrar a la Reunión'}</span>
+                            <ArrowRight className="w-4 h-4" />
                           </a>
+                          <p className="text-xs text-muted-foreground mt-2 text-center font-mono break-all">
+                            {task.meetLink}
+                          </p>
                         </div>
                       )}
                     </div>

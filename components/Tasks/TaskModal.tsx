@@ -261,6 +261,40 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                         )}
                     </div>
 
+                    {/* Meet Link Display - MUY VISIBLE cuando existe */}
+                    {(formData.meetLink || initialData?.meetLink) && (
+                        <div className="border-t border-white/10 pt-4">
+                            <label className="text-sm font-bold text-foreground mb-3 block">🔗 Link de Google Meet</label>
+                            <div className="bg-blue-500/10 border-2 border-blue-500/40 rounded-lg p-4 space-y-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-blue-500/20 rounded-lg">
+                                        <svg className="w-6 h-6 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 8.16l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414l-1.414 1.414c-.39.39-1.024.39-1.414 0l-.707-.707-1.414 1.414c-.39.39-1.024.39-1.414 0l-1.414-1.414c-.39-.39-.39-1.024 0-1.414l1.414-1.414-.707-.707c-.39-.39-.39-1.024 0-1.414l1.414-1.414c.39-.39 1.024-.39 1.414 0l.707.707 1.414-1.414c.39-.39 1.024-.39 1.414 0l1.414 1.414c.39.39.39 1.024 0 1.414l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414z"/>
+                                        </svg>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs text-muted-foreground mb-1 font-medium">Link de la reunión:</p>
+                                        <p className="text-sm text-blue-400 font-mono break-all">{formData.meetLink || initialData?.meetLink}</p>
+                                    </div>
+                                </div>
+                                <a
+                                    href={formData.meetLink || initialData?.meetLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm font-bold transition-all border-2 border-blue-500/40 hover:border-blue-500/60 shadow-lg hover:shadow-xl hover:scale-105"
+                                >
+                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 8.16l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414l-1.414 1.414c-.39.39-1.024.39-1.414 0l-.707-.707-1.414 1.414c-.39.39-1.024.39-1.414 0l-1.414-1.414c-.39-.39-.39-1.024 0-1.414l1.414-1.414-.707-.707c-.39-.39-.39-1.024 0-1.414l1.414-1.414c.39-.39 1.024-.39 1.414 0l.707.707 1.414-1.414c.39-.39 1.024-.39 1.414 0l1.414 1.414c.39.39.39 1.024 0 1.414l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414z"/>
+                                    </svg>
+                                    <span>Unirse a la Reunión</span>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                </a>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Attachments Section - Consolidated */}
                     <div className="space-y-2 pt-2 border-t border-white/10">
                         <div className="flex items-center justify-between">
