@@ -24,12 +24,19 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
+        if (!process.env.GOOGLE_CLIENT_SECRET) {
+            console.error('[Notify] Missing GOOGLE_CLIENT_SECRET');
+            throw new Error('Server configuration error: Missing GOOGLE_CLIENT_SECRET');
+        }
+
         // Configurar transporter con OAuth2
         console.log(`[Notify] Attempting to send email via ${session.user?.email}`);
-        console.log(`[Notify] Config: ClientID=${!!process.env.GOOGLE_CLIENT_ID}, ClientSecret=${!!process.env.GOOGLE_CLIENT_SECRET}, AccessToken=${!!session.accessToken}, RefreshToken=${!!session.refreshToken}`);
+        console.log(`[Notify] Config: ClientID=${!!process.env.GOOGLE_CLIENT_ID}, AccessToken=${session.accessToken ? 'Yes (' + session.accessToken.substring(0, 10) + '...)' : 'No'}, RefreshToken=${session.refreshToken ? 'Yes' : 'No'}`);
 
         const transporter = nodemailer.createTransport({
-            service: 'gmail',
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true,
             auth: {
                 type: 'OAuth2',
                 user: session.user?.email,
