@@ -47,6 +47,20 @@ export async function sendEmailDirect({
         const senderEmail = useSystemEmail ? SYSTEM_EMAIL : (userEmail || SYSTEM_EMAIL);
         const senderName = useSystemEmail ? SYSTEM_NAME : (userName || SYSTEM_NAME);
 
+        // Validar que las credenciales correspondan a la cuenta desde la cual se envía
+        // Si useSystemEmail=true, el userEmail debe ser SYSTEM_EMAIL
+        if (useSystemEmail && userEmail && userEmail.toLowerCase() !== SYSTEM_EMAIL.toLowerCase()) {
+            const errorMsg = `No puedes enviar desde ${SYSTEM_EMAIL} usando credenciales de ${userEmail}. `;
+            const solutionMsg = `Para enviar desde ${SYSTEM_EMAIL}, debes usar las credenciales de esa cuenta específica.`;
+            
+            console.error(`[sendEmailDirect] Error: ${errorMsg}${solutionMsg}`);
+            
+            return {
+                success: false,
+                error: errorMsg + solutionMsg,
+            };
+        }
+
         // Usar Gmail API directamente
         const result = await sendEmailViaGmail({
             accessToken,

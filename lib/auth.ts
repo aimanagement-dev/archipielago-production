@@ -21,13 +21,16 @@ export const useAuth = () => {
     const getRole = (email?: string | null): UserRole => {
         if (!email) return 'viewer';
 
-        // 1. Check Hardcoded Super Admins
+        // 1. Check Hardcoded Super Admins (by email)
         const superAdmins = [
             'ai.management@archipielagofilm.com',
             'ai.lantica@lanticastudios.com',
-            'federico.beron@lanticastudios.com'
+            'federico.beron@lanticastudios.com',
+            // Emails adicionales de admins
+            'cindy.toribio@archipielagofilm.com',
+            'cindy.toribio@lanticastudios.com',
         ];
-        if (superAdmins.includes(email)) return 'admin';
+        if (superAdmins.includes(email.toLowerCase())) return 'admin';
 
         // 2. Check Team Data for Role or Name Match
         if (team && team.length > 0) {
@@ -37,15 +40,21 @@ export const useAuth = () => {
             );
 
             if (member) {
-                // If member found, check if they are designated as 'Admin' in sheet
-                // Or if their name matches the Super Admin Users
-                const adminNames = ['Cindy Toribio', 'Federico Beron', 'Archipielago AI Management'];
-
-                // Flexible check: Exact name match or if name contains substring (riskier but covers user request)
-                // User said: "Cindy toribio" and "Federico Beron".
+                // Check if member name matches admin names (Cindy Toribio, Federico Berón)
+                const adminNames = ['Cindy Toribio', 'Federico Beron', 'Federico Berón', 'Archipielago AI Management'];
                 const isNamedAdmin = adminNames.some(n => member.name.toLowerCase().includes(n.toLowerCase()));
 
                 if (isNamedAdmin) return 'admin';
+                
+                // Check if email matches admin emails from team member data
+                const adminEmails = [
+                    'federico.beron@lanticastudios.com',
+                    'cindy.toribio@archipielagofilm.com',
+                    'cindy.toribio@lanticastudios.com',
+                ];
+                if (member.email && adminEmails.includes(member.email.toLowerCase())) return 'admin';
+                
+                // Check role or position
                 if (member.role?.toLowerCase().includes('admin')) return 'admin';
                 if (member.department?.toLowerCase() === 'production' && member.position?.toLowerCase() === 'producer') return 'admin';
             }

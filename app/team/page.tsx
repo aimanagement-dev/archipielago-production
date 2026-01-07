@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
 import { TeamMember } from '@/lib/types';
-import { Plus, Mail, Users, Pencil, Trash2, Search } from 'lucide-react';
+import { Plus, Mail, Users, Pencil, Trash2, Search, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth';
 import TeamModal from '@/components/Team/TeamModal';
@@ -49,6 +49,93 @@ export default function TeamPage() {
   const handleClose = () => {
     setIsModalOpen(false);
     setEditingMember(undefined);
+  };
+
+  const handleSendInvitation = async (member: TeamMember) => {
+    if (!member.email) {
+      alert('Este miembro no tiene un email registrado.');
+      return;
+    }
+
+    if (!confirm(`¿Enviar invitación por email a ${member.name} (${member.email})?`)) {
+      return;
+    }
+
+    try {
+      const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://archipielago-production.vercel.app';
+      const loginUrl = `${appUrl}/login`;
+
+      const emailSubject = `Invitación a Archipiélago Production OS`;
+      const emailBody = `
+Hola ${member.name},
+
+Te invitamos a unirte a Archipiélago Production OS, nuestra plataforma de gestión de producción cinematográfica.
+
+Con esta plataforma podrás:
+- Ver y gestionar tareas asignadas
+- Acceder al calendario de producción
+- Colaborar con el equipo
+- Mantenerte al día con los hitos del proyecto
+
+Para comenzar, simplemente haz clic en el siguiente enlace e inicia sesión con tu cuenta de Google:
+
+${loginUrl}
+
+Si tienes alguna pregunta, no dudes en contactarnos.
+
+¡Esperamos verte pronto!
+
+Equipo de Archipiélago Production
+      `.trim();
+
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #f59e0b;">Invitación a Archipiélago Production OS</h2>
+          <p>Hola <strong>${member.name}</strong>,</p>
+          <p>Te invitamos a unirte a <strong>Archipiélago Production OS</strong>, nuestra plataforma de gestión de producción cinematográfica.</p>
+          <p>Con esta plataforma podrás:</p>
+          <ul>
+            <li>Ver y gestionar tareas asignadas</li>
+            <li>Acceder al calendario de producción</li>
+            <li>Colaborar con el equipo</li>
+            <li>Mantenerte al día con los hitos del proyecto</li>
+          </ul>
+          <p>Para comenzar, simplemente haz clic en el siguiente enlace e inicia sesión con tu cuenta de Google:</p>
+          <p style="text-align: center; margin: 30px 0;">
+            <a href="${loginUrl}" style="background-color: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+              Acceder a la Plataforma
+            </a>
+          </p>
+          <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
+          <p>¡Esperamos verte pronto!</p>
+          <p style="margin-top: 30px; color: #666; font-size: 14px;">
+            Equipo de Archipiélago Production
+          </p>
+        </div>
+      `;
+
+      const response = await fetch('/api/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: member.email,
+          subject: emailSubject,
+          text: emailBody,
+          html: emailHtml,
+          useSystemEmail: true, // Enviar desde la cuenta del sistema
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || 'Error al enviar el email');
+      }
+
+      alert(`✅ Invitación enviada exitosamente a ${member.name} (${member.email})`);
+    } catch (error: any) {
+      console.error('Error sending invitation:', error);
+      alert(`❌ Error al enviar invitación: ${error.message}`);
+    }
   };
 
   // Group by role
@@ -182,8 +269,23 @@ export default function TeamPage() {
 
               {user?.role === 'admin' && (
                 <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                  {member.email && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSendInvitation(member);
+                      }}
+                      className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                      title="Enviar Invitación"
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
-                    onClick={() => handleEdit(member)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit(member);
+                    }}
                     className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                     title="Editar"
                   >

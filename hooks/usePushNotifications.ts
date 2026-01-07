@@ -12,6 +12,26 @@ export function usePushNotifications() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const checkSubscription = useCallback(async () => {
+    if (!user?.email) {
+      setIsSubscribed(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/push/subscribe');
+      if (response.ok) {
+        const data = await response.json();
+        setIsSubscribed(!!data.subscription);
+      } else {
+        setIsSubscribed(false);
+      }
+    } catch (error) {
+      console.error('Error checking subscription:', error);
+      setIsSubscribed(false);
+    }
+  }, [user?.email]);
+
   // Verificar soporte y permiso
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -30,21 +50,7 @@ export function usePushNotifications() {
 
     // Verificar si ya está suscrito
     checkSubscription();
-  }, []);
-
-  const checkSubscription = useCallback(async () => {
-    if (!user?.email) return;
-
-    try {
-      const response = await fetch('/api/push/subscribe');
-      if (response.ok) {
-        const data = await response.json();
-        setIsSubscribed(!!data.subscription);
-      }
-    } catch (error) {
-      console.error('Error checking subscription:', error);
-    }
-  }, [user?.email]);
+  }, [checkSubscription]);
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
     if (typeof window === 'undefined' || !('Notification' in window)) {

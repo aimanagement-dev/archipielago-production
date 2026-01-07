@@ -1,7 +1,11 @@
 export const ADMIN_EMAILS = [
     'ai.management@archipielagofilm.com',
     'ia.lantica@lanticastudios.com',
-    'federico.beron@lanticastudios.com'
+    'federico.beron@lanticastudios.com',
+    // Emails adicionales de admins (se verifican también por nombre en team members)
+    'cindy.toribio@archipielagofilm.com',
+    'cindy.toribio@lanticastudios.com',
+    'cindy.vejar@lanticastudios.com', // Por si Cindy Vejar es Cindy Toribio
 ];
 
 // ID of the dedicated Finance folder in Google Drive for receipts/invoices

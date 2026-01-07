@@ -89,6 +89,8 @@ function buildMessage(params: SendEmailViaGmailParams): string {
 
 /**
  * Envía un email usando Gmail API
+ * IMPORTANTE: Las credenciales OAuth deben corresponder a la cuenta desde la cual se envía el email.
+ * Si fromEmail es diferente a la cuenta del accessToken, el envío fallará.
  */
 export async function sendEmailViaGmail(
   params: SendEmailViaGmailParams
@@ -123,7 +125,7 @@ export async function sendEmailViaGmail(
     });
 
     const messageId = response.data.id;
-    console.log(`[sendEmailViaGmail] Email sent successfully. Message ID: ${messageId}`);
+    console.log(`[sendEmailViaGmail] Email sent successfully from ${params.fromEmail}. Message ID: ${messageId}`);
     
     return {
       success: true,
@@ -131,19 +133,31 @@ export async function sendEmailViaGmail(
     };
   } catch (error: any) {
     console.error('[sendEmailViaGmail] Error sending email:', error);
+    console.error('[sendEmailViaGmail] Attempted to send from:', params.fromEmail);
     
     // Mejorar mensajes de error
     let errorMessage = error.message || 'Unknown error sending email';
     
     if (error.response?.data?.error) {
       const gmailError = error.response.data.error;
+      const errorDetails = error.response.data.error_description || '';
+      
       if (gmailError === 'invalid_grant') {
         errorMessage = 'Las credenciales OAuth han expirado. Por favor inicia sesión nuevamente.';
       } else if (gmailError === 'insufficient_permissions') {
         errorMessage = 'No tienes permisos para enviar emails desde esta cuenta.';
+      } else if (gmailError === 'invalid_request' || errorDetails.includes('BadCredentials')) {
+        errorMessage = `Error de autenticación: Las credenciales OAuth no tienen permisos para enviar desde ${params.fromEmail}. `;
+        errorMessage += 'Para enviar desde esta cuenta, debes iniciar sesión con esa cuenta específica.';
       } else {
         errorMessage = `Error de Gmail API: ${gmailError}`;
+        if (errorDetails) {
+          errorMessage += ` - ${errorDetails}`;
+        }
       }
+    } else if (error.code === 401 || error.message?.includes('Invalid Credentials') || error.message?.includes('BadCredentials')) {
+      errorMessage = `Error de autenticación: Las credenciales OAuth no tienen permisos para enviar desde ${params.fromEmail}. `;
+      errorMessage += 'Para enviar desde esta cuenta, debes iniciar sesión con esa cuenta específica.';
     }
     
     return {

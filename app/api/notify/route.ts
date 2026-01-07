@@ -43,20 +43,41 @@ export async function POST(req: NextRequest) {
         senderName = useSystemEmail ? SYSTEM_NAME : (session.user?.name || SYSTEM_NAME);
 
         // Validar que si se usa SYSTEM_EMAIL, el usuario logueado sea esa cuenta
-        if (useSystemEmail && session.user?.email?.toLowerCase() !== SYSTEM_EMAIL.toLowerCase()) {
-            console.warn(`[Notify] Warning: Attempting to send from ${SYSTEM_EMAIL} but logged in as ${session.user?.email}. This may fail.`);
-            console.warn(`[Notify] Solution: Login with ${SYSTEM_EMAIL} account or use Service Account credentials.`);
+        const loggedInEmail = session.user?.email?.toLowerCase();
+        const systemEmailLower = SYSTEM_EMAIL.toLowerCase();
+        
+        if (useSystemEmail && loggedInEmail !== systemEmailLower) {
+            const errorMsg = `No puedes enviar desde ${SYSTEM_EMAIL} porque estás logueado como ${session.user?.email}. `;
+            const solutionMsg = `Para enviar desde ${SYSTEM_EMAIL}, debes iniciar sesión con esa cuenta específica.`;
+            
+            console.error(`[Notify] Error: ${errorMsg}${solutionMsg}`);
+            
+            return NextResponse.json({
+                error: 'Error de autenticación',
+                details: errorMsg + solutionMsg,
+            }, { status: 403 });
+        }
+
+        // Si el usuario logueado ES la cuenta del sistema, usar sus credenciales directamente
+        // Si no, usar las credenciales del usuario logueado (solo puede enviar desde su propia cuenta)
+        const canSendFromRequestedEmail = loggedInEmail === senderEmail.toLowerCase();
+        
+        if (!canSendFromRequestedEmail) {
+            const errorMsg = `No puedes enviar desde ${senderEmail} porque estás logueado como ${session.user?.email}. `;
+            const solutionMsg = `Para enviar desde ${senderEmail}, debes iniciar sesión con esa cuenta específica.`;
+            
+            console.error(`[Notify] Error: ${errorMsg}${solutionMsg}`);
+            
+            return NextResponse.json({
+                error: 'Error de autenticación',
+                details: errorMsg + solutionMsg,
+            }, { status: 403 });
         }
 
         // Usar Gmail API directamente
         console.log(`[Notify] Attempting to send email via Gmail API from ${senderEmail}${useSystemEmail ? ' (system email)' : ''}`);
         console.log(`[Notify] Logged in as: ${session.user?.email}`);
         console.log(`[Notify] AccessToken=${session.accessToken ? 'Yes (' + session.accessToken.substring(0, 10) + '...)' : 'No'}, RefreshToken=${session.refreshToken ? 'Yes' : 'No'}`);
-
-        // IMPORTANTE: Si useSystemEmail=true pero el usuario logueado NO es esa cuenta,
-        // necesitamos usar las credenciales de esa cuenta específica.
-        // Por ahora, intentamos con las credenciales del usuario logueado.
-        // Si falla, el error será claro.
         
         const result = await sendEmailViaGmail({
             accessToken: session.accessToken as string,

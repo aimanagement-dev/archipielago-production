@@ -43,7 +43,7 @@ export const authOptions: NextAuthOptions = {
         async signIn({ user, account }) {
             // 1. Super Admin Bypass (Hardcoded + Env)
             const allowedEmails = (process.env.ALLOWED_LOGIN_EMAILS ||
-                'ai.management@archipielagofilm.com,ai.lantica@lanticastudios.com,federico.beron@lanticastudios.com')
+                'ai.management@archipielagofilm.com,ai.lantica@lanticastudios.com,federico.beron@lanticastudios.com,cindy.toribio@archipielagofilm.com,cindy.toribio@lanticastudios.com')
                 .split(',')
                 .map((e) => e.trim().toLowerCase())
                 .filter(Boolean);

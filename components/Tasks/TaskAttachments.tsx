@@ -346,23 +346,23 @@ export default function TaskAttachments({ task, onChange }: TaskAttachmentsProps
                                     </div>
                                 </div>
                             ) : (
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
                                         placeholder="e.g., Guión"
-                                        value={visibleToInput}
-                                        onChange={(e) => setVisibleToInput(e.target.value)}
+                                    value={visibleToInput}
+                                    onChange={(e) => setVisibleToInput(e.target.value)}
                                         onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addVisibleTo(visibleToInput.trim()))}
-                                        className="flex-1 bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/50"
-                                    />
-                                    <button
-                                        type="button"
+                                    className="flex-1 bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/50"
+                                />
+                                <button
+                                    type="button"
                                         onClick={() => addVisibleTo(visibleToInput.trim())}
-                                        className="px-3 py-2 bg-primary text-primary-foreground rounded text-sm hover:bg-primary/90"
-                                    >
-                                        Add
-                                    </button>
-                                </div>
+                                    className="px-3 py-2 bg-primary text-primary-foreground rounded text-sm hover:bg-primary/90"
+                                >
+                                    Add
+                                </button>
+                            </div>
                             )}
                             
                             {visibleTo.length > 0 && (
@@ -370,19 +370,19 @@ export default function TaskAttachments({ task, onChange }: TaskAttachmentsProps
                                     {visibleTo.map((item) => {
                                         const member = team.find(m => m.email === item);
                                         return (
-                                            <span
-                                                key={item}
-                                                className="flex items-center gap-1 px-2 py-1 bg-primary/20 text-primary rounded text-xs"
-                                            >
+                                        <span
+                                            key={item}
+                                            className="flex items-center gap-1 px-2 py-1 bg-primary/20 text-primary rounded text-xs"
+                                        >
                                                 {member ? member.name : item}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeVisibleTo(item)}
-                                                    className="hover:text-red-400"
-                                                >
-                                                    <X className="w-3 h-3" />
-                                                </button>
-                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeVisibleTo(item)}
+                                                className="hover:text-red-400"
+                                            >
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </span>
                                         );
                                     })}
                                 </div>

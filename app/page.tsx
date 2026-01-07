@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/lib/auth';
 import { useStore } from '@/lib/store';
-import { format, isToday, parseISO } from 'date-fns';
+import { format, isToday, parseISO, differenceInMinutes, differenceInHours } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
   Calendar,
@@ -14,21 +14,35 @@ import {
   AlertCircle,
   Sparkles,
   ArrowRight,
-  DollarSign
+  DollarSign,
+  Clock,
+  Video,
+  FileText
 } from 'lucide-react';
 import { cn, statusColors, areaColors } from '@/lib/utils';
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { tasks, gates, team, getStats } = useStore();
   const stats = getStats();
+  const router = useRouter();
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update time every minute for countdown
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000); // Update every second for real-time countdown
+    return () => clearInterval(interval);
+  }, []);
 
   // Get current time and date
-  const now = new Date();
+  const now = currentTime;
   const currentDate = format(now, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es });
-  const currentTime = format(now, 'HH:mm', { locale: es });
+  const currentTimeFormatted = format(now, 'HH:mm', { locale: es });
 
   // Get greeting based on time
   const getGreeting = () => {
@@ -81,7 +95,7 @@ export default function Dashboard() {
             </div>
             <div className="text-right">
               <div className="text-sm text-muted-foreground font-bold uppercase tracking-wider mb-1">{currentDate}</div>
-              <div className="text-4xl font-black text-primary drop-shadow-sm">{currentTime}</div>
+              <div className="text-4xl font-black text-primary drop-shadow-sm">{currentTimeFormatted}</div>
             </div>
           </div>
 
@@ -155,53 +169,117 @@ export default function Dashboard() {
 
           {todaysTasks.length > 0 ? (
             <div className="space-y-3">
-              {todaysTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="flex items-start gap-4 p-4 bg-muted/20 border border-border rounded-xl hover:border-primary/40 hover:bg-muted/40 transition-all group"
-                >
-                  {task.scheduledTime ? (
-                    <div className="flex flex-col items-center min-w-[60px] bg-card p-2 rounded-lg border border-border shadow-sm">
-                      <div className="text-2xl font-black text-primary">{task.scheduledTime.split(':')[0]}</div>
-                      <div className="text-xs text-muted-foreground font-bold uppercase">{task.scheduledTime.split(':')[1]}</div>
-                    </div>
-                  ) : (
-                    <div className="p-3 bg-primary/10 rounded-xl border border-primary/20">
-                      <Calendar className="w-5 h-5 text-primary" />
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    <h3 className="font-bold text-foreground mb-1 group-hover:text-primary transition-colors">{task.title}</h3>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={cn('px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-border/50', areaColors[task.area])}>
-                        {task.area}
-                      </span>
-                      <span className={cn('px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-border/50', statusColors[task.status])}>
-                        {task.status}
-                      </span>
-                      {task.responsible && task.responsible.length > 0 && (
-                        <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-                          <Users className="w-3 h-3" />
-                          {task.responsible.join(', ')}
-                        </span>
+              {todaysTasks.map((task) => {
+                // Calculate time until meeting
+                const getTimeUntilMeeting = () => {
+                  if (!task.scheduledDate || !task.scheduledTime) return null;
+                  try {
+                    const [hours, minutes] = task.scheduledTime.split(':').map(Number);
+                    const taskDate = parseISO(task.scheduledDate);
+                    taskDate.setHours(hours, minutes, 0, 0);
+                    const diffMinutes = differenceInMinutes(taskDate, now);
+                    
+                    if (diffMinutes < 0) {
+                      return { text: 'En curso', isPast: true };
+                    }
+                    if (diffMinutes < 60) {
+                      return { text: `En ${diffMinutes} min`, isPast: false };
+                    }
+                    const diffHours = differenceInHours(taskDate, now);
+                    const remainingMinutes = diffMinutes % 60;
+                    if (remainingMinutes === 0) {
+                      return { text: `En ${diffHours}h`, isPast: false };
+                    }
+                    return { text: `En ${diffHours}h ${remainingMinutes}min`, isPast: false };
+                  } catch {
+                    return null;
+                  }
+                };
+
+                const timeUntil = getTimeUntilMeeting();
+                const hasMeeting = !!task.meetLink;
+                const isAdmin = user?.role === 'admin';
+
+                return (
+                  <div
+                    key={task.id}
+                    onClick={() => {
+                      // Navigate to task detail or open modal
+                      if (isAdmin) {
+                        router.push(`/tasks?edit=${task.id}`);
+                      } else {
+                        router.push(`/tasks?view=${task.id}`);
+                      }
+                    }}
+                    className="flex items-start gap-4 p-4 bg-muted/20 border border-border rounded-xl hover:border-primary/40 hover:bg-muted/40 transition-all group cursor-pointer"
+                  >
+                    {task.scheduledTime ? (
+                      <div className="flex flex-col items-center min-w-[60px] bg-card p-2 rounded-lg border border-border shadow-sm">
+                        <div className="text-2xl font-black text-primary">{task.scheduledTime.split(':')[0]}</div>
+                        <div className="text-xs text-muted-foreground font-bold uppercase">{task.scheduledTime.split(':')[1]}</div>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-primary/10 rounded-xl border border-primary/20">
+                        <Calendar className="w-5 h-5 text-primary" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <h3 className="font-bold text-foreground group-hover:text-primary transition-colors flex-1">{task.title}</h3>
+                        {timeUntil && (
+                          <div className={cn(
+                            "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider whitespace-nowrap",
+                            timeUntil.isPast 
+                              ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                              : "bg-primary/20 text-primary border border-primary/30"
+                          )}>
+                            <Clock className="w-3 h-3" />
+                            {timeUntil.text}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Notes/Topic preview */}
+                      {task.notes && (
+                        <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{task.notes}</p>
                       )}
-                      {task.meetLink && (
-                        <a
-                          href={task.meetLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-2 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded text-[10px] font-medium transition-colors border border-blue-500/30"
-                        >
-                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 8.16l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414l-1.414 1.414c-.39.39-1.024.39-1.414 0l-.707-.707-1.414 1.414c-.39.39-1.024.39-1.414 0l-1.414-1.414c-.39-.39-.39-1.024 0-1.414l1.414-1.414-.707-.707c-.39-.39-.39-1.024 0-1.414l1.414-1.414c.39-.39 1.024-.39 1.414 0l.707.707 1.414-1.414c.39-.39 1.024-.39 1.414 0l1.414 1.414c.39.39.39 1.024 0 1.414l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414z"/>
-                          </svg>
-                          Meet
-                        </a>
+
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={cn('px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-border/50', areaColors[task.area])}>
+                          {task.area}
+                        </span>
+                        <span className={cn('px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-border/50', statusColors[task.status])}>
+                          {task.status}
+                        </span>
+                        {task.responsible && task.responsible.length > 0 && (
+                          <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                            <Users className="w-3 h-3" />
+                            {task.responsible.slice(0, 2).join(', ')}
+                            {task.responsible.length > 2 && ` +${task.responsible.length - 2}`}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Meeting button - more prominent */}
+                      {hasMeeting && (
+                        <div className="mt-3 pt-3 border-t border-border/50">
+                          <a
+                            href={task.meetLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm font-bold transition-colors border border-blue-500/30 hover:border-blue-500/50 shadow-sm hover:shadow-md"
+                          >
+                            <Video className="w-4 h-4" />
+                            {timeUntil?.isPast ? 'Unirse a la Reunión' : 'Entrar a la Reunión'}
+                            <ArrowRight className="w-3 h-3" />
+                          </a>
+                        </div>
                       )}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-16 bg-muted/10 rounded-xl border border-dashed border-border">
@@ -301,9 +379,16 @@ export default function Dashboard() {
               activeTasks.map((task) => (
                 <div
                   key={task.id}
-                  className="p-4 bg-muted/20 border border-border rounded-xl hover:border-primary/30 transition-all"
+                  onClick={() => {
+                    if (user?.role === 'admin') {
+                      router.push(`/tasks?edit=${task.id}`);
+                    } else {
+                      router.push(`/tasks?view=${task.id}`);
+                    }
+                  }}
+                  className="p-4 bg-muted/20 border border-border rounded-xl hover:border-primary/30 transition-all cursor-pointer group"
                 >
-                  <div className="font-bold text-foreground mb-2">{task.title}</div>
+                  <div className="font-bold text-foreground mb-2 group-hover:text-primary transition-colors">{task.title}</div>
                   <div className="flex items-center gap-2">
                     <span className={cn('px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-border/50', areaColors[task.area])}>
                       {task.area}
@@ -331,10 +416,17 @@ export default function Dashboard() {
               upcomingGates.map((gate) => (
                 <div
                   key={gate.id}
-                  className="p-4 bg-muted/20 border border-border rounded-xl"
+                  onClick={() => {
+                    if (user?.role === 'admin') {
+                      router.push(`/gates?edit=${gate.id}`);
+                    } else {
+                      router.push(`/gates?view=${gate.id}`);
+                    }
+                  }}
+                  className="p-4 bg-muted/20 border border-border rounded-xl hover:border-primary/30 transition-all cursor-pointer group"
                 >
                   <div className="flex items-start justify-between mb-2">
-                    <div className="font-bold text-foreground">{gate.name}</div>
+                    <div className="font-bold text-foreground group-hover:text-primary transition-colors">{gate.name}</div>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-600 border border-amber-500/30">
                       Pendiente
                     </span>
