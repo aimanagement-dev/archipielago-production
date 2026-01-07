@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { getCalendarEvents } from '@/lib/google/calendar';
 import { authOptions } from '@/lib/auth-config';
+import { ADMIN_EMAILS } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,14 @@ export async function GET(request: Request) {
     const end = searchParams.get('end') || undefined;
 
     try {
-        const events = await getCalendarEvents(session.accessToken, start, end);
+        // Verificar si el usuario es admin
+        const userEmail = session.user?.email?.toLowerCase();
+        const isAdmin = userEmail ? ADMIN_EMAILS.includes(userEmail) : false;
+
+        const events = await getCalendarEvents(session.accessToken, start, end, {
+            userEmail: userEmail || undefined,
+            isAdmin,
+        });
 
         return NextResponse.json({
             ok: true,

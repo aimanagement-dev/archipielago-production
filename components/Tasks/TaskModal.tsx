@@ -22,6 +22,12 @@ const AREAS: TaskArea[] = ['Guión', 'Técnico', 'Casting', 'Reporting', 'Pipeli
 const STATUSES: TaskStatus[] = ['Pendiente', 'En Progreso', 'Completado', 'Bloqueado'];
 const MONTHS: Month[] = ['Nov', 'Dic', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago'];
 
+interface CalendarOption {
+    id: string;
+    summary: string;
+    backgroundColor?: string;
+}
+
 export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialData, defaultDate }: TaskModalProps) {
     const { team } = useStore();
     const [formData, setFormData] = useState<Partial<Task>>({
@@ -36,11 +42,14 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
         attachments: [],
         visibility: 'all',
         visibleTo: [],
+        calendarId: undefined, // Calendario donde se creará el evento
     });
     const [isDrivePickerOpen, setIsDrivePickerOpen] = useState(false);
     const [isComposeOpen, setIsComposeOpen] = useState(false);
     const [isShareOpen, setIsShareOpen] = useState(false);
     const [attachmentMode, setAttachmentMode] = useState<'drive' | 'local'>('drive');
+    const [availableCalendars, setAvailableCalendars] = useState<CalendarOption[]>([]);
+    const [loadingCalendars, setLoadingCalendars] = useState(false);
 
     // Auto-calculate Month and Week when date changes
     useEffect(() => {
@@ -84,6 +93,38 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
         }
     }, [formData.scheduledDate]);
 
+    // Cargar calendarios disponibles cuando se abre el modal
+    useEffect(() => {
+        if (isOpen) {
+            setLoadingCalendars(true);
+            fetch('/api/calendars/list')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.calendars && Array.isArray(data.calendars)) {
+                        setAvailableCalendars(data.calendars);
+                        // Si no hay calendarId seleccionado y hay calendarios disponibles, usar el primero (ARCH-Producción)
+                        if (!formData.calendarId && data.calendars.length > 0) {
+                            const produccionCalendar = data.calendars.find((c: CalendarOption) => 
+                                c.summary.toLowerCase().includes('producción') || 
+                                c.summary.toLowerCase().includes('produccion')
+                            );
+                            if (produccionCalendar) {
+                                setFormData(prev => ({ ...prev, calendarId: produccionCalendar.id }));
+                            } else {
+                                setFormData(prev => ({ ...prev, calendarId: data.calendars[0].id }));
+                            }
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error('Error loading calendars:', err);
+                })
+                .finally(() => {
+                    setLoadingCalendars(false);
+                });
+        }
+    }, [isOpen]);
+
     useEffect(() => {
         if (isOpen) {
             if (initialData) {
@@ -98,6 +139,7 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                     attachments: existingAttachments,
                     responsible: initialData.responsible || [],
                     visibleTo: initialData.visibleTo || [],
+                    calendarId: initialData.calendarId || undefined,
                 });
             } else {
                 // Resetear solo cuando se abre el modal para nueva tarea
@@ -221,6 +263,37 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
 
                     {/* Advanced Scheduling Options */}
                     <div className="border-t border-white/10 pt-4">
+                        {/* Selector de Calendario */}
+                        {formData.isScheduled && formData.scheduledDate && (
+                            <div className="space-y-2 mb-4">
+                                <label className="text-sm font-medium text-muted-foreground">Calendario</label>
+                                {loadingCalendars ? (
+                                    <div className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-muted-foreground">
+                                        Cargando calendarios...
+                                    </div>
+                                ) : availableCalendars.length > 0 ? (
+                                    <select
+                                        value={formData.calendarId || ''}
+                                        onChange={(e) => setFormData({ ...formData, calendarId: e.target.value })}
+                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary/50"
+                                    >
+                                        {availableCalendars.map((cal) => (
+                                            <option key={cal.id} value={cal.id}>
+                                                {cal.summary}
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <div className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-muted-foreground">
+                                        No hay calendarios disponibles
+                                    </div>
+                                )}
+                                <p className="text-xs text-muted-foreground">
+                                    Selecciona en qué calendario se creará el evento. Los usuarios regulares solo verán eventos del calendario de Producción.
+                                </p>
+                            </div>
+                        )}
+                        
                         <div className="flex items-center gap-2 mb-3">
                             <input
                                 type="checkbox"

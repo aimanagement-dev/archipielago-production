@@ -159,7 +159,7 @@ export async function POST(req: Request) {
         const spreadsheetId = await service.getOrCreateDatabase();
 
         // Asegurar que los campos requeridos tengan valores por defecto
-        const taskToSave: Task = {
+            const taskToSave: Task = {
             id: task.id,
             title: task.title,
             status: task.status || 'Pendiente',
@@ -175,6 +175,7 @@ export async function POST(req: Request) {
             visibleTo: Array.isArray(task.visibleTo) ? task.visibleTo : [],
             hasMeet: task.hasMeet || false,
             meetLink: undefined,
+            calendarId: task.calendarId || undefined,
         };
 
         await service.addTask(spreadsheetId, taskToSave);
@@ -199,7 +200,9 @@ export async function POST(req: Request) {
                     hasMeet: task.hasMeet || false,
                     visibleTo: task.visibleTo || [],
                 };
-                const syncResult = await syncTasksToCalendar([calendarTask], accessToken);
+                // Usar el calendarId de la tarea si está disponible, sino usar el default
+                const targetCalendarId = task.calendarId || process.env.GOOGLE_CALENDAR_ID || 'ai.management@archipielagofilm.com';
+                const syncResult = await syncTasksToCalendar([calendarTask], accessToken, { calendarId: targetCalendarId });
                 console.log(`[POST /api/tasks] Sincronización a Calendar exitosa:`, syncResult);
                 
                 // syncTasksToCalendar modifica el calendarTask directamente con el meetLink
@@ -218,14 +221,14 @@ export async function POST(req: Request) {
                         try {
                             const { getCalendarClient } = await import('@/lib/google/calendar');
                             const calendar = getCalendarClient(accessToken);
-                            const calendarId = process.env.GOOGLE_CALENDAR_ID || 'ai.management@archipielagofilm.com';
+                            const eventCalendarId = targetCalendarId; // Usar el mismo calendario donde se creó el evento
                             const eventId = task.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
                             
                             // Esperar un momento para que Google Calendar procese el evento
                             await new Promise(resolve => setTimeout(resolve, 2000));
                             
                             const event = await calendar.events.get({
-                                calendarId,
+                                calendarId: eventCalendarId,
                                 eventId,
                             });
                             

@@ -39,6 +39,7 @@ export interface Task {
   visibility?: VisibilityLevel; // Who can see this task
   visibleTo?: string[]; // Specific emails/departments if visibility is restricted
   attendeeResponses?: { email: string; response: 'accepted' | 'declined' | 'tentative' }[]; // Responses from Calendar attendees
+  calendarId?: string; // ID del calendario donde se creará el evento (ARCH-Producción o Archipielago AI Management)
 }
 
 export interface TeamMember {

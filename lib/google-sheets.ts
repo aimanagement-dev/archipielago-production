@@ -70,7 +70,7 @@ export class GoogleSheetsService {
         const existingTitles = meta.data.sheets?.map(s => s.properties?.title) || [];
 
         const requiredSheets = [
-            { title: 'Tasks', headers: ['ID', 'Title', 'Status', 'Area', 'Month', 'Week', 'Responsible', 'Notes', 'ScheduledDate', 'ScheduledTime', 'Attachments', 'Visibility', 'VisibleTo', 'MeetLink', 'AttendeeResponses'] },
+            { title: 'Tasks', headers: ['ID', 'Title', 'Status', 'Area', 'Month', 'Week', 'Responsible', 'Notes', 'ScheduledDate', 'ScheduledTime', 'Attachments', 'Visibility', 'VisibleTo', 'MeetLink', 'AttendeeResponses', 'CalendarId'] },
             { title: 'Gates', headers: ['ID', 'Title', 'Status', 'Date', 'Description'] },
             { title: 'Team', headers: ['ID', 'Name', 'Email', 'Role', 'Department', 'Position', 'Status', 'Type', 'Phone', 'AccessGranted', 'Metadata'] },
             { title: 'Subscriptions', headers: ['ID', 'Platform', 'Category', 'Amount', 'Currency', 'BillingCycle', 'RenewalDay', 'CardUsed', 'Status', 'OwnerId', 'Users', 'ReceiptUrl', 'Notes', 'CreatedAt', 'UpdatedAt', 'CreatedBy'] },
@@ -114,7 +114,7 @@ export class GoogleSheetsService {
     async getTasks(spreadsheetId: string): Promise<Task[]> {
         const response = await this.sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: 'Tasks!A2:O', // Updated range to include meetLink (N) and attendeeResponses (O)
+            range: 'Tasks!A2:P', // Updated range to include meetLink (N), attendeeResponses (O), and calendarId (P)
         });
 
         const rows = response.data.values;
@@ -192,6 +192,9 @@ export class GoogleSheetsService {
                     }
                 }
 
+                // Parse calendarId (column P, if it exists)
+                const calendarId = row[15] ? String(row[15]).trim() : undefined;
+
                 return {
                     id: String(row[0] || ''),
                     title: String(row[1] || ''),
@@ -214,6 +217,7 @@ export class GoogleSheetsService {
                     visibility: visibility,
                     visibleTo: visibleTo,
                     attendeeResponses: attendeeResponses,
+                    calendarId: calendarId,
                     attachments: (() => {
                         try {
                             if (!row[10] || !row[10].toString().trim()) {
@@ -268,13 +272,14 @@ export class GoogleSheetsService {
                 task.meetLink || '', // Column N for meetLink
                 task.attendeeResponses && task.attendeeResponses.length > 0 
                     ? JSON.stringify(task.attendeeResponses) 
-                    : '' // Column O for attendeeResponses
+                    : '', // Column O for attendeeResponses
+                task.calendarId || '' // Column P for calendarId
             ],
         ];
 
         await this.sheets.spreadsheets.values.append({
             spreadsheetId,
-            range: 'Tasks!A:O',
+            range: 'Tasks!A:P',
             valueInputOption: 'USER_ENTERED',
             requestBody: {
                 values,
@@ -319,13 +324,14 @@ export class GoogleSheetsService {
                 task.meetLink || '', // Column N for meetLink
                 task.attendeeResponses && task.attendeeResponses.length > 0 
                     ? JSON.stringify(task.attendeeResponses) 
-                    : '' // Column O for attendeeResponses
+                    : '', // Column O for attendeeResponses
+                task.calendarId || '' // Column P for calendarId
             ],
         ];
 
         await this.sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: `Tasks!A${rowIndex}:O${rowIndex}`,
+            range: `Tasks!A${rowIndex}:P${rowIndex}`,
             valueInputOption: 'USER_ENTERED',
             requestBody: {
                 values,

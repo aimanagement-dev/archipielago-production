@@ -607,7 +607,8 @@ export async function createCalendarEventWithAttendees(
 export async function getCalendarEvents(
   accessToken: string,
   timeMin?: string,
-  timeMax?: string
+  timeMax?: string,
+  options?: { userEmail?: string; isAdmin?: boolean }
 ) {
   const calendar = getCalendarClient(accessToken);
 
@@ -625,10 +626,26 @@ export async function getCalendarEvents(
 
     // Filter: ONLY include the master calendar or project-specific calendars
     // This prevents personal calendars (Birthdays, personal Tasks, etc.) from leaking into the app
-    const targetCalendars = calendars.filter(c =>
+    let targetCalendars = calendars.filter(c =>
       c.id === DEFAULT_CALENDAR_ID ||
       (c.summary && (c.summary.includes('Archipiélago') || c.summary.includes('ARCH-Producción')))
     );
+
+    // Si el usuario NO es admin, solo mostrar ARCH-Producción (naranja)
+    // Los admins ven ambos calendarios
+    if (!options?.isAdmin) {
+      targetCalendars = targetCalendars.filter(c => {
+        const summary = c.summary?.toLowerCase() || '';
+        return (
+          summary.includes('producción') || 
+          summary.includes('produccion') ||
+          c.id === DEFAULT_CALENDAR_ID // Fallback al default si no encuentra Producción
+        );
+      });
+      console.log('[getCalendarEvents] Usuario regular - solo mostrando ARCH-Producción');
+    } else {
+      console.log('[getCalendarEvents] Usuario admin - mostrando todos los calendarios del proyecto');
+    }
 
     console.log('Targeting project calendars:', targetCalendars.map(c => c.summary));
 
