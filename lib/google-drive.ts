@@ -7,6 +7,7 @@ export interface DriveFile {
     name: string;
     mimeType: string;
     webViewLink?: string;
+    webContentLink?: string;
     thumbnailLink?: string;
     parents?: string[];
 }
@@ -114,7 +115,7 @@ export class GoogleDriveService {
         const file = await this.drive.files.create({
             requestBody: fileMetadata,
             media: media,
-            fields: 'id, name, mimeType, webViewLink, thumbnailLink',
+            fields: 'id, name, mimeType, webViewLink, webContentLink, thumbnailLink',
             supportsAllDrives: true
         });
 

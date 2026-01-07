@@ -7,6 +7,9 @@ export const ADMIN_EMAILS = [
 // ID of the dedicated Finance folder in Google Drive for receipts/invoices
 export const FINANCE_DRIVE_FOLDER_ID = '1N91xMmBLVJwYdGOTzLQfWE9SrGZGWbp6';
 
+// Folder name for Task Attachments (will be created if doesn't exist)
+export const TASKS_ATTACHMENTS_FOLDER_NAME = 'Task_Attachments';
+
 export const isUserAdmin = (email?: string | null) => {
     if (!email) return false;
     return ADMIN_EMAILS.includes(email.toLowerCase());

@@ -439,41 +439,98 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                                         type="file"
                                         id="file-upload"
                                         className="hidden"
-                                        onChange={(e) => {
+                                        onChange={async (e) => {
                                             const file = e.target.files?.[0];
-                                            if (file) {
-                                                // Para archivos locales, guardamos el nombre y creamos un objeto URL temporal
-                                                // En producción, deberías subir el archivo a Drive o un storage
-                                                const objectUrl = URL.createObjectURL(file);
+                                            if (!file) return;
+
+                                            // Mostrar indicador de carga
+                                            const uploadButton = document.getElementById('file-upload-label');
+                                            const uploadText = document.getElementById('file-upload-text');
+                                            if (uploadButton) {
+                                                uploadButton.textContent = 'Subiendo...';
+                                                (uploadButton as HTMLElement).style.opacity = '0.5';
+                                                (uploadButton as HTMLElement).style.cursor = 'not-allowed';
+                                            }
+                                            if (uploadText) {
+                                                uploadText.textContent = 'Subiendo archivo a Google Drive...';
+                                            }
+
+                                            try {
+                                                // Subir archivo a Drive en la carpeta de attachments de tasks
+                                                const formDataToUpload = new FormData();
+                                                formDataToUpload.append('file', file);
+
+                                                const uploadResponse = await fetch('/api/drive/upload-task-file', {
+                                                    method: 'POST',
+                                                    body: formDataToUpload
+                                                });
+
+                                                if (!uploadResponse.ok) {
+                                                    const errorData = await uploadResponse.json().catch(() => ({}));
+                                                    throw new Error(errorData.error || 'Error al subir archivo');
+                                                }
+
+                                                const uploadData = await uploadResponse.json();
+                                                
+                                                if (!uploadData.file || !uploadData.file.webViewLink) {
+                                                    throw new Error('No se recibió el link del archivo subido');
+                                                }
+                                                
+                                                // Crear attachment con el link de Drive
                                                 const newAttachment: Attachment = {
                                                     id: crypto.randomUUID(),
                                                     name: file.name,
                                                     type: 'file',
-                                                    url: objectUrl,
+                                                    url: uploadData.file.webViewLink,
                                                     addedBy: 'me',
                                                     addedAt: new Date().toISOString(),
                                                     size: file.size
                                                 };
+
                                                 // Asegurar que preservamos los attachments existentes
                                                 const currentAttachments = formData.attachments || [];
                                                 setFormData({
                                                     ...formData,
                                                     attachments: [...currentAttachments, newAttachment]
                                                 });
+                                                
                                                 setIsDrivePickerOpen(false);
-                                                // Resetear el input para permitir seleccionar el mismo archivo de nuevo
+                                                
+                                                // Resetear el input
                                                 e.target.value = '';
+                                                
+                                                if (uploadButton) {
+                                                    uploadButton.textContent = 'Seleccionar Archivo';
+                                                    (uploadButton as HTMLElement).style.opacity = '1';
+                                                    (uploadButton as HTMLElement).style.cursor = 'pointer';
+                                                }
+                                                if (uploadText) {
+                                                    uploadText.textContent = 'El archivo se subió correctamente a Google Drive';
+                                                }
+                                            } catch (error) {
+                                                console.error('Error uploading file:', error);
+                                                alert(`Error al subir archivo: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+                                                
+                                                if (uploadButton) {
+                                                    uploadButton.textContent = 'Seleccionar Archivo';
+                                                    (uploadButton as HTMLElement).style.opacity = '1';
+                                                    (uploadButton as HTMLElement).style.cursor = 'pointer';
+                                                }
+                                                if (uploadText) {
+                                                    uploadText.textContent = 'El archivo se subirá automáticamente a Google Drive en la carpeta "Task_Attachments"';
+                                                }
                                             }
                                         }}
                                     />
                                     <label
+                                        id="file-upload-label"
                                         htmlFor="file-upload"
                                         className="px-4 py-2 bg-primary text-primary-foreground rounded-lg cursor-pointer hover:bg-primary/90 transition-colors"
                                     >
                                         Seleccionar Archivo
                                     </label>
-                                    <p className="text-xs text-muted-foreground mt-4 text-center max-w-sm">
-                                        Nota: Los archivos locales se guardan temporalmente. Para persistencia, usa Google Drive.
+                                    <p id="file-upload-text" className="text-xs text-muted-foreground mt-4 text-center max-w-sm">
+                                        El archivo se subirá automáticamente a Google Drive en la carpeta "Task_Attachments"
                                     </p>
                                 </div>
                             )}
