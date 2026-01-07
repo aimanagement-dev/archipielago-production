@@ -380,6 +380,17 @@ export default function SubscriptionModal({ isOpen, onClose, onSave, initialData
                                                 className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-foreground/70 focus:outline-none cursor-not-allowed"
                                                 placeholder="Sube un comprobante para vincularlo..."
                                             />
+                                            {formData.receiptUrl && (
+                                                <a
+                                                    href={formData.receiptUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 border border-blue-500/30 rounded-lg transition-colors flex items-center justify-center"
+                                                    title="Ver archivo"
+                                                >
+                                                    View
+                                                </a>
+                                            )}
                                             <button
                                                 type="button"
                                                 onClick={() => setIsDrivePickerOpen(true)}
@@ -387,7 +398,7 @@ export default function SubscriptionModal({ isOpen, onClose, onSave, initialData
                                                 title="Sube directamente al folder de Finanzas"
                                             >
                                                 <Upload className="w-4 h-4" />
-                                                <span className="hidden sm:inline">Subir Comprobante</span>
+                                                <span className="hidden sm:inline">Subir</span>
                                             </button>
                                         </div>
                                         <p className="text-[10px] text-muted-foreground mt-2">

@@ -337,7 +337,8 @@ Internal Notes: ${formData.notes || 'None'}
 
 --
 Sent via Archipiélago OS
-                    `.trim()
+                    `.trim(),
+                    attachments: formData.attachments
                 }}
             />
         </div>

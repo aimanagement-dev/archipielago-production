@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { X, Send, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { TeamMember } from '@/lib/types';
+import { TeamMember, Attachment } from '@/lib/types';
 
 interface ComposeModalProps {
     isOpen: boolean;
@@ -13,6 +13,7 @@ interface ComposeModalProps {
         to?: string[];
         subject?: string;
         body?: string;
+        attachments?: Attachment[];
     };
 }
 
@@ -21,6 +22,7 @@ export default function ComposeModal({ isOpen, onClose, initialData }: ComposeMo
     const [to, setTo] = useState<string[]>([]);
     const [subject, setSubject] = useState('');
     const [body, setBody] = useState('');
+    const [attachments, setAttachments] = useState<Attachment[]>([]);
     const [isSending, setIsSending] = useState(false);
 
     useEffect(() => {
@@ -33,10 +35,12 @@ export default function ComposeModal({ isOpen, onClose, initialData }: ComposeMo
                 setTo(initialData.to || []);
                 setSubject(initialData.subject || '');
                 setBody(initialData.body || '');
+                setAttachments(initialData.attachments || []);
             } else {
                 setTo([]);
                 setSubject('');
                 setBody('');
+                setAttachments([]);
             }
         }
     }, [isOpen]); // Only run when opening status changes
@@ -46,26 +50,39 @@ export default function ComposeModal({ isOpen, onClose, initialData }: ComposeMo
         setIsSending(true);
 
         try {
+            // Append attachments to body for Drive links handling
+            let finalBody = body;
+            let finalHtml = body.replace(/\n/g, '<br/>');
+
+            if (attachments.length > 0) {
+                const attachmentsList = attachments.map(a => `- ${a.name}: ${a.url}`).join('\n');
+                const attachmentsHtml = attachments.map(a => `<li><a href="${a.url}">${a.name}</a></li>`).join('');
+
+                finalBody += `\n\nAttachments:\n${attachmentsList}`;
+                finalHtml += `<br/><br/><strong>Attachments:</strong><ul>${attachmentsHtml}</ul>`;
+            }
+
             const response = await fetch('/api/notify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     to: to.join(','),
                     subject,
-                    text: body,
-                    html: body.replace(/\n/g, '<br/>') // Basic formatting
+                    text: finalBody, // Use modified body
+                    html: finalHtml  // Use modified html
                 }),
             });
 
             if (!response.ok) {
-                throw new Error('Failed to send email');
+                const errorData = await response.json();
+                throw new Error(errorData.details || errorData.error || 'Failed to send email');
             }
 
             alert('Correo enviado exitosamente!');
             onClose();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error sending email:', error);
-            alert('Error al enviar el correo. Por favor intenta de nuevo.');
+            alert(`Error al enviar el correo: ${error.message}`);
         } finally {
             setIsSending(false);
         }

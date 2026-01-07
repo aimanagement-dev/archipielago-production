@@ -28,15 +28,15 @@ export async function GET() {
     try {
         const service = new GoogleSheetsService(session.accessToken);
         const spreadsheetId = await service.getOrCreateDatabase();
-        
+
         // PASO 1: Leer tareas de Sheets
         const sheetsTasks = await service.getTasks(spreadsheetId);
-        
+
         // PASO 2: Leer eventos de Calendar (últimos 3 meses, próximos 6 meses)
         const now = new Date();
         const timeMin = new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString();
         const timeMax = new Date(now.getFullYear(), now.getMonth() + 6, 0).toISOString();
-        
+
         let calendarTasks: CalendarTaskPayload[] = [];
         try {
             const calendarResult = await syncCalendarToTasks(session.accessToken, {
@@ -49,22 +49,22 @@ export async function GET() {
             console.error("[GET /api/tasks] Error leyendo Calendar:", calendarError);
             // Continuar solo con Sheets si Calendar falla, pero loguear el error
         }
-        
+
         // PASO 3: Combinar tareas de Sheets y Calendar
         // Crear un mapa de tareas por ID, dando prioridad a Calendar si hay conflictos
         const tasksMap = new Map<string, Task>();
-        
+
         // Primero agregar todas las tareas de Sheets
         for (const task of sheetsTasks) {
             tasksMap.set(task.id, task);
         }
-        
+
         // Luego actualizar/agregar tareas de Calendar (Calendar tiene prioridad)
         for (const calendarTask of calendarTasks) {
             if (!calendarTask.id || !calendarTask.title || !calendarTask.scheduledDate) {
                 continue;
             }
-            
+
             const task: Task = {
                 id: calendarTask.id,
                 title: calendarTask.title,
@@ -78,16 +78,16 @@ export async function GET() {
                 scheduledTime: calendarTask.scheduledTime,
                 isScheduled: !!calendarTask.scheduledDate,
             };
-            
+
             // Calendar tiene prioridad si existe en ambos
             tasksMap.set(task.id, task);
         }
-        
+
         // Convertir mapa a array
         const combinedTasks = Array.from(tasksMap.values());
-        
+
         console.log(`[GET /api/tasks] Total tareas combinadas: ${combinedTasks.length} (${sheetsTasks.length} de Sheets, ${calendarTasks.length} de Calendar)`);
-        
+
         return NextResponse.json({ tasks: combinedTasks });
     } catch (error) {
         console.error("Error fetching tasks:", error);
@@ -104,7 +104,7 @@ export async function POST(req: Request) {
 
     try {
         const task = await req.json();
-        
+
         // Validar campos requeridos
         if (!task.id) {
             return NextResponse.json({ error: "Task ID is required" }, { status: 400 });
@@ -115,7 +115,7 @@ export async function POST(req: Request) {
 
         const service = new GoogleSheetsService(session.accessToken);
         const spreadsheetId = await service.getOrCreateDatabase();
-        
+
         // Asegurar que los campos requeridos tengan valores por defecto
         const taskToSave = {
             id: task.id,
@@ -128,6 +128,7 @@ export async function POST(req: Request) {
             notes: task.notes || '',
             scheduledDate: task.scheduledDate || '',
             scheduledTime: task.scheduledTime || '',
+            attachments: task.attachments || [],
         };
 
         await service.addTask(spreadsheetId, taskToSave);
@@ -160,9 +161,9 @@ export async function POST(req: Request) {
     } catch (error) {
         console.error("Error creating task:", error);
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        return NextResponse.json({ 
-            error: "Failed to create task", 
-            details: errorMessage 
+        return NextResponse.json({
+            error: "Failed to create task",
+            details: errorMessage
         }, { status: 500 });
     }
 }
@@ -182,7 +183,7 @@ export async function PUT(req: Request) {
 
         const service = new GoogleSheetsService(session.accessToken);
         const spreadsheetId = await service.getOrCreateDatabase();
-        
+
         // Asegurar que los campos requeridos tengan valores por defecto
         const taskToUpdate = {
             ...task,
@@ -192,8 +193,9 @@ export async function PUT(req: Request) {
             week: task.week || 'Week 1',
             responsible: Array.isArray(task.responsible) ? task.responsible : [],
             notes: task.notes || '',
+            attachments: task.attachments || [],
         };
-        
+
         await service.updateTask(spreadsheetId, taskToUpdate);
         console.log(`[PUT /api/tasks] Tarea ${task.id} actualizada en Sheets`);
 
@@ -241,7 +243,7 @@ export async function PUT(req: Request) {
     } catch (error) {
         console.error("Error updating task:", error);
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        return NextResponse.json({ 
+        return NextResponse.json({
             error: "Failed to update task",
             details: errorMessage
         }, { status: 500 });
