@@ -157,6 +157,9 @@ export async function POST(req: Request) {
 
         const service = new GoogleSheetsService(session.accessToken);
         const spreadsheetId = await service.getOrCreateDatabase();
+        
+        // Asegurar que el schema esté actualizado (incluyendo CalendarId)
+        await service.ensureSchema(spreadsheetId);
 
         // Asegurar que los campos requeridos tengan valores por defecto
             const taskToSave: Task = {
@@ -372,6 +375,9 @@ export async function PUT(req: Request) {
 
         const service = new GoogleSheetsService(session.accessToken);
         const spreadsheetId = await service.getOrCreateDatabase();
+        
+        // Asegurar que el schema esté actualizado (incluyendo CalendarId)
+        await service.ensureSchema(spreadsheetId);
 
         // Obtener tarea anterior para comparar cambios
         const existingTasks = await service.getTasks(spreadsheetId);

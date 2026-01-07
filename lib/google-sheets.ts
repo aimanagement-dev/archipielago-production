@@ -109,6 +109,56 @@ export class GoogleSheetsService {
                 }
             });
         }
+
+        // Verificar y actualizar headers de Tasks si falta CalendarId
+        await this.ensureTasksHeaders(spreadsheetId);
+    }
+
+    /**
+     * Asegura que la hoja Tasks tenga todas las columnas necesarias, incluyendo CalendarId
+     */
+    private async ensureTasksHeaders(spreadsheetId: string) {
+        try {
+            // Obtener la primera fila (headers)
+            const headerResponse = await this.sheets.spreadsheets.values.get({
+                spreadsheetId,
+                range: 'Tasks!A1:P1',
+            });
+
+            const headers = headerResponse.data.values?.[0] || [];
+            const requiredHeaders = ['ID', 'Title', 'Status', 'Area', 'Month', 'Week', 'Responsible', 'Notes', 'ScheduledDate', 'ScheduledTime', 'Attachments', 'Visibility', 'VisibleTo', 'MeetLink', 'AttendeeResponses', 'CalendarId'];
+            
+            // Verificar si falta CalendarId (columna P)
+            if (headers.length < 16 || headers[15] !== 'CalendarId') {
+                console.log('[GoogleSheets] Actualizando headers de Tasks para incluir CalendarId');
+                
+                // Actualizar solo la columna P si falta
+                if (headers.length < 16) {
+                    // Agregar CalendarId al final
+                    await this.sheets.spreadsheets.values.update({
+                        spreadsheetId,
+                        range: 'Tasks!P1',
+                        valueInputOption: 'USER_ENTERED',
+                        requestBody: {
+                            values: [['CalendarId']]
+                        }
+                    });
+                } else if (headers[15] !== 'CalendarId') {
+                    // Reemplazar el header incorrecto
+                    await this.sheets.spreadsheets.values.update({
+                        spreadsheetId,
+                        range: 'Tasks!P1',
+                        valueInputOption: 'USER_ENTERED',
+                        requestBody: {
+                            values: [['CalendarId']]
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('[GoogleSheets] Error verificando headers de Tasks:', error);
+            // No fallar si hay error, solo loguear
+        }
     }
 
     async getTasks(spreadsheetId: string): Promise<Task[]> {
