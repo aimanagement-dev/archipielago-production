@@ -115,10 +115,27 @@ async function upsertEvent(
   calendar: calendar_v3.Calendar,
   calendarId: string,
   task: CalendarTaskPayload,
-  timezone: string
-): Promise<{ action: 'created' | 'updated'; meetLink?: string }> {
+  timezone: string,
+  previousCalendarId?: string
+): Promise<{ action: 'created' | 'updated' | 'moved'; meetLink?: string }> {
   const eventId = sanitizeEventId(task.id);
   const body = buildEventBody(task, timezone);
+  
+  // Si hay un previousCalendarId diferente, eliminar el evento del calendario anterior
+  if (previousCalendarId && previousCalendarId !== calendarId) {
+    try {
+      await calendar.events.delete({
+        calendarId: previousCalendarId,
+        eventId,
+      });
+      console.log(`[Calendar] Evento ${eventId} eliminado del calendario anterior ${previousCalendarId}`);
+    } catch (error: any) {
+      // Si el evento no existe en el calendario anterior, está bien
+      if (error.code !== 404) {
+        console.warn(`[Calendar] Error eliminando evento del calendario anterior:`, error);
+      }
+    }
+  }
 
   // Agregar attendees si hay responsables o visibleTo
   const attendees: string[] = [];
@@ -213,7 +230,7 @@ async function upsertEvent(
         }
       }
       
-      return { action: 'created', meetLink };
+      return { action: previousCalendarId && previousCalendarId !== calendarId ? 'moved' : 'created', meetLink };
     }
     throw error;
   }
@@ -256,7 +273,7 @@ async function deleteEventsNotInTasks(
 export async function syncTasksToCalendar(
   tasks: CalendarTaskPayload[],
   accessToken: string,
-  options?: { calendarId?: string; timezone?: string }
+  options?: { calendarId?: string; timezone?: string; previousCalendarId?: string }
 ) {
   // Use MASTER_CALENDAR_ID to sync to the project's shared calendar
   const calendarId = options?.calendarId || process.env.GOOGLE_CALENDAR_ID || DEFAULT_CALENDAR_ID;
@@ -266,6 +283,7 @@ export async function syncTasksToCalendar(
   const result = {
     created: 0,
     updated: 0,
+    moved: 0,
     deleted: 0,
     skipped: 0,
     errors: [] as { id: string; message: string }[],
@@ -279,9 +297,10 @@ export async function syncTasksToCalendar(
     }
 
     try {
-      const eventResult = await upsertEvent(calendar, calendarId, task, timezone);
+      const eventResult = await upsertEvent(calendar, calendarId, task, timezone, options?.previousCalendarId);
       if (eventResult.action === 'created') result.created += 1;
       if (eventResult.action === 'updated') result.updated += 1;
+      if (eventResult.action === 'moved') result.moved += 1;
       
       // Si se creó un meetLink, guardarlo en el task
       if (eventResult.meetLink) {
