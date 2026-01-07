@@ -132,3 +132,4 @@
 5. **Agregar indicadores visuales** - Colores y badges
 
 
+

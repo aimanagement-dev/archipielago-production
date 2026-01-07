@@ -165,6 +165,15 @@ async function refreshAccessToken(token: any) {
         // Asegura que la app no corra con configuración incompleta
         validateEnv();
 
+        // Validar que tenemos refresh token
+        if (!token.refreshToken) {
+            console.error("[refreshAccessToken] No refresh token available");
+            return {
+                ...token,
+                error: "RefreshAccessTokenError",
+            };
+        }
+
         const url = "https://oauth2.googleapis.com/token";
         const response = await fetch(url, {
             headers: {
@@ -182,6 +191,16 @@ async function refreshAccessToken(token: any) {
         const refreshedTokens = await response.json();
 
         if (!response.ok) {
+            // Si el refresh token expiró o es inválido
+            const errorCode = refreshedTokens.error;
+            if (errorCode === 'invalid_grant' || errorCode === 'invalid_request') {
+                console.error("[refreshAccessToken] Refresh token expired or invalid. User needs to re-authenticate.");
+                return {
+                    ...token,
+                    error: "RefreshAccessTokenError",
+                    errorDetails: "Tu sesión ha expirado. Por favor, cierra sesión y vuelve a iniciar sesión.",
+                };
+            }
             throw refreshedTokens;
         }
 
@@ -191,13 +210,16 @@ async function refreshAccessToken(token: any) {
             accessTokenExpires: Date.now() + refreshedTokens.expires_in * 1000,
             // Fall back to old refresh token if new one is not returned
             refreshToken: refreshedTokens.refresh_token ?? token.refreshToken,
+            error: undefined, // Clear any previous errors
         };
     } catch (error) {
-        console.log("Error refreshing access token", error);
+        console.error("[refreshAccessToken] Error refreshing access token:", error);
+        const errorDetails = error instanceof Error ? error.message : "Error desconocido al renovar sesión";
 
         return {
             ...token,
             error: "RefreshAccessTokenError",
+            errorDetails: errorDetails,
         };
     }
 }

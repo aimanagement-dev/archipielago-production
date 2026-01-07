@@ -6,6 +6,7 @@ import TaskAttachments from './TaskAttachments';
 import { X, Plus, Search, Users, Upload, FileText, Trash2, Link as LinkIcon } from 'lucide-react';
 import DrivePicker from '@/components/Drive/DrivePicker';
 import ComposeModal from '@/components/Comms/ComposeModal';
+import { useStore } from '@/lib/store';
 
 
 interface TaskModalProps {
@@ -22,6 +23,7 @@ const STATUSES: TaskStatus[] = ['Pendiente', 'En Progreso', 'Completado', 'Bloqu
 const MONTHS: Month[] = ['Nov', 'Dic', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago'];
 
 export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialData, defaultDate }: TaskModalProps) {
+    const { team } = useStore();
     const [formData, setFormData] = useState<Partial<Task>>({
         title: '',
         area: 'Producción',
@@ -250,46 +252,65 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
 
                 {/* Footer buttons */}
                 <div className="p-6 border-t border-white/5 bg-black/20 flex-shrink-0">
-                    <div className="flex justify-between items-center gap-3">
-                        {onDelete && initialData ? (
+                    <div className="flex flex-col gap-3">
+                        {/* Info sobre notificaciones automáticas */}
+                        {formData.responsible && formData.responsible.length > 0 && (
+                            <div className="flex items-center gap-2 text-xs text-blue-400/80 bg-blue-500/10 px-3 py-2 rounded-lg border border-blue-500/20">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>
+                                    Las notificaciones se enviarán automáticamente a {formData.responsible.length} responsable{formData.responsible.length > 1 ? 's' : ''} al guardar
+                                </span>
+                            </div>
+                        )}
+                        
+                        <div className="flex justify-between items-center gap-3">
                             <div className="flex gap-2">
+                                {onDelete && initialData && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (confirm('¿Estás seguro de que quieres eliminar esta tarea?')) {
+                                                onDelete();
+                                            }
+                                        }}
+                                        className="px-4 py-2 rounded-lg text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+                                    >
+                                        Eliminar
+                                    </button>
+                                )}
+                                {/* Botón para enviar notificación manual - visible si hay responsables */}
+                                {formData.responsible && formData.responsible.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsComposeOpen(true)}
+                                        className="px-4 py-2 rounded-lg text-sm font-medium text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 transition-colors flex items-center gap-2"
+                                        title="Enviar notificación manual a los responsables"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                        </svg>
+                                        Enviar Notificación
+                                    </button>
+                                )}
+                            </div>
+                            <div className="flex gap-3">
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        if (confirm('¿Estás seguro de que quieres eliminar esta tarea?')) {
-                                            onDelete();
-                                        }
-                                    }}
-                                    className="px-4 py-2 rounded-lg text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+                                    onClick={onClose}
+                                    className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
                                 >
-                                    Eliminar
+                                    Cancel
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setIsComposeOpen(true)}
-                                    className="px-4 py-2 rounded-lg text-sm font-medium text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 transition-colors"
+                                    onClick={handleSubmit}
+                                    className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.3)]"
                                 >
-                                    Enviar Notificación
+                                    {initialData ? 'Save Changes' : 'Create Task'}
                                 </button>
                             </div>
-                        ) : (
-                            <div></div>
-                        )}
-                        <div className="flex gap-3">
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleSubmit}
-                                className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.3)]"
-                            >
-                                {initialData ? 'Save Changes' : 'Create Task'}
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -323,20 +344,40 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                 </div>
             )}
 
-            {/* Compose Modal for Call Sheets */}
+            {/* Compose Modal for Notifications */}
             <ComposeModal
                 isOpen={isComposeOpen}
                 onClose={() => setIsComposeOpen(false)}
                 initialData={{
-                    subject: `Call Sheet: ${formData.title}`,
+                    // Mapear responsables (IDs o emails) a lista de emails
+                    to: formData.responsible
+                        ? formData.responsible
+                              .map((resp: string) => {
+                                  // Si ya es un email, usarlo directamente
+                                  if (resp.includes('@')) {
+                                      return resp;
+                                  }
+                                  // Si es un ID, buscar el email en el team
+                                  const member = team.find(m => m.id === resp);
+                                  return member?.email || null;
+                              })
+                              .filter((email: string | null): email is string => !!email)
+                        : [],
+                    subject: initialData 
+                        ? `Actualización: ${formData.title || 'Tarea'}`
+                        : `Nueva Tarea: ${formData.title || 'Sin título'}`,
                     body: `
-Title: ${formData.title}
-Date: ${formData.scheduledDate} ${formData.scheduledTime ? '@ ' + formData.scheduledTime : ''}
-Area: ${formData.area}
-Internal Notes: ${formData.notes || 'None'}
+${initialData ? 'Tarea Actualizada' : 'Nueva Tarea Asignada'}
+
+Título: ${formData.title || 'Sin título'}
+${formData.scheduledDate ? `Fecha: ${new Date(formData.scheduledDate).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}` : ''}
+${formData.scheduledTime ? `Hora: ${formData.scheduledTime}` : ''}
+${formData.area ? `Área: ${formData.area}` : ''}
+${formData.status ? `Estado: ${formData.status}` : ''}
+${formData.notes ? `\nNotas:\n${formData.notes}` : ''}
 
 --
-Sent via Archipiélago OS
+Enviado desde Archipiélago Production OS
                     `.trim(),
                     attachments: formData.attachments
                 }}

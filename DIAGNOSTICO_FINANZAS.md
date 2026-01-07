@@ -190,3 +190,4 @@ Los métodos en `store.ts` están definidos pero no implementados:
 
 
 
+
