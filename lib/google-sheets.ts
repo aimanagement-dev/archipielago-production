@@ -146,11 +146,19 @@ export class GoogleSheetsService {
                     isScheduled: !!row[8],
                     attachments: (() => {
                         try {
-                            if (!row[10] || !row[10].toString().trim()) return [];
-                            const parsed = JSON.parse(row[10] as string);
-                            return Array.isArray(parsed) ? parsed : [];
+                            if (!row[10] || !row[10].toString().trim()) {
+                                console.log(`[GoogleSheets] Task ${row[0]} has no attachments (column K is empty)`);
+                                return [];
+                            }
+                            const attachmentString = row[10].toString().trim();
+                            console.log(`[GoogleSheets] Parsing attachments for task ${row[0]}:`, attachmentString.substring(0, 100));
+                            const parsed = JSON.parse(attachmentString);
+                            const result = Array.isArray(parsed) ? parsed : [];
+                            console.log(`[GoogleSheets] Task ${row[0]} loaded ${result.length} attachments`);
+                            return result;
                         } catch (e) {
-                            console.warn(`[GoogleSheets] Error parsing attachments for task ${row[0]}:`, e);
+                            console.error(`[GoogleSheets] Error parsing attachments for task ${row[0]}:`, e);
+                            console.error(`[GoogleSheets] Raw value:`, row[10]);
                             return [];
                         }
                     })()
