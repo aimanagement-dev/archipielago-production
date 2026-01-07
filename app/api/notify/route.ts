@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const { to, subject, html, text, attachments } = await req.json();
+        const { to, subject, html, text, attachments, useSystemEmail } = await req.json();
 
         if (!to || !subject || (!html && !text)) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -29,8 +29,14 @@ export async function POST(req: NextRequest) {
             throw new Error('Server configuration error: Missing GOOGLE_CLIENT_SECRET');
         }
 
+        // Determinar email remitente
+        const SYSTEM_EMAIL = 'ai.management@archipielagofilm.com';
+        const SYSTEM_NAME = 'Archipiélago Production OS';
+        const senderEmail = useSystemEmail ? SYSTEM_EMAIL : (session.user?.email || SYSTEM_EMAIL);
+        const senderName = useSystemEmail ? SYSTEM_NAME : (session.user?.name || SYSTEM_NAME);
+
         // Configurar transporter con OAuth2
-        console.log(`[Notify] Attempting to send email via ${session.user?.email}`);
+        console.log(`[Notify] Attempting to send email via ${senderEmail}${useSystemEmail ? ' (system email)' : ''}`);
         console.log(`[Notify] Config: ClientID=${!!process.env.GOOGLE_CLIENT_ID}, AccessToken=${session.accessToken ? 'Yes (' + session.accessToken.substring(0, 10) + '...)' : 'No'}, RefreshToken=${session.refreshToken ? 'Yes' : 'No'}`);
 
         const transporter = nodemailer.createTransport({
@@ -39,7 +45,7 @@ export async function POST(req: NextRequest) {
             secure: true,
             auth: {
                 type: 'OAuth2',
-                user: session.user?.email,
+                user: senderEmail,
                 clientId: process.env.GOOGLE_CLIENT_ID,
                 clientSecret: process.env.GOOGLE_CLIENT_SECRET,
                 accessToken: session.accessToken as string,
@@ -49,7 +55,7 @@ export async function POST(req: NextRequest) {
 
         // Enviar correo
         const info = await transporter.sendMail({
-            from: `"${session.user?.name}" <${session.user?.email}>`,
+            from: `"${senderName}" <${senderEmail}>`,
             to,
             subject,
             text,

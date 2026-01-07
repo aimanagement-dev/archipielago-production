@@ -114,15 +114,28 @@ async function upsertEvent(
   calendarId: string,
   task: CalendarTaskPayload,
   timezone: string
-) {
+): Promise<'created' | 'updated'> {
   const eventId = sanitizeEventId(task.id);
   const body = buildEventBody(task, timezone);
 
   try {
+    // Si tiene Meet, asegurar que se cree con conferenceData
+    const patchBody = task.hasMeet && !body.conferenceData
+      ? {
+          ...body,
+          conferenceData: {
+            createRequest: {
+              requestId: `meet-${task.id}-${Date.now()}`,
+              conferenceSolutionKey: { type: 'hangoutsMeet' },
+            },
+          },
+        }
+      : body;
+
     await calendar.events.patch({
       calendarId,
       eventId,
-      requestBody: body,
+      requestBody: patchBody,
       sendUpdates: 'none',
       conferenceDataVersion: 1,
     });
@@ -133,15 +146,30 @@ async function upsertEvent(
       (error as { response?: { status?: number } })?.response?.status === 404;
 
     if (isNotFound) {
+      // Si tiene Meet, asegurar que se cree con conferenceData
+      const insertBody = task.hasMeet && !body.conferenceData
+        ? {
+            ...body,
+            id: eventId,
+            conferenceData: {
+              createRequest: {
+                requestId: `meet-${task.id}-${Date.now()}`,
+                conferenceSolutionKey: { type: 'hangoutsMeet' },
+              },
+            },
+          }
+        : {
+            ...body,
+            id: eventId,
+          };
+
       await calendar.events.insert({
         calendarId,
-        requestBody: {
-          ...body,
-          id: eventId,
-        },
+        requestBody: insertBody,
         sendUpdates: 'none',
         conferenceDataVersion: 1,
       });
+      
       return 'created';
     }
     throw error;

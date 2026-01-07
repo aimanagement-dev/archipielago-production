@@ -588,6 +588,7 @@ Enviado desde Archipiélago Production OS
             <ComposeModal
                 isOpen={isShareOpen}
                 onClose={() => setIsShareOpen(false)}
+                useSystemEmail={true}
                 initialData={{
                     to: [],
                     subject: `Tarea Compartida: ${initialData?.title || formData.title || 'Sin título'}`,
@@ -601,7 +602,7 @@ ${initialData?.area || formData.area ? `Área: ${initialData?.area || formData.a
 ${initialData?.status || formData.status ? `Estado: ${initialData?.status || formData.status}` : ''}
 ${initialData?.notes || formData.notes ? `\nNotas:\n${initialData?.notes || formData.notes}` : ''}
 
-🔗 Ver tarea: ${window.location.origin}/tasks?task=${initialData?.id || ''}
+🔗 Ver tarea: ${typeof window !== 'undefined' ? window.location.origin : ''}/tasks?task=${initialData?.id || ''}
 
 --
 Compartido desde Archipiélago Production OS

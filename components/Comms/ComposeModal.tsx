@@ -10,6 +10,7 @@ import { DEPARTMENTS } from '@/lib/constants';
 interface ComposeModalProps {
     isOpen: boolean;
     onClose: () => void;
+    useSystemEmail?: boolean; // Si true, envía desde ai.management@archipielagofilm.com
     initialData?: {
         to?: string[];
         subject?: string;
@@ -18,7 +19,7 @@ interface ComposeModalProps {
     };
 }
 
-export default function ComposeModal({ isOpen, onClose, initialData }: ComposeModalProps) {
+export default function ComposeModal({ isOpen, onClose, initialData, useSystemEmail = false }: ComposeModalProps) {
     const { team, fetchTeam } = useStore();
     const [to, setTo] = useState<string[]>([]);
     const [departments, setDepartments] = useState<string[]>([]);
@@ -83,7 +84,8 @@ export default function ComposeModal({ isOpen, onClose, initialData }: ComposeMo
                         to: allRecipients.join(','),
                         subject,
                         text: finalBody,
-                        html: finalHtml
+                        html: finalHtml,
+                        useSystemEmail: useSystemEmail // Usar email del sistema si está habilitado
                     }),
                 });
 
