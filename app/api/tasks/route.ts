@@ -391,6 +391,7 @@ export async function PUT(req: Request) {
             visibleTo: Array.isArray(task.visibleTo) ? task.visibleTo : (existingTask?.visibleTo || []),
             hasMeet: task.hasMeet !== undefined ? task.hasMeet : (existingTask?.hasMeet || false),
             meetLink: task.meetLink || existingTask?.meetLink,
+            calendarId: task.calendarId !== undefined ? task.calendarId : (existingTask?.calendarId || undefined),
         };
 
         await service.updateTask(spreadsheetId, taskToUpdate);
@@ -408,6 +409,8 @@ export async function PUT(req: Request) {
         if (task.scheduledDate && accessToken) {
             try {
                 console.log(`[PUT /api/tasks] Sincronizando tarea ${task.id} a Calendar...`);
+                // Usar el calendarId de la tarea si está disponible, sino usar el default
+                const targetCalendarId = taskToUpdate.calendarId || process.env.GOOGLE_CALENDAR_ID || 'ai.management@archipielagofilm.com';
                 await syncTasksToCalendar([{
                     id: task.id,
                     title: taskToUpdate.title || existingTask?.title || '',
@@ -419,7 +422,7 @@ export async function PUT(req: Request) {
                     notes: taskToUpdate.notes,
                     hasMeet: task.hasMeet !== undefined ? task.hasMeet : (existingTask?.hasMeet || false),
                     visibleTo: taskToUpdate.visibleTo || [],
-                }], accessToken);
+                }], accessToken, { calendarId: targetCalendarId });
                 console.log(`[PUT /api/tasks] Sincronización a Calendar exitosa`);
             } catch (calendarError) {
                 console.error("[PUT /api/tasks] Error sincronizando a Calendar:", calendarError);
