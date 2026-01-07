@@ -10,6 +10,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    if ((session as any).error === "RefreshAccessTokenError") {
+        return NextResponse.json({
+            error: 'Session expired',
+            details: 'Tu sesión ha expirado o las credenciales son inválidas. Por favor cierra sesión y vuelve a ingresar.'
+        }, { status: 401 });
+    }
+
     try {
         const { to, subject, html, text, attachments } = await req.json();
 
