@@ -69,7 +69,7 @@ export class GoogleSheetsService {
         const existingTitles = meta.data.sheets?.map(s => s.properties?.title) || [];
 
         const requiredSheets = [
-            { title: 'Tasks', headers: ['ID', 'Title', 'Status', 'Area', 'Month', 'Week', 'Responsible', 'Notes', 'ScheduledDate', 'ScheduledTime', 'Attachments'] },
+            { title: 'Tasks', headers: ['ID', 'Title', 'Status', 'Area', 'Month', 'Week', 'Responsible', 'Notes', 'ScheduledDate', 'ScheduledTime', 'Attachments', 'Visibility', 'VisibleTo', 'MeetLink', 'AttendeeResponses'] },
             { title: 'Gates', headers: ['ID', 'Title', 'Status', 'Date', 'Description'] },
             { title: 'Team', headers: ['ID', 'Name', 'Email', 'Role', 'Department', 'Position', 'Status', 'Type', 'Phone', 'AccessGranted', 'Metadata'] },
             { title: 'Subscriptions', headers: ['ID', 'Platform', 'Category', 'Amount', 'Currency', 'BillingCycle', 'RenewalDay', 'CardUsed', 'Status', 'OwnerId', 'Users', 'ReceiptUrl', 'Notes', 'CreatedAt', 'UpdatedAt', 'CreatedBy'] },
@@ -113,7 +113,7 @@ export class GoogleSheetsService {
     async getTasks(spreadsheetId: string): Promise<Task[]> {
         const response = await this.sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: 'Tasks!A2:K', // Updated range
+            range: 'Tasks!A2:O', // Updated range to include meetLink (N) and attendeeResponses (O)
         });
 
         const rows = response.data.values;
@@ -155,11 +155,23 @@ export class GoogleSheetsService {
 
                 // Parse meetLink (column N, if it exists)
                 const meetLink = row[13] ? String(row[13]).trim() : undefined;
+                
+                // Debug logging para meetLink
+                if (meetLink) {
+                    console.log(`[GoogleSheets] Task ${row[0]} tiene meetLink: ${meetLink.substring(0, 50)}...`);
+                } else if (row[13] !== undefined && row[13] !== null) {
+                    console.log(`[GoogleSheets] Task ${row[0]} tiene columna N pero está vacía o inválida:`, row[13]);
+                }
 
                 // Parse hasMeet from notes or dedicated field
                 let hasMeet = false;
                 const notesString = String(row[7] || '');
                 if (notesString.includes('Meet:') || meetLink) {
+                    hasMeet = true;
+                }
+                
+                // Si tiene meetLink, asegurar que hasMeet sea true
+                if (meetLink && !hasMeet) {
                     hasMeet = true;
                 }
 

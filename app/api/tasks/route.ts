@@ -66,22 +66,38 @@ export async function GET() {
                 continue;
             }
 
+            // Obtener tarea existente de Sheets para preservar datos como meetLink, attachments, etc.
+            const existingSheetTask = tasksMap.get(calendarTask.id);
+
             const task: Task = {
                 id: calendarTask.id,
                 title: calendarTask.title,
-                status: (calendarTask.status as Task['status']) || 'Pendiente',
-                area: (calendarTask.area as Task['area']) || 'Planificación',
+                status: (calendarTask.status as Task['status']) || existingSheetTask?.status || 'Pendiente',
+                area: (calendarTask.area as Task['area']) || existingSheetTask?.area || 'Planificación',
                 month: monthFromDate(calendarTask.scheduledDate),
                 week: weekOfMonth(calendarTask.scheduledDate),
-                responsible: Array.isArray(calendarTask.responsible) ? calendarTask.responsible : [],
-                notes: calendarTask.notes || '',
+                responsible: Array.isArray(calendarTask.responsible) ? calendarTask.responsible : (existingSheetTask?.responsible || []),
+                notes: calendarTask.notes || existingSheetTask?.notes || '',
                 scheduledDate: calendarTask.scheduledDate,
-                scheduledTime: calendarTask.scheduledTime,
+                scheduledTime: calendarTask.scheduledTime || existingSheetTask?.scheduledTime,
                 isScheduled: !!calendarTask.scheduledDate,
+                // PRESERVAR meetLink de Sheets si existe (tiene prioridad), o usar el de Calendar
+                hasMeet: existingSheetTask?.hasMeet || (calendarTask as any).hasMeet || false,
+                meetLink: existingSheetTask?.meetLink || (calendarTask as any).meetLink,
+                // Preservar otros campos de Sheets
+                attachments: existingSheetTask?.attachments || [],
+                visibility: existingSheetTask?.visibility || 'all',
+                visibleTo: existingSheetTask?.visibleTo || [],
+                attendeeResponses: (calendarTask as any).attendeeResponses || existingSheetTask?.attendeeResponses || [],
             };
 
             // Calendar tiene prioridad si existe en ambos
             tasksMap.set(task.id, task);
+            
+            // Log para debugging
+            if (task.meetLink) {
+                console.log(`[GET /api/tasks] Tarea ${task.id} tiene meetLink: ${task.meetLink.substring(0, 50)}...`);
+            }
         }
 
         // Convertir mapa a array
