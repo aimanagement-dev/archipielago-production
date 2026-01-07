@@ -39,6 +39,7 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
     });
     const [isDrivePickerOpen, setIsDrivePickerOpen] = useState(false);
     const [isComposeOpen, setIsComposeOpen] = useState(false);
+    const [isShareOpen, setIsShareOpen] = useState(false);
     const [attachmentMode, setAttachmentMode] = useState<'drive' | 'local'>('drive');
 
     // Auto-calculate Month and Week when date changes
@@ -315,18 +316,9 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                                 {initialData && (
                                     <button
                                         type="button"
-                                        onClick={() => {
-                                            // Copiar link de la tarea al clipboard
-                                            const taskUrl = `${window.location.origin}/tasks?task=${initialData.id}`;
-                                            navigator.clipboard.writeText(taskUrl).then(() => {
-                                                alert('Link de la tarea copiado al portapapeles');
-                                            }).catch(() => {
-                                                // Fallback si clipboard API no está disponible
-                                                prompt('Copia este link:', taskUrl);
-                                            });
-                                        }}
+                                        onClick={() => setIsShareOpen(true)}
                                         className="px-4 py-2 rounded-lg text-sm font-medium text-green-400 hover:text-green-300 hover:bg-green-500/10 transition-colors flex items-center gap-2"
-                                        title="Compartir tarea (copiar link)"
+                                        title="Compartir tarea con equipo"
                                     >
                                         <Share2 className="w-4 h-4" />
                                         Compartir
@@ -532,6 +524,32 @@ ${formData.notes ? `\nNotas:\n${formData.notes}` : ''}
 Enviado desde Archipiélago Production OS
                     `.trim(),
                     attachments: formData.attachments
+                }}
+            />
+
+            {/* Share Modal - Para compartir tarea con notificaciones */}
+            <ComposeModal
+                isOpen={isShareOpen}
+                onClose={() => setIsShareOpen(false)}
+                initialData={{
+                    to: [],
+                    subject: `Tarea Compartida: ${initialData?.title || formData.title || 'Sin título'}`,
+                    body: `
+Se te ha compartido una tarea:
+
+Título: ${initialData?.title || formData.title || 'Sin título'}
+${initialData?.scheduledDate || formData.scheduledDate ? `Fecha: ${new Date(initialData?.scheduledDate || formData.scheduledDate || '').toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}` : ''}
+${initialData?.scheduledTime || formData.scheduledTime ? `Hora: ${initialData?.scheduledTime || formData.scheduledTime}` : ''}
+${initialData?.area || formData.area ? `Área: ${initialData?.area || formData.area}` : ''}
+${initialData?.status || formData.status ? `Estado: ${initialData?.status || formData.status}` : ''}
+${initialData?.notes || formData.notes ? `\nNotas:\n${initialData?.notes || formData.notes}` : ''}
+
+🔗 Ver tarea: ${window.location.origin}/tasks?task=${initialData?.id || ''}
+
+--
+Compartido desde Archipiélago Production OS
+                    `.trim(),
+                    attachments: initialData?.attachments || formData.attachments || []
                 }}
             />
         </div>
