@@ -144,7 +144,16 @@ export class GoogleSheetsService {
                     scheduledDate: row[8] ? String(row[8]) : undefined,
                     scheduledTime: row[9] ? String(row[9]) : undefined,
                     isScheduled: !!row[8],
-                    attachments: row[10] ? JSON.parse(row[10] as string) : []
+                    attachments: (() => {
+                        try {
+                            if (!row[10] || !row[10].toString().trim()) return [];
+                            const parsed = JSON.parse(row[10] as string);
+                            return Array.isArray(parsed) ? parsed : [];
+                        } catch (e) {
+                            console.warn(`[GoogleSheets] Error parsing attachments for task ${row[0]}:`, e);
+                            return [];
+                        }
+                    })()
                 } as Task;
             });
     }
