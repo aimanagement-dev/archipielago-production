@@ -163,6 +163,7 @@ export async function POST(req: Request) {
                     area: task.area,
                     status: task.status,
                     notes: task.notes,
+                    hasMeet: task.hasMeet || false,
                 }], accessToken);
                 console.log(`[POST /api/tasks] Sincronización a Calendar exitosa:`, syncResult);
             } catch (calendarError) {
@@ -329,6 +330,7 @@ export async function PUT(req: Request) {
                     area: taskToUpdate.area,
                     status: taskToUpdate.status,
                     notes: taskToUpdate.notes,
+                    hasMeet: task.hasMeet !== undefined ? task.hasMeet : (existingTask?.hasMeet || false),
                 }], accessToken);
                 console.log(`[PUT /api/tasks] Sincronización a Calendar exitosa`);
             } catch (calendarError) {

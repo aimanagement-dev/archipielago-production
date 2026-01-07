@@ -75,7 +75,7 @@ export const authOptions: NextAuthOptions = {
 
                         if (member && member.accessGranted) {
                             console.log(`[Auth] Access Granted dynamically for: ${email}`);
-                            return true;
+                return true;
                         } else {
                             console.warn(`[Auth] User found but Access DENIED: ${email}`);
                         }
