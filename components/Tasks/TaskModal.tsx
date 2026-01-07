@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Task, TaskArea, TaskStatus, Month, Attachment } from '@/lib/types';
 import TaskAttachments from './TaskAttachments';
-import { X, Plus, Search, Users, Upload, FileText, Trash2, Link as LinkIcon } from 'lucide-react';
+import { X, Plus, Search, Users, Upload, FileText, Trash2, Link as LinkIcon, Share2 } from 'lucide-react';
 import DrivePicker from '@/components/Drive/DrivePicker';
 import ComposeModal from '@/components/Comms/ComposeModal';
 import { useStore } from '@/lib/store';
@@ -87,9 +87,14 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
         if (isOpen) {
             if (initialData) {
                 // Asegurar que los attachments se carguen correctamente
+                // Preservar todos los attachments existentes
+                const existingAttachments = Array.isArray(initialData.attachments) 
+                    ? initialData.attachments 
+                    : [];
+                
                 setFormData({
                     ...initialData,
-                    attachments: initialData.attachments || [],
+                    attachments: existingAttachments,
                     responsible: initialData.responsible || [],
                     visibleTo: initialData.visibleTo || [],
                 });
@@ -304,6 +309,27 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                                         className="px-4 py-2 rounded-lg text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
                                     >
                                         Eliminar
+                                    </button>
+                                )}
+                                {/* Botón Compartir - siempre visible si hay datos de la tarea */}
+                                {initialData && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            // Copiar link de la tarea al clipboard
+                                            const taskUrl = `${window.location.origin}/tasks?task=${initialData.id}`;
+                                            navigator.clipboard.writeText(taskUrl).then(() => {
+                                                alert('Link de la tarea copiado al portapapeles');
+                                            }).catch(() => {
+                                                // Fallback si clipboard API no está disponible
+                                                prompt('Copia este link:', taskUrl);
+                                            });
+                                        }}
+                                        className="px-4 py-2 rounded-lg text-sm font-medium text-green-400 hover:text-green-300 hover:bg-green-500/10 transition-colors flex items-center gap-2"
+                                        title="Compartir tarea (copiar link)"
+                                    >
+                                        <Share2 className="w-4 h-4" />
+                                        Compartir
                                     </button>
                                 )}
                                 {/* Botón para enviar notificación manual - visible si hay responsables */}

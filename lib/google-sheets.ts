@@ -159,6 +159,10 @@ export class GoogleSheetsService {
     }
 
     async addTask(spreadsheetId: string, task: Task) {
+        // Asegurar que attachments sea un array válido antes de stringify
+        const attachmentsToSave = Array.isArray(task.attachments) ? task.attachments : [];
+        const attachmentsJson = attachmentsToSave.length > 0 ? JSON.stringify(attachmentsToSave) : '';
+        
         const values = [
             [
                 task.id,
@@ -171,7 +175,7 @@ export class GoogleSheetsService {
                 task.notes || '',
                 task.scheduledDate || '',
                 task.scheduledTime || '',
-                JSON.stringify(task.attachments || [])
+                attachmentsJson
             ],
         ];
 
@@ -191,6 +195,10 @@ export class GoogleSheetsService {
             throw new Error(`Task with ID ${task.id} not found`);
         }
 
+        // Asegurar que attachments sea un array válido antes de stringify
+        const attachmentsToSave = Array.isArray(task.attachments) ? task.attachments : [];
+        const attachmentsJson = attachmentsToSave.length > 0 ? JSON.stringify(attachmentsToSave) : '';
+
         const values = [
             [
                 task.id,
@@ -203,7 +211,7 @@ export class GoogleSheetsService {
                 task.notes || '',
                 task.scheduledDate || '',
                 task.scheduledTime || '',
-                JSON.stringify(task.attachments || [])
+                attachmentsJson
             ],
         ];
 
