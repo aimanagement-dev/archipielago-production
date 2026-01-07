@@ -87,14 +87,32 @@ export default function CalendarPage() {
   // Group ongoing tasks by area
   const ongoingByArea = useMemo(() => {
     const groups: Partial<Record<TaskArea, Task[]>> = {};
-    ongoingTasks.forEach(task => {
+    // Filtrar tareas que NO están programadas (en curso, sin fecha específica)
+    const tasksToShow = ongoingTasks.filter(task => {
+      // Incluir todas las tareas que no están programadas o que están en progreso
+      return (!task.isScheduled || !task.scheduledDate) && task.status !== 'Completado';
+    });
+    
+    tasksToShow.forEach(task => {
       if (!groups[task.area]) {
         groups[task.area] = [];
       }
       groups[task.area]!.push(task);
     });
+    
+    // Debug: Log para verificar qué tareas se están mostrando
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Calendar] Ongoing tasks by area:', {
+        totalTasks: tasks.length,
+        ongoingTasks: ongoingTasks.length,
+        tasksToShow: tasksToShow.length,
+        groupedByArea: Object.keys(groups).length,
+        areas: Object.keys(groups),
+      });
+    }
+    
     return groups;
-  }, [ongoingTasks]);
+  }, [ongoingTasks, tasks]);
 
   // Get date range based on view mode
   const { start, end, title } = useMemo(() => {

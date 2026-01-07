@@ -96,10 +96,21 @@ export default function AIAssistant() {
             console.error('Error al comunicarse con Gemini:', error);
 
             const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+            
+            // Mensaje de error más amigable según el tipo de error
+            let userFriendlyMessage = 'Lo siento, hubo un error al procesar tu solicitud.';
+            if (errorMessage.includes('GEMINI_API_KEY') || errorMessage.includes('no está configurada')) {
+                userFriendlyMessage = 'El asistente de IA no está configurado. Contacta al administrador para configurar la API key de Gemini.';
+            } else if (errorMessage.includes('Unauthorized') || errorMessage.includes('401')) {
+                userFriendlyMessage = 'No estás autenticado. Por favor, recarga la página e inicia sesión nuevamente.';
+            } else if (errorMessage.includes('Forbidden') || errorMessage.includes('403')) {
+                userFriendlyMessage = 'No tienes permisos para usar el asistente de IA.';
+            }
+            
             const errorMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: `❌ Lo siento, hubo un error al procesar tu solicitud.\n\n${errorMessage}\n\nPor favor, verifica que la API key de Gemini esté configurada correctamente.`,
+                content: `❌ ${userFriendlyMessage}\n\n${process.env.NODE_ENV === 'development' ? `Detalles técnicos: ${errorMessage}` : ''}`,
                 timestamp: new Date(),
             };
 

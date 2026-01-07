@@ -365,10 +365,19 @@ ASISTENTE:`;
   } catch (error) {
     console.error('Error en Gemini API:', error);
     const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+    
+    // Mensajes de error más específicos para el usuario
+    let userFriendlyMessage = 'Error al procesar la solicitud';
+    if (errorMessage.includes('GEMINI_API_KEY')) {
+      userFriendlyMessage = 'El asistente de IA no está configurado. Contacta al administrador.';
+    } else if (errorMessage.includes('Unauthorized')) {
+      userFriendlyMessage = 'No estás autenticado. Por favor, inicia sesión nuevamente.';
+    }
+    
     return NextResponse.json(
       {
-        error: 'Error al procesar la solicitud',
-        details: errorMessage
+        error: userFriendlyMessage,
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
       },
       { status: 500 }
     );

@@ -63,7 +63,9 @@ export default function TeamPage() {
 
     try {
       const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://archipielago-production.vercel.app';
-      const loginUrl = `${appUrl}/login`;
+      // Usar la ruta de signin de NextAuth que redirige automáticamente a Google OAuth
+      // Usar callbackUrl para redirigir al usuario después del login
+      const loginUrl = `${appUrl}/api/auth/signin/google?callbackUrl=${encodeURIComponent(appUrl)}`;
 
       const emailSubject = `Invitación a Archipiélago Production OS`;
       const emailBody = `
