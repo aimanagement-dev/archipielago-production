@@ -144,24 +144,9 @@ Equipo de Archipiélago Production
         accessGranted = true;
         console.log(`✅ Acceso otorgado automáticamente a ${member.email}`);
 
-        // 2. Compartir Archipielago_DB con el usuario automáticamente
-        try {
-          const shareResponse = await fetch('/api/team/share-db', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userEmail: member.email }),
-          });
-
-          if (shareResponse.ok) {
-            dbShared = true;
-            console.log(`✅ Archipielago_DB compartido automáticamente con ${member.email}`);
-          } else {
-            console.warn(`⚠️ No se pudo compartir DB automáticamente con ${member.email}`);
-          }
-        } catch (shareError) {
-          console.error('Error compartiendo DB:', shareError);
-          // Continuar de todas formas
-        }
+        // NOTA: NO compartimos el DB automáticamente
+        // El usuario puede acceder a la app con accessGranted = true sin necesidad de acceso al DB
+        // El sistema verificará el acceso usando las credenciales del admin en cada request
 
       } catch (updateError) {
         console.error('Error otorgando acceso al usuario:', updateError);
@@ -174,8 +159,7 @@ Equipo de Archipiélago Production
       const successMessage = `✅ Invitación enviada exitosamente a ${member.name} (${member.email})\n\n` +
         `✓ Email de invitación enviado\n` +
         `✓ Acceso otorgado automáticamente (accessGranted = true)\n` +
-        (dbShared ? `✓ Archipielago_DB compartido automáticamente\n` : `⚠️ No se pudo compartir DB automáticamente - comparte manualmente\n`) +
-        `\nEl usuario podrá iniciar sesión con su cuenta de Google OAuth.`;
+        `\nEl usuario podrá iniciar sesión con su cuenta de Google OAuth y acceder a la aplicación.`;
 
       alert(successMessage);
     } catch (error: any) {

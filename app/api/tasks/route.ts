@@ -26,6 +26,18 @@ export async function GET() {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Verificar que el usuario tenga accessGranted = true
+    // Usar las credenciales del usuario para verificar (si tiene acceso al DB)
+    const { verifyCurrentUserAccess } = await import('@/lib/check-user-access');
+    const accessCheck = await verifyCurrentUserAccess(session.accessToken, session.user.email || '');
+    
+    if (!accessCheck.hasAccess) {
+        return NextResponse.json({ 
+            error: "Access Denied", 
+            details: accessCheck.reason || "Tu cuenta no tiene acceso a la aplicación. Contacta al administrador para obtener acceso.",
+        }, { status: 403 });
+    }
+
     try {
         const service = new GoogleSheetsService(session.accessToken);
         const spreadsheetId = await service.getOrCreateDatabase();

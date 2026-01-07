@@ -56,34 +56,41 @@ export const authOptions: NextAuthOptions = {
             }
 
             // 2. Dynamic Check via Google Sheets
-            // Requires Access Token to read the DB
+            // Permitir login si el usuario tiene credenciales válidas de Google OAuth
+            // El acceso real (accessGranted) se verificará en cada endpoint API
+            // NO requiere que el usuario tenga acceso al DB para hacer login
             if (account?.access_token) {
                 try {
-                    // Lazy import to avoid circular dep issues in some contexts? 
-                    // No, standard import should be fine if built correctly.
-                    // But we need to use the Service we defined.
+                    // Intentar verificar con las credenciales del usuario si tiene acceso al DB
                     const { GoogleSheetsService } = await import("@/lib/google-sheets");
                     const service = new GoogleSheetsService(account.access_token);
-
-                    // Attempt to find the DB. 
-                    // NOTE: The user MUST have the 'Archipielago_DB' shared with them to find it.
                     const dbId = await service.findDatabase();
-
+                    
                     if (dbId) {
+                        // El usuario tiene acceso al DB, verificar accessGranted
                         const team = await service.getTeam(dbId);
                         const member = team.find((m: any) => m.email?.toLowerCase() === email);
 
                         if (member && member.accessGranted) {
-                            console.log(`[Auth] Access Granted dynamically for: ${email}`);
-                return true;
-                        } else {
-                            console.warn(`[Auth] User found but Access DENIED: ${email}`);
+                            console.log(`[Auth] Access Granted for: ${email} (verified via DB)`);
+                            return true;
+                        } else if (member) {
+                            console.warn(`[Auth] User found but accessGranted=false: ${email}`);
+                            return false; // Bloquear si tiene acceso al DB pero accessGranted=false
                         }
-                    } else {
-                        console.warn(`[Auth] DB not found for user (Not shared?): ${email}`);
                     }
+                    
+                    // Si el usuario no tiene acceso al DB, permitir el login
+                    // El acceso se verificará en los endpoints usando las credenciales del admin
+                    // Esto permite que usuarios invitados (con accessGranted=true pero sin acceso al DB) puedan hacer login
+                    console.log(`[Auth] Permitting login for ${email} - will verify accessGranted in API endpoints`);
+                    return true;
+                    
                 } catch (error) {
-                    console.error("[Auth] Error checking dynamic access:", error);
+                    console.error("[Auth] Error checking access:", error);
+                    // En caso de error, permitir el login - se verificará en los endpoints
+                    console.log(`[Auth] Allowing login for ${email} - access will be verified in API calls`);
+                    return true;
                 }
             }
 

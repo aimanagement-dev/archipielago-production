@@ -13,32 +13,6 @@ export class GoogleSheetsService {
         this.drive = google.drive({ version: 'v3', auth: this.auth });
     }
 
-    /**
-     * Comparte el Archipielago_DB con un usuario por email
-     */
-    async shareDatabaseWithUser(spreadsheetId: string, userEmail: string, role: 'reader' | 'writer' | 'commenter' = 'reader'): Promise<boolean> {
-        try {
-            await this.drive.permissions.create({
-                fileId: spreadsheetId,
-                requestBody: {
-                    role: role,
-                    type: 'user',
-                    emailAddress: userEmail,
-                },
-                fields: 'id',
-            });
-            console.log(`[GoogleSheets] Archipielago_DB compartido con ${userEmail} como ${role}`);
-            return true;
-        } catch (error: any) {
-            console.error(`[GoogleSheets] Error compartiendo DB con ${userEmail}:`, error);
-            // Si el error es que ya tiene permisos, considerarlo éxito
-            if (error.code === 400 && error.message?.includes('already')) {
-                console.log(`[GoogleSheets] ${userEmail} ya tiene acceso al DB`);
-                return true;
-            }
-            return false;
-        }
-    }
 
     /**
      * Finds the Archipielago DB spreadsheet or creates it if it doesn't exist.
