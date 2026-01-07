@@ -33,8 +33,10 @@ export default function TaskAttachments({ task, onChange }: TaskAttachmentsProps
             addedAt: new Date().toISOString(),
         };
 
+        // Asegurar que preservamos los attachments existentes
+        const currentAttachments = attachments || [];
         onChange({
-            attachments: [...attachments, newAttachment]
+            attachments: [...currentAttachments, newAttachment]
         });
 
         setLinkUrl('');

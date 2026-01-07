@@ -45,14 +45,18 @@ export default function TasksPage() {
     }
   };
 
-  const handleSave = (taskData: Omit<Task, 'id'>) => {
+  const handleSave = async (taskData: Omit<Task, 'id'>) => {
     if (editingTask) {
-      updateTask(editingTask.id, taskData);
+      await updateTask(editingTask.id, taskData);
+      setIsModalOpen(false);
+      setEditingTask(undefined);
     } else {
-      addTask(taskData);
+      // Para nuevas tareas, guardar pero NO cerrar el modal todavía
+      // El TaskModal manejará el cierre después de mostrar la notificación
+      await addTask(taskData);
+      // NO cerrar aquí - TaskModal manejará el flujo de notificación y cierre
+      // Si no hay responsables, TaskModal cerrará automáticamente
     }
-    setIsModalOpen(false);
-    setEditingTask(undefined);
   };
 
   const handleClose = () => {

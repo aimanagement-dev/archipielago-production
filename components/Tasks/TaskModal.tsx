@@ -84,29 +84,32 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
     }, [formData.scheduledDate]);
 
     useEffect(() => {
-        if (initialData) {
-            // Asegurar que los attachments se carguen correctamente
-            setFormData({
-                ...initialData,
-                attachments: initialData.attachments || [],
-                responsible: initialData.responsible || [],
-                visibleTo: initialData.visibleTo || [],
-            });
-        } else {
-            setFormData({
-                title: '',
-                area: 'Producción',
-                status: 'Pendiente',
-                month: 'Nov',
-                week: 'Week 1',
-                notes: '',
-                responsible: [],
-                isScheduled: true,
-                scheduledDate: defaultDate || new Date().toISOString().split('T')[0],
-                attachments: [],
-                visibility: 'all',
-                visibleTo: [],
-            });
+        if (isOpen) {
+            if (initialData) {
+                // Asegurar que los attachments se carguen correctamente
+                setFormData({
+                    ...initialData,
+                    attachments: initialData.attachments || [],
+                    responsible: initialData.responsible || [],
+                    visibleTo: initialData.visibleTo || [],
+                });
+            } else {
+                // Resetear solo cuando se abre el modal para nueva tarea
+                setFormData({
+                    title: '',
+                    area: 'Producción',
+                    status: 'Pendiente',
+                    month: 'Nov',
+                    week: 'Week 1',
+                    notes: '',
+                    responsible: [],
+                    isScheduled: true,
+                    scheduledDate: defaultDate || new Date().toISOString().split('T')[0],
+                    attachments: [],
+                    visibility: 'all',
+                    visibleTo: [],
+                });
+            }
         }
     }, [initialData, isOpen, defaultDate]);
 
@@ -117,9 +120,9 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
         onSave(formData as Omit<Task, 'id'>);
         
         // Si hay responsables asignados Y es una nueva tarea, mostrar modal de notificación
+        // NO cerrar el modal todavía - esperar a que se muestre la notificación
         if (!initialData && formData.responsible && formData.responsible.length > 0) {
-            // NO cerrar el modal todavía, solo mostrar el de notificación
-            // Esperar un momento para que se guarde la tarea
+            // Esperar un momento para que se guarde la tarea antes de mostrar notificación
             setTimeout(() => {
                 setIsComposeOpen(true);
             }, 500);
@@ -397,9 +400,11 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                                                 addedBy: 'me',
                                                 addedAt: new Date().toISOString()
                                             };
+                                            // Asegurar que preservamos los attachments existentes
+                                            const currentAttachments = formData.attachments || [];
                                             setFormData({
                                                 ...formData,
-                                                attachments: [...(formData.attachments || []), newAttachment]
+                                                attachments: [...currentAttachments, newAttachment]
                                             });
                                             setIsDrivePickerOpen(false);
                                         }}
@@ -419,7 +424,7 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                                         onChange={(e) => {
                                             const file = e.target.files?.[0];
                                             if (file) {
-                                                // Para archivos locales, creamos un objeto URL temporal
+                                                // Para archivos locales, guardamos el nombre y creamos un objeto URL temporal
                                                 // En producción, deberías subir el archivo a Drive o un storage
                                                 const objectUrl = URL.createObjectURL(file);
                                                 const newAttachment: Attachment = {
@@ -428,13 +433,18 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                                                     type: 'file',
                                                     url: objectUrl,
                                                     addedBy: 'me',
-                                                    addedAt: new Date().toISOString()
+                                                    addedAt: new Date().toISOString(),
+                                                    size: file.size
                                                 };
+                                                // Asegurar que preservamos los attachments existentes
+                                                const currentAttachments = formData.attachments || [];
                                                 setFormData({
                                                     ...formData,
-                                                    attachments: [...(formData.attachments || []), newAttachment]
+                                                    attachments: [...currentAttachments, newAttachment]
                                                 });
                                                 setIsDrivePickerOpen(false);
+                                                // Resetear el input para permitir seleccionar el mismo archivo de nuevo
+                                                e.target.value = '';
                                             }
                                         }}
                                     />
@@ -459,12 +469,10 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                 isOpen={isComposeOpen}
                 onClose={() => {
                     setIsComposeOpen(false);
-                    // Si es una nueva tarea, cerrar el modal de tarea después de enviar notificación
-                    if (!initialData) {
-                        setTimeout(() => {
-                            onClose();
-                        }, 300);
-                    }
+                    // Cerrar el modal de tarea después de cerrar el de notificación
+                    setTimeout(() => {
+                        onClose();
+                    }, 200);
                 }}
                 initialData={{
                     // Mapear responsables (IDs o emails) a lista de emails
