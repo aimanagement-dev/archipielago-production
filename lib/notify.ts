@@ -1,8 +1,9 @@
 /**
  * Helper function to send emails directly (for internal use)
  * This avoids HTTP calls between server-side routes
+ * Now uses Gmail API instead of SMTP
  */
-import nodemailer from 'nodemailer';
+import { sendEmailViaGmail } from './gmail';
 
 export interface SendEmailParams {
     accessToken: string;
@@ -13,7 +14,7 @@ export interface SendEmailParams {
     subject: string;
     html?: string;
     text?: string;
-    attachments?: Array<{ filename: string; path: string }>;
+    attachments?: Array<{ filename: string; content: string; contentType?: string }>; // Cambiado: ahora requiere content en base64
     useSystemEmail?: boolean; // Si true, usa SYSTEM_EMAIL en lugar de userEmail
 }
 
@@ -46,34 +47,28 @@ export async function sendEmailDirect({
         const senderEmail = useSystemEmail ? SYSTEM_EMAIL : (userEmail || SYSTEM_EMAIL);
         const senderName = useSystemEmail ? SYSTEM_NAME : (userName || SYSTEM_NAME);
 
-        // Configurar transporter con OAuth2
-        const transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true,
-            auth: {
-                type: 'OAuth2',
-                user: senderEmail,
-                clientId: process.env.GOOGLE_CLIENT_ID,
-                clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-                accessToken: accessToken,
-                refreshToken: refreshToken,
-            },
-        } as nodemailer.TransportOptions);
-
-        // Enviar correo
-        const toArray = Array.isArray(to) ? to : [to];
-        const info = await transporter.sendMail({
-            from: `"${senderName}" <${senderEmail}>`,
-            to: toArray.join(','),
+        // Usar Gmail API directamente
+        const result = await sendEmailViaGmail({
+            accessToken,
+            refreshToken,
+            fromEmail: senderEmail,
+            fromName: senderName,
+            to: Array.isArray(to) ? to : to.split(',').map(e => e.trim()),
             subject,
             text,
             html,
             attachments,
         });
 
-        console.log(`[sendEmailDirect] Email sent successfully: ${info.messageId}`);
-        return { success: true, messageId: info.messageId };
+        if (!result.success) {
+            return {
+                success: false,
+                error: result.error || 'Unknown error sending email',
+            };
+        }
+
+        console.log(`[sendEmailDirect] Email sent successfully: ${result.messageId}`);
+        return { success: true, messageId: result.messageId };
     } catch (error: any) {
         console.error('[sendEmailDirect] Error sending email:', error);
         return {

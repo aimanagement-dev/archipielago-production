@@ -515,4 +515,174 @@ export class GoogleSheetsService {
 
         return sheet.properties.sheetId;
     }
+
+    // Push Subscriptions Management
+    async ensurePushSubscriptionsSheet(spreadsheetId: string): Promise<void> {
+        try {
+            await this.getSheetId(spreadsheetId, 'PushSubscriptions');
+        } catch {
+            // Sheet doesn't exist, create it
+            await this.sheets.spreadsheets.batchUpdate({
+                spreadsheetId,
+                requestBody: {
+                    requests: [{
+                        addSheet: {
+                            properties: {
+                                title: 'PushSubscriptions',
+                            },
+                        },
+                    }],
+                },
+            });
+
+            // Add headers
+            await this.sheets.spreadsheets.values.update({
+                spreadsheetId,
+                range: 'PushSubscriptions!A1:D1',
+                valueInputOption: 'USER_ENTERED',
+                requestBody: {
+                    values: [['User Email', 'Subscription', 'Created At', 'Last Used']],
+                },
+            });
+        }
+    }
+
+    async savePushSubscription(
+        spreadsheetId: string,
+        data: { userEmail: string; subscription: string; createdAt: string }
+    ): Promise<void> {
+        await this.ensurePushSubscriptionsSheet(spreadsheetId);
+
+        const rowIndex = await this.findPushSubscriptionRowIndex(spreadsheetId, data.userEmail);
+        
+        const values = [[
+            data.userEmail,
+            data.subscription,
+            data.createdAt,
+            new Date().toISOString(), // Last Used
+        ]];
+
+        if (rowIndex === -1) {
+            // Nueva suscripción
+            await this.sheets.spreadsheets.values.append({
+                spreadsheetId,
+                range: 'PushSubscriptions!A:D',
+                valueInputOption: 'USER_ENTERED',
+                requestBody: { values },
+            });
+        } else {
+            // Actualizar existente
+            await this.sheets.spreadsheets.values.update({
+                spreadsheetId,
+                range: `PushSubscriptions!A${rowIndex}:D${rowIndex}`,
+                valueInputOption: 'USER_ENTERED',
+                requestBody: { values },
+            });
+        }
+    }
+
+    async getPushSubscription(spreadsheetId: string, userEmail: string): Promise<{
+        userEmail: string;
+        subscription: string;
+        createdAt: string;
+        lastUsed?: string;
+    } | null> {
+        await this.ensurePushSubscriptionsSheet(spreadsheetId);
+
+        const rowIndex = await this.findPushSubscriptionRowIndex(spreadsheetId, userEmail);
+        if (rowIndex === -1) return null;
+
+        const response = await this.sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: `PushSubscriptions!A${rowIndex}:D${rowIndex}`,
+        });
+
+        const row = response.data.values?.[0];
+        if (!row || row.length < 3) return null;
+
+        return {
+            userEmail: String(row[0] || ''),
+            subscription: String(row[1] || ''),
+            createdAt: String(row[2] || ''),
+            lastUsed: row[3] ? String(row[3]) : undefined,
+        };
+    }
+
+    async updatePushSubscriptionLastUsed(spreadsheetId: string, userEmail: string): Promise<void> {
+        const rowIndex = await this.findPushSubscriptionRowIndex(spreadsheetId, userEmail);
+        if (rowIndex === -1) return;
+
+        await this.sheets.spreadsheets.values.update({
+            spreadsheetId,
+            range: `PushSubscriptions!D${rowIndex}`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: {
+                values: [[new Date().toISOString()]],
+            },
+        });
+    }
+
+    async deletePushSubscription(spreadsheetId: string, userEmail: string): Promise<void> {
+        const rowIndex = await this.findPushSubscriptionRowIndex(spreadsheetId, userEmail);
+        if (rowIndex === -1) return;
+
+        const sheetId = await this.getSheetId(spreadsheetId, 'PushSubscriptions');
+
+        await this.sheets.spreadsheets.batchUpdate({
+            spreadsheetId,
+            requestBody: {
+                requests: [{
+                    deleteDimension: {
+                        range: {
+                            sheetId,
+                            dimension: 'ROWS',
+                            startIndex: rowIndex - 1,
+                            endIndex: rowIndex,
+                        },
+                    },
+                }],
+            },
+        });
+    }
+
+    async getAllPushSubscriptions(spreadsheetId: string): Promise<Array<{
+        userEmail: string;
+        subscription: string;
+        createdAt: string;
+        lastUsed?: string;
+    }>> {
+        await this.ensurePushSubscriptionsSheet(spreadsheetId);
+
+        const response = await this.sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: 'PushSubscriptions!A2:D',
+        });
+
+        const rows = response.data.values || [];
+        return rows
+            .filter(row => row[0] && row[1]) // Tiene email y subscription
+            .map(row => ({
+                userEmail: String(row[0]),
+                subscription: String(row[1]),
+                createdAt: String(row[2] || ''),
+                lastUsed: row[3] ? String(row[3]) : undefined,
+            }));
+    }
+
+    private async findPushSubscriptionRowIndex(spreadsheetId: string, userEmail: string): Promise<number> {
+        await this.ensurePushSubscriptionsSheet(spreadsheetId);
+
+        const response = await this.sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: 'PushSubscriptions!A:A',
+        });
+        const rows = response.data.values;
+        if (!rows) return -1;
+        for (let i = 1; i < rows.length; i++) { // Start from 1 to skip header
+            if (rows[i][0]?.toLowerCase() === userEmail.toLowerCase()) {
+                return i + 1; // +1 because Sheets is 1-indexed
+            }
+        }
+        return -1;
+    }
 }

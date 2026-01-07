@@ -5,6 +5,7 @@ import { isUserAdmin } from '@/lib/constants';
 import { useTheme } from 'next-themes';
 import { Bell, Lock, Palette, Globe, Moon, Sun, Sunset } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import PushNotificationPrompt from '@/components/Notifications/PushNotificationPrompt';
 
 export default function SettingsPage() {
     const { user } = useAuth();
@@ -41,21 +42,12 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                        <div>
-                            <p className="font-medium text-foreground">Push Notifications</p>
+                    <div className="p-4 bg-muted/30 rounded-lg">
+                        <div className="mb-3">
+                            <p className="font-medium text-foreground mb-1">Push Notifications</p>
                             <p className="text-sm text-muted-foreground">Receive real-time updates</p>
                         </div>
-                        <button
-                            onClick={() => setNotifications(!notifications)}
-                            className={`relative w-12 h-6 rounded-full transition-colors ${notifications ? 'bg-primary' : 'bg-muted-foreground/20'
-                                }`}
-                        >
-                            <span
-                                className={`absolute top-1 left-1 w-4 h-4 bg-background rounded-full transition-transform ${notifications ? 'translate-x-6' : ''
-                                    }`}
-                            />
-                        </button>
+                        <PushNotificationPrompt />
                     </div>
 
                     <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
-import nodemailer from 'nodemailer';
+import { sendEmailViaGmail } from '@/lib/gmail';
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -48,38 +48,35 @@ export async function POST(req: NextRequest) {
             console.warn(`[Notify] Solution: Login with ${SYSTEM_EMAIL} account or use Service Account credentials.`);
         }
 
-        // Configurar transporter con OAuth2
-        console.log(`[Notify] Attempting to send email via ${senderEmail}${useSystemEmail ? ' (system email)' : ''}`);
+        // Usar Gmail API directamente
+        console.log(`[Notify] Attempting to send email via Gmail API from ${senderEmail}${useSystemEmail ? ' (system email)' : ''}`);
         console.log(`[Notify] Logged in as: ${session.user?.email}`);
-        console.log(`[Notify] Config: ClientID=${!!process.env.GOOGLE_CLIENT_ID}, AccessToken=${session.accessToken ? 'Yes (' + session.accessToken.substring(0, 10) + '...)' : 'No'}, RefreshToken=${session.refreshToken ? 'Yes' : 'No'}`);
+        console.log(`[Notify] AccessToken=${session.accessToken ? 'Yes (' + session.accessToken.substring(0, 10) + '...)' : 'No'}, RefreshToken=${session.refreshToken ? 'Yes' : 'No'}`);
 
-        const transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com',
-            port: 465,
-            secure: true,
-            auth: {
-                type: 'OAuth2',
-                user: senderEmail,
-                clientId: process.env.GOOGLE_CLIENT_ID,
-                clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-                accessToken: session.accessToken as string,
-                refreshToken: session.refreshToken as string,
-            },
-        } as nodemailer.TransportOptions);
-
-        // Enviar correo
-        const info = await transporter.sendMail({
-            from: `"${senderName}" <${senderEmail}>`,
-            to,
+        // IMPORTANTE: Si useSystemEmail=true pero el usuario logueado NO es esa cuenta,
+        // necesitamos usar las credenciales de esa cuenta específica.
+        // Por ahora, intentamos con las credenciales del usuario logueado.
+        // Si falla, el error será claro.
+        
+        const result = await sendEmailViaGmail({
+            accessToken: session.accessToken as string,
+            refreshToken: session.refreshToken as string,
+            fromEmail: senderEmail,
+            fromName: senderName,
+            to: Array.isArray(to) ? to : to.split(',').map((e: string) => e.trim()),
             subject,
             text,
             html,
-            attachments // Optional: [{ filename: '...', path: '...' }]
+            // attachments se convertirían a base64 si se necesitan
         });
 
-        console.log('Message sent: %s', info.messageId);
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to send email via Gmail API');
+        }
 
-        return NextResponse.json({ success: true, messageId: info.messageId });
+        console.log(`[Notify] Message sent successfully. Message ID: ${result.messageId}`);
+
+        return NextResponse.json({ success: true, messageId: result.messageId });
 
     } catch (error: any) {
         console.error('Error sending email:', error);

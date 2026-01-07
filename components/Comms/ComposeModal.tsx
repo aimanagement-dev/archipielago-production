@@ -96,25 +96,68 @@ export default function ComposeModal({ isOpen, onClose, initialData, useSystemEm
 
                 alert(`Correo enviado exitosamente a ${allRecipients.length} destinatario(s)!`);
             } else {
-                // TODO: Implementar notificaciones push en la app
-                // Por ahora, mostrar mensaje informativo
-                alert(`Notificaciones push aún no están implementadas. Se enviará por email a ${allRecipients.length} destinatario(s).`);
-                
-                // Enviar por email como fallback
-                const response = await fetch('/api/notify', {
+                // Enviar notificaciones push
+                const pushResponse = await fetch('/api/push/send', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        to: allRecipients.join(','),
-                        subject,
-                        text: finalBody,
-                        html: finalHtml
+                        to: allRecipients,
+                        title: subject,
+                        body: finalBody.substring(0, 200), // Limitar longitud del body
+                        url: typeof window !== 'undefined' ? window.location.origin + '/tasks' : '/tasks',
                     }),
                 });
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.details || errorData.error || 'Failed to send email');
+                const pushResult = await pushResponse.json();
+
+                if (!pushResponse.ok) {
+                    console.error('Error sending push notifications:', pushResult);
+                    // Si falla push, enviar por email como fallback
+                    const emailResponse = await fetch('/api/notify', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            to: allRecipients.join(','),
+                            subject,
+                            text: finalBody,
+                            html: finalHtml,
+                            useSystemEmail: useSystemEmail,
+                        }),
+                    });
+
+                    if (!emailResponse.ok) {
+                        const errorData = await emailResponse.json();
+                        throw new Error(errorData.details || errorData.error || 'Failed to send notifications');
+                    }
+
+                    alert(`Push notifications fallaron. Se envió por email a ${allRecipients.length} destinatario(s).`);
+                } else {
+                    const sentCount = pushResult.sent || 0;
+                    const failedCount = pushResult.failed || 0;
+                    
+                    if (sentCount > 0) {
+                        alert(`Notificaciones push enviadas a ${sentCount} usuario(s)${failedCount > 0 ? ` (${failedCount} fallaron)` : ''}`);
+                    } else {
+                        // Si nadie recibió push, enviar por email
+                        const emailResponse = await fetch('/api/notify', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                to: allRecipients.join(','),
+                                subject,
+                                text: finalBody,
+                                html: finalHtml,
+                                useSystemEmail: useSystemEmail,
+                            }),
+                        });
+
+                        if (!emailResponse.ok) {
+                            const errorData = await emailResponse.json();
+                            throw new Error(errorData.details || errorData.error || 'Failed to send notifications');
+                        }
+
+                        alert(`Ningún usuario tiene push activado. Se envió por email a ${allRecipients.length} destinatario(s).`);
+                    }
                 }
             }
 

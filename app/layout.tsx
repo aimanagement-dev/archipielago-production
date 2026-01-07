@@ -3,6 +3,7 @@ import { Inter, Outfit } from 'next/font/google'
 import './globals.css'
 import ProtectedLayout from '@/components/Layout/ProtectedLayout'
 import { Providers } from '@/components/Providers'
+import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 const outfit = Outfit({ subsets: ['latin'], variable: '--font-outfit' })
@@ -25,6 +26,7 @@ export default function RootLayout({
             {children}
           </ProtectedLayout>
         </Providers>
+        <ServiceWorkerRegistration />
       </body>
     </html>
   )
