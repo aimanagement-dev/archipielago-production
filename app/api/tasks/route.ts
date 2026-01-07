@@ -131,7 +131,7 @@ export async function POST(req: Request) {
         const spreadsheetId = await service.getOrCreateDatabase();
 
         // Asegurar que los campos requeridos tengan valores por defecto
-        const taskToSave = {
+        const taskToSave: Task = {
             id: task.id,
             title: task.title,
             status: task.status || 'Pendiente',
@@ -143,6 +143,10 @@ export async function POST(req: Request) {
             scheduledDate: task.scheduledDate || '',
             scheduledTime: task.scheduledTime || '',
             attachments: task.attachments || [],
+            visibility: task.visibility || 'all',
+            visibleTo: Array.isArray(task.visibleTo) ? task.visibleTo : [],
+            hasMeet: task.hasMeet || false,
+            meetLink: undefined,
         };
 
         await service.addTask(spreadsheetId, taskToSave);
@@ -151,10 +155,11 @@ export async function POST(req: Request) {
         // Si la tarea tiene fecha programada, sincronizar automáticamente a Google Calendar
         // ESPERAR la sincronización para asegurar que se cree correctamente
         const accessToken = session.accessToken;
+        let meetLink: string | undefined;
         if (task.scheduledDate && accessToken) {
             try {
                 console.log(`[POST /api/tasks] Sincronizando tarea ${task.id} a Calendar...`);
-                const syncResult = await syncTasksToCalendar([{
+                const calendarTask = {
                     id: task.id,
                     title: task.title,
                     scheduledDate: task.scheduledDate,
@@ -164,8 +169,38 @@ export async function POST(req: Request) {
                     status: task.status,
                     notes: task.notes,
                     hasMeet: task.hasMeet || false,
-                }], accessToken);
+                    visibleTo: task.visibleTo || [],
+                };
+                const syncResult = await syncTasksToCalendar([calendarTask], accessToken);
                 console.log(`[POST /api/tasks] Sincronización a Calendar exitosa:`, syncResult);
+                
+                // Obtener el link de Meet del evento creado/actualizado
+                if (task.hasMeet && (syncResult.created > 0 || syncResult.updated > 0)) {
+                    try {
+                        const { getCalendarClient } = await import('@/lib/google/calendar');
+                        const calendar = getCalendarClient(accessToken);
+                        const calendarId = process.env.GOOGLE_CALENDAR_ID || 'ai.management@archipielagofilm.com';
+                        const eventId = task.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
+                        const event = await calendar.events.get({
+                            calendarId,
+                            eventId,
+                        });
+                        
+                        if (event.data.conferenceData?.entryPoints) {
+                            const meetEntry = event.data.conferenceData.entryPoints.find(
+                                (ep: any) => ep.entryPointType === 'video' || ep.uri?.includes('meet.google.com')
+                            );
+                            if (meetEntry?.uri) {
+                                meetLink = meetEntry.uri;
+                                // Actualizar la tarea con el meetLink
+                                taskToSave.meetLink = meetLink;
+                                await service.updateTask(spreadsheetId, taskToSave);
+                            }
+                        }
+                    } catch (meetError) {
+                        console.error("[POST /api/tasks] Error obteniendo link de Meet:", meetError);
+                    }
+                }
             } catch (calendarError) {
                 console.error("[POST /api/tasks] Error sincronizando a Calendar:", calendarError);
                 // NO fallar la creación de la tarea si Calendar falla, pero loguear el error
@@ -211,7 +246,7 @@ export async function POST(req: Request) {
                             <p>Se te ha asignado una nueva tarea en Archipiélago Production OS:</p>
                             <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
                                 <h3 style="margin-top: 0; color: #1f2937;">${taskToSave.title}</h3>
-                                ${scheduledInfo ? `<p style="margin: 8px 0;"><strong>📅 Fecha:</strong> ${new Date(taskToSave.scheduledDate).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}${taskToSave.scheduledTime ? ` a las ${taskToSave.scheduledTime}` : ''}</p>` : ''}
+                                ${scheduledInfo && taskToSave.scheduledDate ? `<p style="margin: 8px 0;"><strong>📅 Fecha:</strong> ${new Date(taskToSave.scheduledDate).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}${taskToSave.scheduledTime ? ` a las ${taskToSave.scheduledTime}` : ''}</p>` : ''}
                                 ${areaInfo ? `<p style="margin: 8px 0;"><strong>📋 Área:</strong> ${taskToSave.area}</p>` : ''}
                                 ${taskToSave.status ? `<p style="margin: 8px 0;"><strong>📊 Estado:</strong> ${taskToSave.status}</p>` : ''}
                                 ${notesInfo ? `<div style="margin-top: 16px;"><strong>📝 Notas:</strong><p style="white-space: pre-wrap;">${taskToSave.notes}</p></div>` : ''}
@@ -304,6 +339,10 @@ export async function PUT(req: Request) {
             responsible: Array.isArray(task.responsible) ? task.responsible : (existingTask?.responsible || []),
             notes: task.notes !== undefined ? task.notes : (existingTask?.notes || ''),
             attachments: task.attachments || existingTask?.attachments || [],
+            visibility: task.visibility !== undefined ? task.visibility : (existingTask?.visibility || 'all'),
+            visibleTo: Array.isArray(task.visibleTo) ? task.visibleTo : (existingTask?.visibleTo || []),
+            hasMeet: task.hasMeet !== undefined ? task.hasMeet : (existingTask?.hasMeet || false),
+            meetLink: task.meetLink || existingTask?.meetLink,
         };
 
         await service.updateTask(spreadsheetId, taskToUpdate);
@@ -331,6 +370,7 @@ export async function PUT(req: Request) {
                     status: taskToUpdate.status,
                     notes: taskToUpdate.notes,
                     hasMeet: task.hasMeet !== undefined ? task.hasMeet : (existingTask?.hasMeet || false),
+                    visibleTo: taskToUpdate.visibleTo || [],
                 }], accessToken);
                 console.log(`[PUT /api/tasks] Sincronización a Calendar exitosa`);
             } catch (calendarError) {

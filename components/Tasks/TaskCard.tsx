@@ -5,6 +5,8 @@ import { useStore } from '@/lib/store';
 import { cn, statusColors, areaColors } from '@/lib/utils';
 import { ChevronDown, ChevronUp, Users, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import MeetingInvitation from './MeetingInvitation';
+import AttendeeList from './AttendeeList';
 
 interface Props {
   task: Task;
@@ -60,8 +62,26 @@ export default function TaskCard({ task, onEdit, onDelete }: Props) {
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground font-semibold">
                   <Users className="w-4 h-4" />
-                  <span>{task.responsible.join(', ') || 'No assigned members'}</span>
+                  <span>{task.responsible && task.responsible.length > 0 ? task.responsible.join(', ') : 'No assigned members'}</span>
                 </div>
+                {task.meetLink && (
+                  <div className="mt-2">
+                    <a
+                      href={task.meetLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-xs font-medium transition-colors border border-blue-500/30"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 8.16l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414l-1.414 1.414c-.39.39-1.024.39-1.414 0l-.707-.707-1.414 1.414c-.39.39-1.024.39-1.414 0l-1.414-1.414c-.39-.39-.39-1.024 0-1.414l1.414-1.414-.707-.707c-.39-.39-.39-1.024 0-1.414l1.414-1.414c.39-.39 1.024-.39 1.414 0l.707.707 1.414-1.414c.39-.39 1.024-.39 1.414 0l1.414 1.414c.39.39.39 1.024 0 1.414l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414z"/>
+                      </svg>
+                      Unirse a Google Meet
+                    </a>
+                  </div>
+                )}
+                <MeetingInvitation task={task} />
+                <AttendeeList task={task} />
                 {task.notes && (
                   <p className="text-sm text-foreground/80 leading-relaxed font-medium bg-muted/30 p-3 rounded-lg border border-border/50">{task.notes}</p>
                 )}

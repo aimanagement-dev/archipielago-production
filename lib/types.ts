@@ -33,10 +33,12 @@ export interface Task {
   scheduledTime?: string; // Time string 'HH:MM'
   isScheduled?: boolean; // Flag to indicate if task has specific date/time
   hasMeet?: boolean; // Wants Google Meet link
+  meetLink?: string; // Google Meet link URL
   isGoogleEvent?: boolean; // Flag to indicate if task is from Google Calendar
   attachments?: Attachment[]; // Documents and links attached to task
   visibility?: VisibilityLevel; // Who can see this task
   visibleTo?: string[]; // Specific emails/departments if visibility is restricted
+  attendeeResponses?: { email: string; response: 'accepted' | 'declined' | 'tentative' }[]; // Responses from Calendar attendees
 }
 
 export interface TeamMember {

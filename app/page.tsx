@@ -179,11 +179,24 @@ export default function Dashboard() {
                       <span className={cn('px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-border/50', statusColors[task.status])}>
                         {task.status}
                       </span>
-                      {task.responsible.length > 0 && (
+                      {task.responsible && task.responsible.length > 0 && (
                         <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
                           <Users className="w-3 h-3" />
                           {task.responsible.join(', ')}
                         </span>
+                      )}
+                      {task.meetLink && (
+                        <a
+                          href={task.meetLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-2 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded text-[10px] font-medium transition-colors border border-blue-500/30"
+                        >
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 8.16l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414l-1.414 1.414c-.39.39-1.024.39-1.414 0l-.707-.707-1.414 1.414c-.39.39-1.024.39-1.414 0l-1.414-1.414c-.39-.39-.39-1.024 0-1.414l1.414-1.414-.707-.707c-.39-.39-.39-1.024 0-1.414l1.414-1.414c.39-.39 1.024-.39 1.414 0l.707.707 1.414-1.414c.39-.39 1.024-.39 1.414 0l1.414 1.414c.39.39.39 1.024 0 1.414l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414z"/>
+                          </svg>
+                          Meet
+                        </a>
                       )}
                     </div>
                   </div>

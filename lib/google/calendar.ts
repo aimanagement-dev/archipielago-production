@@ -11,11 +11,13 @@ export interface CalendarTaskPayload {
   status?: string;
   notes?: string;
   hasMeet?: boolean;
+  meetLink?: string;
+  visibleTo?: string[];
 }
 
 const DEFAULT_CALENDAR_ID = 'ai.management@archipielagofilm.com';
 
-function getCalendarClient(accessToken: string) {
+export function getCalendarClient(accessToken: string) {
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: accessToken });
   return google.calendar({ version: 'v3', auth });
@@ -114,9 +116,27 @@ async function upsertEvent(
   calendarId: string,
   task: CalendarTaskPayload,
   timezone: string
-): Promise<'created' | 'updated'> {
+): Promise<{ action: 'created' | 'updated'; meetLink?: string }> {
   const eventId = sanitizeEventId(task.id);
   const body = buildEventBody(task, timezone);
+
+  // Agregar attendees si hay responsables o visibleTo
+  const attendees: string[] = [];
+  if (task.responsible && task.responsible.length > 0) {
+    attendees.push(...task.responsible);
+  }
+  // visibleTo también puede contener emails de invitados
+  if (task.visibleTo && Array.isArray(task.visibleTo)) {
+    task.visibleTo.forEach((email: string) => {
+      if (email.includes('@') && !attendees.includes(email)) {
+        attendees.push(email);
+      }
+    });
+  }
+  
+  if (attendees.length > 0 && body.start?.dateTime) {
+    body.attendees = attendees.map(email => ({ email: email.trim() }));
+  }
 
   try {
     // Si tiene Meet, asegurar que se cree con conferenceData
@@ -132,14 +152,26 @@ async function upsertEvent(
         }
       : body;
 
-    await calendar.events.patch({
+    const response = await calendar.events.patch({
       calendarId,
       eventId,
       requestBody: patchBody,
-      sendUpdates: 'none',
+      sendUpdates: attendees.length > 0 ? 'all' : 'none',
       conferenceDataVersion: 1,
     });
-    return 'updated';
+    
+    // Extraer meetLink de la respuesta
+    let meetLink: string | undefined;
+    if (response.data.conferenceData?.entryPoints) {
+      const meetEntry = response.data.conferenceData.entryPoints.find(
+        (ep: any) => ep.entryPointType === 'video' || ep.uri?.includes('meet.google.com')
+      );
+      if (meetEntry?.uri) {
+        meetLink = meetEntry.uri;
+      }
+    }
+    
+    return { action: 'updated', meetLink };
   } catch (error) {
     const isNotFound =
       (error as { code?: number; response?: { status?: number } })?.code === 404 ||
@@ -163,14 +195,25 @@ async function upsertEvent(
             id: eventId,
           };
 
-      await calendar.events.insert({
+      const response = await calendar.events.insert({
         calendarId,
         requestBody: insertBody,
-        sendUpdates: 'none',
+        sendUpdates: attendees.length > 0 ? 'all' : 'none',
         conferenceDataVersion: 1,
       });
       
-      return 'created';
+      // Extraer meetLink de la respuesta
+      let meetLink: string | undefined;
+      if (response.data.conferenceData?.entryPoints) {
+        const meetEntry = response.data.conferenceData.entryPoints.find(
+          (ep: any) => ep.entryPointType === 'video' || ep.uri?.includes('meet.google.com')
+        );
+        if (meetEntry?.uri) {
+          meetLink = meetEntry.uri;
+        }
+      }
+      
+      return { action: 'created', meetLink };
     }
     throw error;
   }
@@ -236,9 +279,14 @@ export async function syncTasksToCalendar(
     }
 
     try {
-      const action = await upsertEvent(calendar, calendarId, task, timezone);
-      if (action === 'created') result.created += 1;
-      if (action === 'updated') result.updated += 1;
+      const eventResult = await upsertEvent(calendar, calendarId, task, timezone);
+      if (eventResult.action === 'created') result.created += 1;
+      if (eventResult.action === 'updated') result.updated += 1;
+      
+      // Si se creó un meetLink, guardarlo en el task
+      if (eventResult.meetLink) {
+        (task as any).meetLink = eventResult.meetLink;
+      }
     } catch (error: unknown) {
       console.error('Calendar sync error for task', task.id, error);
       const err = error as { message?: string; response?: { data?: { error?: { message?: string } } } };
@@ -407,15 +455,44 @@ export async function syncCalendarToTasks(
           .join('\n')
           .trim();
 
-        // Añadir detalles extra del evento (location / hangout link) al final
+        // Extraer link de Meet del evento
+        let meetLink: string | undefined;
+        if (event.conferenceData?.entryPoints) {
+          const meetEntry = event.conferenceData.entryPoints.find(
+            (ep: any) => ep.entryPointType === 'video' || ep.uri?.includes('meet.google.com')
+          );
+          if (meetEntry?.uri) {
+            meetLink = meetEntry.uri;
+          }
+        }
+        // Fallback: buscar en hangoutLink (legacy)
+        if (!meetLink && (event as any).hangoutLink) {
+          meetLink = (event as any).hangoutLink;
+        }
+
+        // Añadir detalles extra del evento (location) al final, pero NO el link de Meet (ya está en meetLink)
         const extraNotes: string[] = [];
         if (event.location) extraNotes.push(`Location: ${event.location}`);
-        if ((event as any).hangoutLink) extraNotes.push(`Meet: ${(event as any).hangoutLink}`);
         const notes =
           [notesBase, ...extraNotes]
             .filter(Boolean)
             .join('\n')
             .trim();
+
+        // Extraer respuestas de attendees del evento
+        const attendeeResponses: { email: string; response: 'accepted' | 'declined' | 'tentative' }[] = [];
+        if (event.attendees) {
+          event.attendees.forEach((attendee: any) => {
+            if (attendee.email && attendee.responseStatus) {
+              const response = attendee.responseStatus === 'accepted' ? 'accepted' :
+                             attendee.responseStatus === 'declined' ? 'declined' :
+                             attendee.responseStatus === 'tentative' ? 'tentative' : undefined;
+              if (response) {
+                attendeeResponses.push({ email: attendee.email, response });
+              }
+            }
+          });
+        }
 
         const task: CalendarTaskPayload = {
           id: taskId,
@@ -426,7 +503,12 @@ export async function syncCalendarToTasks(
           status: status || 'Pendiente', // Default status si no se encuentra
           responsible,
           notes: notes || undefined,
+          hasMeet: !!meetLink,
+          meetLink: meetLink,
         };
+
+        // Agregar attendeeResponses al objeto task para que se sincronice con Sheets
+        (task as any).attendeeResponses = attendeeResponses;
 
         result.tasks.push(task);
       } catch (error) {

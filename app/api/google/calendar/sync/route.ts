@@ -132,6 +132,9 @@ export async function GET(request: Request) {
             scheduledDate: calendarTask.scheduledDate,
             scheduledTime: calendarTask.scheduledTime,
             isScheduled: !!calendarTask.scheduledDate,
+            hasMeet: calendarTask.hasMeet || false,
+            meetLink: (calendarTask as any).meetLink,
+            attendeeResponses: (calendarTask as any).attendeeResponses || [],
           };
 
           if (existingTask) {
@@ -143,7 +146,9 @@ export async function GET(request: Request) {
               existingTask.status !== task.status ||
               existingTask.area !== task.area ||
               existingTask.notes !== task.notes ||
-              JSON.stringify(existingTask.responsible) !== JSON.stringify(task.responsible);
+              existingTask.meetLink !== task.meetLink ||
+              JSON.stringify(existingTask.responsible) !== JSON.stringify(task.responsible) ||
+              JSON.stringify(existingTask.attendeeResponses || []) !== JSON.stringify(task.attendeeResponses || []);
             
             if (hasChanges) {
               // Actualizar tarea existente solo si hay cambios

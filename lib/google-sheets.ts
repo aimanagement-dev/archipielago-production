@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import { Task, TaskStatus, TaskArea, Month } from './types';
+import { Task, TaskStatus, TaskArea, Month, VisibilityLevel } from './types';
 
 export class GoogleSheetsService {
     private auth;
@@ -127,6 +127,58 @@ export class GoogleSheetsService {
                 const area = row[3] as string;
                 const month = row[4] as string;
 
+                // Parse visibility and visibleTo (columns L and M, if they exist)
+                let visibility: VisibilityLevel = 'all';
+                let visibleTo: string[] = [];
+                if (row[11] !== undefined && row[11] !== null && String(row[11]).trim()) {
+                    const visValue = String(row[11]).trim();
+                    if (['all', 'department', 'individual'].includes(visValue)) {
+                        visibility = visValue as VisibilityLevel;
+                    }
+                }
+                if (row[12] !== undefined && row[12] !== null && String(row[12]).trim()) {
+                    try {
+                        const visibleToString = String(row[12]).trim();
+                        if (visibleToString.startsWith('[') || visibleToString.startsWith('{')) {
+                            // JSON array
+                            const parsed = JSON.parse(visibleToString);
+                            visibleTo = Array.isArray(parsed) ? parsed : [];
+                        } else {
+                            // Comma-separated string
+                            visibleTo = visibleToString.split(',').map((s: string) => s.trim()).filter(Boolean);
+                        }
+                    } catch (e) {
+                        console.error(`[GoogleSheets] Error parsing visibleTo for task ${row[0]}:`, e);
+                        visibleTo = [];
+                    }
+                }
+
+                // Parse meetLink (column N, if it exists)
+                const meetLink = row[13] ? String(row[13]).trim() : undefined;
+
+                // Parse hasMeet from notes or dedicated field
+                let hasMeet = false;
+                const notesString = String(row[7] || '');
+                if (notesString.includes('Meet:') || meetLink) {
+                    hasMeet = true;
+                }
+
+                // Parse attendeeResponses (column O, if it exists)
+                let attendeeResponses: { email: string; response: 'accepted' | 'declined' | 'tentative' }[] = [];
+                if (row[14] !== undefined && row[14] !== null && String(row[14]).trim()) {
+                    try {
+                        const responsesString = String(row[14]).trim();
+                        const parsed = JSON.parse(responsesString);
+                        if (Array.isArray(parsed)) {
+                            attendeeResponses = parsed.filter((r: any) => 
+                                r.email && ['accepted', 'declined', 'tentative'].includes(r.response)
+                            );
+                        }
+                    } catch (e) {
+                        console.error(`[GoogleSheets] Error parsing attendeeResponses for task ${row[0]}:`, e);
+                    }
+                }
+
                 return {
                     id: String(row[0] || ''),
                     title: String(row[1] || ''),
@@ -139,11 +191,16 @@ export class GoogleSheetsService {
                     month: (month && ['Nov', 'Dic', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago'].includes(month)
                         ? month : 'Ene') as Month,
                     week: String(row[5] || 'Week 1'),
-                    responsible: row[6] ? String(row[6]).split(',').map((s: string) => s.trim()) : [],
+                    responsible: row[6] ? String(row[6]).split(',').map((s: string) => s.trim()).filter(Boolean) : [],
                     notes: String(row[7] || ''),
                     scheduledDate: row[8] ? String(row[8]) : undefined,
                     scheduledTime: row[9] ? String(row[9]) : undefined,
                     isScheduled: !!row[8],
+                    hasMeet: hasMeet,
+                    meetLink: meetLink,
+                    visibility: visibility,
+                    visibleTo: visibleTo,
+                    attendeeResponses: attendeeResponses,
                     attachments: (() => {
                         try {
                             if (!row[10] || !row[10].toString().trim()) {
@@ -171,6 +228,15 @@ export class GoogleSheetsService {
         const attachmentsToSave = Array.isArray(task.attachments) ? task.attachments : [];
         const attachmentsJson = attachmentsToSave.length > 0 ? JSON.stringify(attachmentsToSave) : '';
         
+        // Asegurar que responsible sea un array válido
+        const responsibleArray = Array.isArray(task.responsible) ? task.responsible : [];
+        const responsibleString = responsibleArray.length > 0 ? responsibleArray.join(', ') : '';
+        
+        // Guardar visibility y visibleTo
+        const visibility = task.visibility || 'all';
+        const visibleToArray = Array.isArray(task.visibleTo) ? task.visibleTo : [];
+        const visibleToJson = visibleToArray.length > 0 ? JSON.stringify(visibleToArray) : '';
+        
         const values = [
             [
                 task.id,
@@ -179,17 +245,23 @@ export class GoogleSheetsService {
                 task.area,
                 task.month,
                 task.week,
-                task.responsible.join(', '),
+                responsibleString,
                 task.notes || '',
                 task.scheduledDate || '',
                 task.scheduledTime || '',
-                attachmentsJson
+                attachmentsJson,
+                visibility,
+                visibleToJson,
+                task.meetLink || '', // Column N for meetLink
+                task.attendeeResponses && task.attendeeResponses.length > 0 
+                    ? JSON.stringify(task.attendeeResponses) 
+                    : '' // Column O for attendeeResponses
             ],
         ];
 
         await this.sheets.spreadsheets.values.append({
             spreadsheetId,
-            range: 'Tasks!A:K',
+            range: 'Tasks!A:O',
             valueInputOption: 'USER_ENTERED',
             requestBody: {
                 values,
@@ -207,6 +279,15 @@ export class GoogleSheetsService {
         const attachmentsToSave = Array.isArray(task.attachments) ? task.attachments : [];
         const attachmentsJson = attachmentsToSave.length > 0 ? JSON.stringify(attachmentsToSave) : '';
 
+        // Asegurar que responsible sea un array válido
+        const responsibleArray = Array.isArray(task.responsible) ? task.responsible : [];
+        const responsibleString = responsibleArray.length > 0 ? responsibleArray.join(', ') : '';
+        
+        // Guardar visibility y visibleTo
+        const visibility = task.visibility || 'all';
+        const visibleToArray = Array.isArray(task.visibleTo) ? task.visibleTo : [];
+        const visibleToJson = visibleToArray.length > 0 ? JSON.stringify(visibleToArray) : '';
+
         const values = [
             [
                 task.id,
@@ -215,17 +296,23 @@ export class GoogleSheetsService {
                 task.area,
                 task.month,
                 task.week,
-                task.responsible.join(', '),
+                responsibleString,
                 task.notes || '',
                 task.scheduledDate || '',
                 task.scheduledTime || '',
-                attachmentsJson
+                attachmentsJson,
+                visibility,
+                visibleToJson,
+                task.meetLink || '', // Column N for meetLink
+                task.attendeeResponses && task.attendeeResponses.length > 0 
+                    ? JSON.stringify(task.attendeeResponses) 
+                    : '' // Column O for attendeeResponses
             ],
         ];
 
         await this.sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: `Tasks!A${rowIndex}:K${rowIndex}`,
+            range: `Tasks!A${rowIndex}:O${rowIndex}`,
             valueInputOption: 'USER_ENTERED',
             requestBody: {
                 values,

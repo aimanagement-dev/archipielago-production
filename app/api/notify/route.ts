@@ -17,8 +17,17 @@ export async function POST(req: NextRequest) {
         }, { status: 401 });
     }
 
+    // Determinar email remitente (fuera del try para usar en catch)
+    const SYSTEM_EMAIL = 'ai.management@archipielagofilm.com';
+    const SYSTEM_NAME = 'Archipiélago Production OS';
+    let senderEmail = SYSTEM_EMAIL;
+    let senderName = SYSTEM_NAME;
+    let useSystemEmail = false;
+
     try {
-        const { to, subject, html, text, attachments, useSystemEmail } = await req.json();
+        const body = await req.json();
+        const { to, subject, html, text, attachments } = body;
+        useSystemEmail = body.useSystemEmail || false;
 
         if (!to || !subject || (!html && !text)) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -30,13 +39,18 @@ export async function POST(req: NextRequest) {
         }
 
         // Determinar email remitente
-        const SYSTEM_EMAIL = 'ai.management@archipielagofilm.com';
-        const SYSTEM_NAME = 'Archipiélago Production OS';
-        const senderEmail = useSystemEmail ? SYSTEM_EMAIL : (session.user?.email || SYSTEM_EMAIL);
-        const senderName = useSystemEmail ? SYSTEM_NAME : (session.user?.name || SYSTEM_NAME);
+        senderEmail = useSystemEmail ? SYSTEM_EMAIL : (session.user?.email || SYSTEM_EMAIL);
+        senderName = useSystemEmail ? SYSTEM_NAME : (session.user?.name || SYSTEM_NAME);
+
+        // Validar que si se usa SYSTEM_EMAIL, el usuario logueado sea esa cuenta
+        if (useSystemEmail && session.user?.email?.toLowerCase() !== SYSTEM_EMAIL.toLowerCase()) {
+            console.warn(`[Notify] Warning: Attempting to send from ${SYSTEM_EMAIL} but logged in as ${session.user?.email}. This may fail.`);
+            console.warn(`[Notify] Solution: Login with ${SYSTEM_EMAIL} account or use Service Account credentials.`);
+        }
 
         // Configurar transporter con OAuth2
         console.log(`[Notify] Attempting to send email via ${senderEmail}${useSystemEmail ? ' (system email)' : ''}`);
+        console.log(`[Notify] Logged in as: ${session.user?.email}`);
         console.log(`[Notify] Config: ClientID=${!!process.env.GOOGLE_CLIENT_ID}, AccessToken=${session.accessToken ? 'Yes (' + session.accessToken.substring(0, 10) + '...)' : 'No'}, RefreshToken=${session.refreshToken ? 'Yes' : 'No'}`);
 
         const transporter = nodemailer.createTransport({
@@ -70,10 +84,20 @@ export async function POST(req: NextRequest) {
     } catch (error: any) {
         console.error('Error sending email:', error);
         console.error('Error stack:', error.stack);
+        
+        // Mejorar mensaje de error para BadCredentials
+        let errorMessage = error.message || 'Failed to send email';
+        let errorDetails = error.message;
+        
+        if (error.message?.includes('BadCredentials') || error.message?.includes('Username and Password not accepted')) {
+            errorMessage = 'Error de autenticación: Las credenciales OAuth no tienen permisos para enviar desde esta cuenta.';
+            errorDetails = `Para enviar desde ${senderEmail}, necesitas iniciar sesión con esa cuenta específica o configurar un Service Account.`;
+        }
+        
         return NextResponse.json({
-            error: 'Failed to send email',
-            details: error.message,
-            stack: error.stack
+            error: errorMessage,
+            details: errorDetails,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         }, { status: 500 });
     }
 }
