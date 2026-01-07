@@ -25,6 +25,9 @@ export async function POST(req: NextRequest) {
         }
 
         // Configurar transporter con OAuth2
+        console.log(`[Notify] Attempting to send email via ${session.user?.email}`);
+        console.log(`[Notify] Config: ClientID=${!!process.env.GOOGLE_CLIENT_ID}, ClientSecret=${!!process.env.GOOGLE_CLIENT_SECRET}, AccessToken=${!!session.accessToken}, RefreshToken=${!!session.refreshToken}`);
+
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
@@ -33,6 +36,7 @@ export async function POST(req: NextRequest) {
                 clientId: process.env.GOOGLE_CLIENT_ID,
                 clientSecret: process.env.GOOGLE_CLIENT_SECRET,
                 accessToken: session.accessToken as string,
+                refreshToken: session.refreshToken as string,
             },
         } as nodemailer.TransportOptions);
 

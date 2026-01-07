@@ -116,6 +116,7 @@ export const authOptions: NextAuthOptions = {
             // Agregar access token a la sesión
             if (session.user) {
                 session.accessToken = token.accessToken as string;
+                session.refreshToken = token.refreshToken as string;
                 session.user.email = token.email as string;
                 session.error = token.error as string; // Pass error to client if any
             }
