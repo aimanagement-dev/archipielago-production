@@ -155,13 +155,26 @@ Equipo de Archipiélago Production
         return;
       }
 
-      // Mensaje de éxito con detalles
+      // Mensaje de éxito con detalles e instrucciones importantes
       const successMessage = `✅ Invitación enviada exitosamente a ${member.name} (${member.email})\n\n` +
         `✓ Email de invitación enviado\n` +
-        `✓ Acceso otorgado automáticamente (accessGranted = true)\n` +
-        `\nEl usuario podrá iniciar sesión con su cuenta de Google OAuth y acceder a la aplicación.`;
+        `✓ Acceso otorgado automáticamente (accessGranted = true)\n\n` +
+        `⚠️ IMPORTANTE - Acción Requerida:\n` +
+        `Debes agregar ${member.email} como "Test User" en Google Cloud Console:\n\n` +
+        `1. Ve a: https://console.cloud.google.com/\n` +
+        `2. APIs & Services > OAuth consent screen\n` +
+        `3. Sección "Test users" > "+ ADD USERS"\n` +
+        `4. Agrega: ${member.email}\n` +
+        `5. Guarda los cambios\n\n` +
+        `Sin esto, el usuario será bloqueado por Google al intentar hacer login.\n\n` +
+        `Una vez agregado, el usuario podrá iniciar sesión con su cuenta de Google.`;
 
       alert(successMessage);
+      
+      // También mostrar en consola para referencia
+      console.log(`\n📋 USUARIO PENDIENTE DE AGREGAR COMO TEST USER:`);
+      console.log(`Email: ${member.email}`);
+      console.log(`Instrucciones: Ve a Google Cloud Console > OAuth consent screen > Test users > Agregar este email\n`);
     } catch (error: any) {
       console.error('Error sending invitation:', error);
       alert(`❌ Error al enviar invitación: ${error.message}`);

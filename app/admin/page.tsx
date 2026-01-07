@@ -1,12 +1,37 @@
 'use client';
 
 import { useAuth } from '@/lib/auth';
-import { Users, Shield, Calendar, Activity } from 'lucide-react';
+import { Users, Shield, Calendar, Activity, AlertTriangle, Copy, CheckCircle } from 'lucide-react';
 import { useStore } from '@/lib/store';
+import { useState, useEffect } from 'react';
 
 export default function AdminPage() {
     const { user } = useAuth();
     const { tasks, team, gates } = useStore();
+    const [pendingTestUsers, setPendingTestUsers] = useState<Array<{email: string; name: string}>>([]);
+    const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
+
+    useEffect(() => {
+        // Obtener usuarios con accessGranted que necesitan ser agregados como Test Users
+        const usersWithAccess = team
+            .filter((m: any) => m.accessGranted === true && m.email)
+            .map((m: any) => ({
+                email: m.email,
+                name: m.name,
+            }));
+        setPendingTestUsers(usersWithAccess);
+    }, [team]);
+
+    const copyToClipboard = (text: string) => {
+        navigator.clipboard.writeText(text);
+        setCopiedEmail(text);
+        setTimeout(() => setCopiedEmail(null), 2000);
+    };
+
+    const copyAllEmails = () => {
+        const emails = pendingTestUsers.map(u => u.email).join('\n');
+        copyToClipboard(emails);
+    };
 
     if (user?.role !== 'admin') {
         return (
@@ -70,6 +95,79 @@ export default function AdminPage() {
                     </div>
                 ))}
             </div>
+
+            {/* Google OAuth Test Users - IMPORTANTE */}
+            {pendingTestUsers.length > 0 && (
+                <div className="bg-amber-500/10 border-2 border-amber-500/30 rounded-xl p-6">
+                    <div className="flex items-start gap-3 mb-4">
+                        <AlertTriangle className="w-6 h-6 text-amber-400 flex-shrink-0 mt-1" />
+                        <div className="flex-1">
+                            <h2 className="text-xl font-bold text-amber-400 mb-2">
+                                ⚠️ Usuarios Pendientes de Agregar como Test Users
+                            </h2>
+                            <p className="text-sm text-amber-300/80 mb-4">
+                                Estos usuarios tienen <code className="bg-amber-500/20 px-1 rounded">accessGranted = true</code> pero necesitan ser agregados manualmente en Google Cloud Console para poder hacer login.
+                            </p>
+                            
+                            <div className="bg-black/30 rounded-lg p-4 mb-4 space-y-2">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-sm font-semibold text-amber-200">Emails a agregar:</span>
+                                    <button
+                                        onClick={copyAllEmails}
+                                        className="flex items-center gap-1 px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded text-xs font-medium transition-colors border border-amber-500/30"
+                                    >
+                                        {copiedEmail ? (
+                                            <>
+                                                <CheckCircle className="w-3 h-3" />
+                                                Copiado
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Copy className="w-3 h-3" />
+                                                Copiar Todos
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                                <div className="space-y-1 max-h-32 overflow-y-auto">
+                                    {pendingTestUsers.map((user) => (
+                                        <div key={user.email} className="flex items-center justify-between text-sm">
+                                            <span className="text-amber-200 font-mono">{user.email}</span>
+                                            <button
+                                                onClick={() => copyToClipboard(user.email)}
+                                                className="p-1 hover:bg-amber-500/20 rounded transition-colors"
+                                                title="Copiar email"
+                                            >
+                                                {copiedEmail === user.email ? (
+                                                    <CheckCircle className="w-4 h-4 text-green-400" />
+                                                ) : (
+                                                    <Copy className="w-4 h-4 text-amber-300" />
+                                                )}
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="bg-black/40 rounded-lg p-4 border border-amber-500/20">
+                                <h3 className="text-sm font-bold text-amber-300 mb-2">📋 Instrucciones:</h3>
+                                <ol className="text-xs text-amber-200/90 space-y-1.5 list-decimal list-inside">
+                                    <li>Ve a <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="text-amber-300 underline hover:text-amber-200">Google Cloud Console</a></li>
+                                    <li>Selecciona el proyecto: <code className="bg-amber-500/20 px-1 rounded">archipielago-production</code></li>
+                                    <li>Ve a: <strong>APIs & Services</strong> → <strong>OAuth consent screen</strong></li>
+                                    <li>Desplázate hasta la sección <strong>"Test users"</strong></li>
+                                    <li>Haz clic en <strong>"+ ADD USERS"</strong></li>
+                                    <li>Pega los emails de arriba (uno por línea o separados por comas)</li>
+                                    <li>Haz clic en <strong>"ADD"</strong> y <strong>GUARDA</strong> los cambios</li>
+                                </ol>
+                                <p className="text-xs text-amber-300/70 mt-3 font-medium">
+                                    ⚡ Sin esto, los usuarios serán bloqueados por Google al intentar hacer login.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* User Management */}
             <div className="bg-card/40 backdrop-blur-md rounded-xl border border-white/5 p-6">
