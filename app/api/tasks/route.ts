@@ -85,10 +85,14 @@ export async function GET() {
                 timeMax,
             });
             calendarTasks = calendarResult.tasks;
-            console.log(`[GET /api/tasks] Leídos ${calendarTasks.length} eventos de Calendar`);
+            console.log(`[GET /api/tasks] Leídos ${calendarTasks.length} eventos de Calendar (Admin: ${isAdmin})`);
         } catch (calendarError) {
-            console.error("[GET /api/tasks] Error leyendo Calendar:", calendarError);
+            console.error(`[GET /api/tasks] Error leyendo Calendar (Admin: ${isAdmin}):`, calendarError);
             // Continuar solo con Sheets si Calendar falla, pero loguear el error
+            // Para admin, es crítico que vea todas las tareas de Sheets aunque Calendar falle
+            if (isAdmin) {
+                console.warn(`[GET /api/tasks] Admin: Calendar falló, continuando solo con Sheets (${sheetsTasks.length} tareas)`);
+            }
         }
 
         // PASO 3: Combinar tareas de Sheets y Calendar
