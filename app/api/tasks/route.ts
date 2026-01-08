@@ -76,8 +76,8 @@ export async function GET() {
         // SEEDING AUTOMÁTICO:
         // Si el Sheet está vacío, poblarlo con los datos iniciales de data/tasks.json
         // Esto soluciona el problema de que el Admin vea una lista vacía al conectarse a una DB nueva.
-        if (sheetsTasks.length === 0) {
-            console.log('[GET /api/tasks] DB vacía detectada. Iniciando sembrado automático desde tasks.json...');
+        if (sheetsTasks.length <= 1) {
+            console.log(`[GET /api/tasks] DB casi vacía (${sheetsTasks.length} tareas). Intentando sembrado/merge automático...`);
             try {
                 const initialData = await import('@/data/tasks.json');
                 const tasksToSeed = initialData.default || initialData;
