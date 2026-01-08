@@ -336,17 +336,18 @@ export async function syncTasksToCalendar(
  * Lee eventos de Google Calendar y los convierte a tareas
  * Lee TODOS los eventos del calendario (no solo los creados por arch-pm)
  * Esto permite sincronizar eventos existentes de Google Calendar hacia la app
+ * Si isAdmin=true, lee de TODOS los calendarios del proyecto
+ * Si isAdmin=false, solo lee del calendario "ARCH-Producción"
  */
 export async function syncCalendarToTasks(
   accessToken: string,
-  options?: { calendarId?: string; timeMin?: string; timeMax?: string }
+  options?: { calendarId?: string; timeMin?: string; timeMax?: string; isAdmin?: boolean }
 ): Promise<{
   tasks: CalendarTaskPayload[];
   updated: number;
   created: number;
   errors: { id: string; message: string }[];
 }> {
-  const calendarId = options?.calendarId || process.env.GOOGLE_CALENDAR_ID || DEFAULT_CALENDAR_ID;
   const calendar = getCalendarClient(accessToken);
 
   const result = {
@@ -356,19 +357,92 @@ export async function syncCalendarToTasks(
     errors: [] as { id: string; message: string }[],
   };
 
-  try {
-    // Obtener TODOS los eventos del calendario (no solo los creados por arch-pm)
-    // Esto permite sincronizar eventos existentes de Google Calendar
-    const response = await calendar.events.list({
-      calendarId,
-      timeMin: options?.timeMin || new Date().toISOString(),
-      timeMax: options?.timeMax,
-      maxResults: 2500,
-      singleEvents: true,
-      orderBy: 'startTime',
-    });
+  const timeMin = options?.timeMin || new Date().toISOString();
+  const timeMax = options?.timeMax;
 
-    const events = response.data.items || [];
+  try {
+    let events: calendar_v3.Schema$Event[] = [];
+
+    // Si se especifica un calendarId específico, usar ese (comportamiento legacy)
+    if (options?.calendarId) {
+      const response = await calendar.events.list({
+        calendarId: options.calendarId,
+        timeMin,
+        timeMax,
+        maxResults: 2500,
+        singleEvents: true,
+        orderBy: 'startTime',
+      });
+      events = response.data.items || [];
+      console.log(`[syncCalendarToTasks] Leídos ${events.length} eventos del calendario específico: ${options.calendarId}`);
+    } else {
+      // Usar la misma lógica de múltiples calendarios que getCalendarEvents()
+      // 1. Get List of all calendars the user has selected/visible
+      const calendarList = await calendar.calendarList.list({
+        minAccessRole: 'reader',
+      });
+
+      const calendars = calendarList.data.items || [];
+      console.log('[syncCalendarToTasks] Found calendars:', calendars.map(c => ({ id: c.id, summary: c.summary })));
+
+      // Filter: ONLY include the master calendar or project-specific calendars
+      let targetCalendars = calendars.filter(c =>
+        c.id === DEFAULT_CALENDAR_ID ||
+        (c.summary && (c.summary.includes('Archipiélago') || c.summary.includes('ARCH-Producción')))
+      );
+
+      // Si el usuario NO es admin, solo mostrar ARCH-Producción (naranja)
+      // Los admins ven ambos calendarios
+      if (!options?.isAdmin) {
+        targetCalendars = targetCalendars.filter(c => {
+          const summary = c.summary?.toLowerCase() || '';
+          return (
+            summary.includes('producción') || 
+            summary.includes('produccion') ||
+            c.id === DEFAULT_CALENDAR_ID // Fallback al default si no encuentra Producción
+          );
+        });
+        console.log('[syncCalendarToTasks] Usuario regular - solo mostrando ARCH-Producción');
+      } else {
+        console.log('[syncCalendarToTasks] Usuario admin - mostrando todos los calendarios del proyecto');
+      }
+
+      console.log('[syncCalendarToTasks] Targeting project calendars:', targetCalendars.map(c => c.summary));
+
+      if (targetCalendars.length === 0) {
+        // If none found, attempt to fetch from the master ID manually
+        targetCalendars.push({ id: DEFAULT_CALENDAR_ID, summary: 'Archipiélago Master' });
+      }
+
+      // 2. Fetch events from all target calendars in parallel
+      const allEventsPromises = targetCalendars.map(async (cal) => {
+        if (!cal.id) return [];
+        try {
+          const response = await calendar.events.list({
+            calendarId: cal.id,
+            timeMin,
+            timeMax,
+            singleEvents: true,
+            orderBy: 'startTime',
+            maxResults: 1000,
+          });
+          const items = response.data.items || [];
+          console.log(`[syncCalendarToTasks] Fetched ${items.length} events from ${cal.summary}`);
+          return items;
+        } catch (err) {
+          console.warn(`[syncCalendarToTasks] Failed to fetch events from calendar ${cal.summary} (${cal.id})`, err);
+          result.errors.push({
+            id: cal.id || 'unknown',
+            message: err instanceof Error ? err.message : 'Error obteniendo eventos del calendario',
+          });
+          return [];
+        }
+      });
+
+      const results = await Promise.all(allEventsPromises);
+      events = results.flat();
+      console.log(`[syncCalendarToTasks] Total eventos obtenidos de múltiples calendarios: ${events.length}`);
+    }
 
     for (const event of events) {
       try {

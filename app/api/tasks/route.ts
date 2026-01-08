@@ -83,6 +83,7 @@ export async function GET() {
             const calendarResult = await syncCalendarToTasks(session.accessToken, {
                 timeMin,
                 timeMax,
+                isAdmin, // Pasar el flag de admin para filtrar calendarios correctamente
             });
             calendarTasks = calendarResult.tasks;
             console.log(`[GET /api/tasks] Leídos ${calendarTasks.length} eventos de Calendar (Admin: ${isAdmin})`);
