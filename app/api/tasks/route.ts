@@ -79,8 +79,27 @@ export async function GET() {
         if (sheetsTasks.length <= 1) {
             console.log(`[GET /api/tasks] DB casi vacía (${sheetsTasks.length} tareas). Intentando sembrado/merge automático...`);
             try {
-                const initialData = await import('@/data/tasks.json');
-                const tasksToSeed = initialData.default || initialData;
+                let tasksToSeed: any[] = [];
+
+                // Intento 1: Excel Import
+                try {
+                    const { parseExcelTasks } = await import('@/lib/excel-importer');
+                    const path = await import('path');
+                    const excelPath = path.join(process.cwd(), 'ARCH_PROJECT_MANAGEMENT.xlsx');
+                    tasksToSeed = parseExcelTasks(excelPath);
+                    if (tasksToSeed.length > 0) {
+                        console.log(`[GET /api/tasks] Importando ${tasksToSeed.length} tareas desde Excel...`);
+                    }
+                } catch (excelErr) {
+                    console.error("Excel import failed:", excelErr);
+                }
+
+                // Intento 2: JSON Fallback
+                if (tasksToSeed.length === 0) {
+                    const initialData = await import('@/data/tasks.json');
+                    tasksToSeed = initialData.default || initialData;
+                    console.log(`[GET /api/tasks] Importando ${tasksToSeed.length} tareas desde JSON fallback...`);
+                }
 
                 if (Array.isArray(tasksToSeed) && tasksToSeed.length > 0) {
                     console.log(`[GET /api/tasks] Insertando ${tasksToSeed.length} tareas iniciales...`);
