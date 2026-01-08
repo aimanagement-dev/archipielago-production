@@ -46,10 +46,32 @@ export async function GET() {
 
     try {
         const service = new GoogleSheetsService(session.accessToken);
-        const spreadsheetId = await service.getOrCreateDatabase();
+        
+        // Intentar obtener el DB - si falla, loguear el error pero continuar
+        let spreadsheetId: string;
+        try {
+            spreadsheetId = await service.getOrCreateDatabase();
+            console.log(`[GET /api/tasks] Database ID obtenido: ${spreadsheetId.substring(0, 20)}... (Admin: ${isAdmin})`);
+        } catch (dbError) {
+            console.error(`[GET /api/tasks] Error obteniendo DB:`, dbError);
+            // Si es admin y falla, intentar solo encontrar (no crear)
+            if (isAdmin) {
+                spreadsheetId = await service.findDatabase() || '';
+                if (!spreadsheetId) {
+                    console.error(`[GET /api/tasks] Admin no puede acceder al DB`);
+                    return NextResponse.json({ 
+                        error: "Database Access Error", 
+                        details: "No se pudo acceder a la base de datos. Verifica los permisos.",
+                    }, { status: 500 });
+                }
+            } else {
+                throw dbError;
+            }
+        }
 
         // PASO 1: Leer tareas de Sheets
         const sheetsTasks = await service.getTasks(spreadsheetId);
+        console.log(`[GET /api/tasks] Tareas leídas de Sheets: ${sheetsTasks.length} (Admin: ${isAdmin})`);
 
         // PASO 2: Leer eventos de Calendar (últimos 3 meses, próximos 6 meses)
         const now = new Date();
@@ -121,7 +143,14 @@ export async function GET() {
         // Convertir mapa a array
         const combinedTasks = Array.from(tasksMap.values());
 
-        console.log(`[GET /api/tasks] Total tareas combinadas: ${combinedTasks.length} (${sheetsTasks.length} de Sheets, ${calendarTasks.length} de Calendar)`);
+        console.log(`[GET /api/tasks] Total tareas combinadas: ${combinedTasks.length} (${sheetsTasks.length} de Sheets, ${calendarTasks.length} de Calendar) - Admin: ${isAdmin}, User: ${userEmail}`);
+        
+        // Log detallado para debugging del admin
+        if (isAdmin) {
+            console.log(`[GET /api/tasks] Admin Debug - Sheets tasks:`, sheetsTasks.map(t => ({ id: t.id, title: t.title, isScheduled: t.isScheduled, scheduledDate: t.scheduledDate })));
+            console.log(`[GET /api/tasks] Admin Debug - Calendar tasks:`, calendarTasks.map(t => ({ id: t.id, title: t.title, scheduledDate: t.scheduledDate })));
+            console.log(`[GET /api/tasks] Admin Debug - Combined tasks:`, combinedTasks.map(t => ({ id: t.id, title: t.title, isScheduled: t.isScheduled, scheduledDate: t.scheduledDate })));
+        }
 
         return NextResponse.json({ tasks: combinedTasks });
     } catch (error) {
