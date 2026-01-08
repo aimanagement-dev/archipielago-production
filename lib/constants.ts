@@ -2,9 +2,7 @@ export const ADMIN_EMAILS = [
     'ai.management@archipielagofilm.com',
     'ia.lantica@lanticastudios.com',
     'federico.beron@lanticastudios.com',
-    // Emails adicionales de admins (se verifican también por nombre en team members)
-    'cindy.toribio@archipielagofilm.com',
-    'cindy.toribio@lanticastudios.com',
+    // Cindy Toribio removida de admins - ahora es user regular
     'cindy.vejar@lanticastudios.com', // Por si Cindy Vejar es Cindy Toribio
 ];
 

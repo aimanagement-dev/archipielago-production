@@ -42,8 +42,7 @@ export async function verifyCurrentUserAccess(userAccessToken: string, userEmail
     'ai.management@archipielagofilm.com',
     'ai.lantica@lanticastudios.com',
     'federico.beron@lanticastudios.com',
-    'cindy.toribio@archipielagofilm.com',
-    'cindy.toribio@lanticastudios.com',
+    // Cindy Toribio removida de admins - ahora es user regular
   ];
   
   if (superAdmins.includes(userEmail.toLowerCase())) {
