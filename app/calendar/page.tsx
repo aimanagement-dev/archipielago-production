@@ -11,11 +11,13 @@ import { useAuth } from '@/lib/auth';
 import { Task, TaskArea } from '@/lib/types';
 
 type ViewMode = 'month' | 'week' | 'day';
+type ContentType = 'all' | 'tasks' | 'events';
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
 export default function CalendarPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('month');
+  const [contentType, setContentType] = useState<ContentType>('all');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -76,8 +78,16 @@ export default function CalendarPage() {
       } as unknown as Task;
     }).filter(Boolean) as Task[];
 
-    return [...internalTasks, ...googleEvents];
-  }, [tasks, events]);
+    let result: Task[] = [];
+    if (contentType === 'all') {
+      result = [...internalTasks, ...googleEvents];
+    } else if (contentType === 'tasks') {
+      result = internalTasks;
+    } else {
+      result = googleEvents;
+    }
+    return result;
+  }, [tasks, events, contentType]);
 
   const ongoingTasks = useMemo(() =>
     tasks.filter(t => !t.isScheduled || !t.scheduledDate),
@@ -92,14 +102,14 @@ export default function CalendarPage() {
       // Incluir todas las tareas que no están programadas o que están en progreso
       return (!task.isScheduled || !task.scheduledDate) && task.status !== 'Completado';
     });
-    
+
     tasksToShow.forEach(task => {
       if (!groups[task.area]) {
         groups[task.area] = [];
       }
       groups[task.area]!.push(task);
     });
-    
+
     // Debug: Log para verificar qué tareas se están mostrando
     if (process.env.NODE_ENV === 'development') {
       console.log('[Calendar] Ongoing tasks by area:', {
@@ -110,7 +120,7 @@ export default function CalendarPage() {
         areas: Object.keys(groups),
       });
     }
-    
+
     return groups;
   }, [ongoingTasks, tasks]);
 

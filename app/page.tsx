@@ -70,8 +70,8 @@ export default function Dashboard() {
     });
   }, [tasks]);
 
-  // Get active tasks (in progress)
-  const activeTasks = tasks.filter(t => t.status === 'En Progreso').slice(0, 5);
+  // Get active tasks (in progress or pending)
+  const activeTasks = tasks.filter(t => t.status === 'En Progreso' || t.status === 'Pendiente').slice(0, 5);
 
   // Get upcoming gates
   const upcomingGates = gates.filter(g => g.status === 'Pendiente').slice(0, 3);
@@ -178,7 +178,7 @@ export default function Dashboard() {
                     const taskDate = parseISO(task.scheduledDate);
                     taskDate.setHours(hours, minutes, 0, 0);
                     const diffMinutes = differenceInMinutes(taskDate, now);
-                    
+
                     if (diffMinutes < 0) {
                       return { text: 'En curso', isPast: true };
                     }
@@ -229,7 +229,7 @@ export default function Dashboard() {
                         {timeUntil && (
                           <div className={cn(
                             "flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider whitespace-nowrap",
-                            timeUntil.isPast 
+                            timeUntil.isPast
                               ? "bg-green-500/20 text-green-400 border border-green-500/30"
                               : "bg-primary/20 text-primary border border-primary/30"
                           )}>
@@ -238,7 +238,7 @@ export default function Dashboard() {
                           </div>
                         )}
                       </div>
-                      
+
                       {/* Notes/Topic preview */}
                       {task.notes && (
                         <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{task.notes}</p>
@@ -368,7 +368,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
               <Activity className="w-5 h-5 text-amber-600" />
-              En Progreso
+              Tareas Activas
             </h2>
             <Link
               href="/tasks"
