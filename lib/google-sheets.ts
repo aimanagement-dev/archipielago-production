@@ -138,49 +138,66 @@ export class GoogleSheetsService {
             // Obtener la primera fila (headers)
             const headerResponse = await this.sheets.spreadsheets.values.get({
                 spreadsheetId,
-                range: 'Tasks!A1:P1',
+                range: 'Tasks!A1:R1',
             });
 
-            const headers = headerResponse.data.values?.[0] || [];
-            const requiredHeaders = ['ID', 'Title', 'Status', 'Area', 'Month', 'Week', 'Responsible', 'Notes', 'ScheduledDate', 'ScheduledTime', 'Attachments', 'Visibility', 'VisibleTo', 'MeetLink', 'AttendeeResponses', 'CalendarId'];
+            const currentHeaders = headerResponse.data.values?.[0] || [];
+            // Expected headers
+            // A=0, B=1, ... P=15 (CalendarId), Q=16 (StartDate), R=17 (EndDate)
 
-            // Verificar si falta CalendarId (columna P)
-            if (headers.length < 16 || headers[15] !== 'CalendarId') {
-                console.log('[GoogleSheets] Actualizando headers de Tasks para incluir CalendarId');
+            // Check if we need to update anything
+            let needsUpdate = false;
+            if (currentHeaders.length < 18) {
+                needsUpdate = true;
+            } else if (currentHeaders[15] !== 'CalendarId' || currentHeaders[16] !== 'StartDate' || currentHeaders[17] !== 'EndDate') {
+                // Check specific columns if length is enough but names might be wrong or old
+                // Only update if critical ones are wrong? Let's just append/fix if missing
+            }
 
-                // Actualizar solo la columna P si falta
-                if (headers.length < 16) {
-                    // Agregar CalendarId al final
+            if (currentHeaders.length < 18) {
+                console.log(`[GoogleSheets] Actualizando headers de Tasks (actual: ${currentHeaders.length}, esperado: 18)`);
+
+                // Strategy: Append missing headers one by one or in batch
+
+                // 16 -> Q -> StartDate
+                if (currentHeaders.length < 17) {
                     await this.sheets.spreadsheets.values.update({
                         spreadsheetId,
-                        range: 'Tasks!P1',
+                        range: 'Tasks!Q1',
                         valueInputOption: 'USER_ENTERED',
-                        requestBody: {
-                            values: [['CalendarId']]
-                        }
+                        requestBody: { values: [['StartDate']] }
                     });
-                } else if (headers[15] !== 'CalendarId') {
-                    // Reemplazar el header incorrecto
+                }
+
+                // 17 -> R -> EndDate
+                if (currentHeaders.length < 18) {
+                    await this.sheets.spreadsheets.values.update({
+                        spreadsheetId,
+                        range: 'Tasks!R1',
+                        valueInputOption: 'USER_ENTERED',
+                        requestBody: { values: [['EndDate']] }
+                    });
+                }
+
+                // Ensure CalendarId is at P (index 15) if it wasn't there
+                if (currentHeaders.length < 16) {
                     await this.sheets.spreadsheets.values.update({
                         spreadsheetId,
                         range: 'Tasks!P1',
                         valueInputOption: 'USER_ENTERED',
-                        requestBody: {
-                            values: [['CalendarId']]
-                        }
+                        requestBody: { values: [['CalendarId']] }
                     });
                 }
             }
         } catch (error) {
             console.error('[GoogleSheets] Error verificando headers de Tasks:', error);
-            // No fallar si hay error, solo loguear
         }
     }
 
     async getTasks(spreadsheetId: string): Promise<Task[]> {
         const response = await this.sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: 'Tasks!A2:P', // Updated range to include meetLink (N), attendeeResponses (O), and calendarId (P)
+            range: 'Tasks!A2:R', // Updated range to include StartDate (Q) and EndDate (R)
         });
 
         const rows = response.data.values;
@@ -193,6 +210,10 @@ export class GoogleSheetsService {
                 const status = row[2] as string;
                 const area = row[3] as string;
                 const month = row[4] as string;
+
+                // DATE FIX: Leer StartDate y EndDate
+                const startDate = row[16] ? String(row[16]).trim() : undefined;
+                const endDate = row[17] ? String(row[17]).trim() : undefined;
 
                 // Parse visibility and visibleTo (columns L and M, if they exist)
                 let visibility: VisibilityLevel = 'all';
@@ -225,9 +246,7 @@ export class GoogleSheetsService {
 
                 // Debug logging para meetLink
                 if (meetLink) {
-                    console.log(`[GoogleSheets] Task ${row[0]} tiene meetLink: ${meetLink.substring(0, 50)}...`);
-                } else if (row[13] !== undefined && row[13] !== null) {
-                    console.log(`[GoogleSheets] Task ${row[0]} tiene columna N pero está vacía o inválida:`, row[13]);
+                    // console.log(`[GoogleSheets] Task ${row[0]} tiene meetLink: ${meetLink.substring(0, 50)}...`);
                 }
 
                 // Parse hasMeet from notes or dedicated field
@@ -236,8 +255,6 @@ export class GoogleSheetsService {
                 if (notesString.includes('Meet:') || meetLink) {
                     hasMeet = true;
                 }
-
-                // Si tiene meetLink, asegurar que hasMeet sea true
                 if (meetLink && !hasMeet) {
                     hasMeet = true;
                 }
@@ -248,63 +265,51 @@ export class GoogleSheetsService {
                     try {
                         const responsesString = String(row[14]).trim();
                         const parsed = JSON.parse(responsesString);
-                        if (Array.isArray(parsed)) {
-                            attendeeResponses = parsed.filter((r: any) =>
-                                r.email && ['accepted', 'declined', 'tentative'].includes(r.response)
-                            );
-                        }
+                        attendeeResponses = Array.isArray(parsed) ? parsed : [];
                     } catch (e) {
-                        console.error(`[GoogleSheets] Error parsing attendeeResponses for task ${row[0]}:`, e);
+                        attendeeResponses = [];
                     }
                 }
 
-                // Parse calendarId (column P, if it exists)
+                // Parse calendarId (column P)
                 const calendarId = row[15] ? String(row[15]).trim() : undefined;
 
                 return {
-                    id: String(row[0] || ''),
-                    title: String(row[1] || ''),
-                    status: (['Pendiente', 'En Progreso', 'Completado', 'Bloqueado'].includes(status)
-                        ? status : 'Pendiente') as TaskStatus,
-                    area: (area && (['Guión', 'Técnico', 'Casting', 'Reporting', 'Pipeline',
-                        'Post-producción', 'Investigación', 'Pre-visualización', 'Producción',
-                        'Planificación', 'Crew'] as TaskArea[]).includes(area as TaskArea))
-                        ? (area as TaskArea) : 'Planificación' as TaskArea,
-                    month: (month && ['Nov', 'Dic', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago'].includes(month)
-                        ? month : 'Ene') as Month,
-                    week: String(row[5] || 'Week 1'),
-                    responsible: row[6] ? String(row[6]).split(',').map((s: string) => s.trim()).filter(Boolean) : [],
-                    notes: String(row[7] || ''),
-                    scheduledDate: row[8] ? String(row[8]) : undefined,
-                    scheduledTime: row[9] ? String(row[9]) : undefined,
+                    id: row[0],
+                    title: row[1],
+                    status: status as Task['status'],
+                    area: area as Task['area'],
+                    month: month as Task['month'],
+                    week: row[5],
+                    responsible: row[6] ? row[6].split(',').map((s: string) => s.trim()) : [],
+                    notes: row[7],
+                    scheduledDate: row[8],
+                    scheduledTime: row[9],
                     isScheduled: !!row[8],
-                    hasMeet: hasMeet,
-                    meetLink: meetLink,
-                    visibility: visibility,
-                    visibleTo: visibleTo,
-                    attendeeResponses: attendeeResponses,
-                    calendarId: calendarId,
+                    // Nuevos campos
+                    startDate,
+                    endDate,
+                    calendarId,
                     attachments: (() => {
+                        if (!row[10]) return [];
                         try {
-                            if (!row[10] || !row[10].toString().trim()) {
-                                console.log(`[GoogleSheets] Task ${row[0]} has no attachments (column K is empty)`);
-                                return [];
-                            }
-                            const attachmentString = row[10].toString().trim();
-                            console.log(`[GoogleSheets] Parsing attachments for task ${row[0]}:`, attachmentString.substring(0, 100));
-                            const parsed = JSON.parse(attachmentString);
-                            const result = Array.isArray(parsed) ? parsed : [];
-                            console.log(`[GoogleSheets] Task ${row[0]} loaded ${result.length} attachments`);
-                            return result;
+                            // Intenta parsear JSON
+                            const parsed = JSON.parse(row[10]);
+                            return Array.isArray(parsed) ? parsed : [];
                         } catch (e) {
-                            console.error(`[GoogleSheets] Error parsing attachments for task ${row[0]}:`, e);
-                            console.error(`[GoogleSheets] Raw value:`, row[10]);
                             return [];
                         }
-                    })()
+                    })(),
+                    visibility,
+                    visibleTo,
+                    hasMeet,
+                    meetLink,
+                    attendeeResponses
                 } as Task;
             });
     }
+
+
 
     async addTask(spreadsheetId: string, task: Task) {
         // Asegurar que attachments sea un array válido antes de stringify
@@ -339,13 +344,15 @@ export class GoogleSheetsService {
                 task.attendeeResponses && task.attendeeResponses.length > 0
                     ? JSON.stringify(task.attendeeResponses)
                     : '', // Column O for attendeeResponses
-                task.calendarId || '' // Column P for calendarId
+                task.calendarId || '', // Column P for calendarId
+                task.startDate || '', // Column Q for StartDate
+                task.endDate || '' // Column R for EndDate
             ],
         ];
 
         await this.sheets.spreadsheets.values.append({
             spreadsheetId,
-            range: 'Tasks!A:P',
+            range: 'Tasks!A:R',
             valueInputOption: 'USER_ENTERED',
             requestBody: {
                 values,
@@ -391,13 +398,15 @@ export class GoogleSheetsService {
                 task.attendeeResponses && task.attendeeResponses.length > 0
                     ? JSON.stringify(task.attendeeResponses)
                     : '', // Column O for attendeeResponses
-                task.calendarId || '' // Column P for calendarId
+                task.calendarId || '', // Column P for calendarId
+                task.startDate || '', // Column Q for StartDate
+                task.endDate || '' // Column R for EndDate
             ],
         ];
 
         await this.sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: `Tasks!A${rowIndex}:P${rowIndex}`,
+            range: `Tasks!A${rowIndex}:R${rowIndex}`,
             valueInputOption: 'USER_ENTERED',
             requestBody: {
                 values,

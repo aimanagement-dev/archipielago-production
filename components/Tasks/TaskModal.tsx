@@ -43,6 +43,8 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
         visibility: 'all',
         visibleTo: [],
         calendarId: undefined, // Calendario donde se creará el evento
+        startDate: undefined,
+        endDate: undefined,
     });
     const [isDrivePickerOpen, setIsDrivePickerOpen] = useState(false);
     const [isComposeOpen, setIsComposeOpen] = useState(false);
@@ -104,8 +106,8 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                         setAvailableCalendars(data.calendars);
                         // Si no hay calendarId seleccionado y hay calendarios disponibles, usar el primero (ARCH-Producción)
                         if (!formData.calendarId && data.calendars.length > 0) {
-                            const produccionCalendar = data.calendars.find((c: CalendarOption) => 
-                                c.summary.toLowerCase().includes('producción') || 
+                            const produccionCalendar = data.calendars.find((c: CalendarOption) =>
+                                c.summary.toLowerCase().includes('producción') ||
                                 c.summary.toLowerCase().includes('produccion')
                             );
                             if (produccionCalendar) {
@@ -130,10 +132,10 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
             if (initialData) {
                 // Asegurar que los attachments se carguen correctamente
                 // Preservar todos los attachments existentes
-                const existingAttachments = Array.isArray(initialData.attachments) 
-                    ? initialData.attachments 
+                const existingAttachments = Array.isArray(initialData.attachments)
+                    ? initialData.attachments
                     : [];
-                
+
                 setFormData({
                     ...initialData,
                     attachments: existingAttachments,
@@ -163,10 +165,10 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         // Guardar la tarea primero
         onSave(formData as Omit<Task, 'id'>);
-        
+
         // Si hay responsables asignados Y es una nueva tarea, mostrar modal de notificación
         // NO cerrar el modal todavía - esperar a que se muestre la notificación
         if (!initialData && formData.responsible && formData.responsible.length > 0) {
@@ -231,22 +233,99 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                         </div>
                     </div>
 
-                    {/* Date Selection - Made Primary */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-muted-foreground">Fecha</label>
-                            <input
-                                type="date"
-                                value={formData.scheduledDate || ''}
-                                onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary/50"
-                            />
+                    {/* Responsible Selection */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                            <Users className="w-4 h-4" /> Responsable(s)
+                        </label>
+                        <div className="flex flex-wrap gap-2 p-3 bg-white/5 border border-white/10 rounded-lg min-h-[50px]">
+                            {formData.responsible?.map((email) => {
+                                const member = team.find(m => m.email === email);
+                                return (
+                                    <div key={email} className="flex items-center gap-1 bg-primary/20 text-primary px-2 py-1 rounded-full text-xs border border-primary/30">
+                                        <div className="w-4 h-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[8px] font-bold">
+                                            {member?.name?.charAt(0) || email.charAt(0)}
+                                        </div>
+                                        <span>{member?.name || email}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData({
+                                                ...formData,
+                                                responsible: (formData.responsible || []).filter(e => e !== email)
+                                            })}
+                                            className="ml-1 hover:text-primary-foreground transition-colors"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </div>
+                                );
+                            })}
+
+                            <select
+                                className="bg-transparent text-sm text-muted-foreground focus:outline-none hover:text-foreground cursor-pointer"
+                                onChange={(e) => {
+                                    if (e.target.value && !formData.responsible?.includes(e.target.value)) {
+                                        setFormData({
+                                            ...formData,
+                                            responsible: [...(formData.responsible || []), e.target.value]
+                                        });
+                                        // Reset select
+                                        e.target.value = '';
+                                    }
+                                }}
+                                value=""
+                            >
+                                <option value="" disabled>+ Añadir miembro</option>
+                                {team.filter(m => m.email && !formData.responsible?.includes(m.email)).map(member => (
+                                    <option key={member.email!} value={member.email!} className="bg-card text-foreground">
+                                        {member.name} ({member.role})
+                                    </option>
+                                ))}
+                            </select>
                         </div>
-                        <div className="space-y-2">
-                            {/* Auto-calculated Info Display */}
-                            <label className="text-sm font-medium text-muted-foreground">Periodo</label>
-                            <div className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-muted-foreground cursor-not-allowed">
-                                {formData.month} - {formData.week}
+                    </div>
+
+                    {/* Date Selection */}
+                    <div className="space-y-4 border-t border-white/10 pt-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            {/* Start & End Dates - New Requirements */}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-muted-foreground">Fecha Inicio</label>
+                                <input
+                                    type="date"
+                                    value={formData.startDate || ''}
+                                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary/50"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-muted-foreground">Fecha Fin</label>
+                                <input
+                                    type="date"
+                                    value={formData.endDate || ''}
+                                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary/50"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-muted-foreground">Fecha Agendada (Hito)</label>
+                                <input
+                                    type="date"
+                                    value={formData.scheduledDate || ''}
+                                    onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })}
+                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary/50"
+                                />
+                                <p className="text-[10px] text-muted-foreground">Fecha para el calendario y cálculo de semana.</p>
+                            </div>
+                            <div className="space-y-2">
+                                {/* Auto-calculated Info Display */}
+                                <label className="text-sm font-medium text-muted-foreground">Periodo</label>
+                                <div className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-muted-foreground cursor-not-allowed">
+                                    {formData.month} - {formData.week}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -293,7 +372,7 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                                 </p>
                             </div>
                         )}
-                        
+
                         <div className="flex items-center gap-2 mb-3">
                             <input
                                 type="checkbox"
@@ -342,7 +421,7 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-blue-500/20 rounded-lg">
                                         <svg className="w-6 h-6 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
-                                            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 8.16l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414l-1.414 1.414c-.39.39-1.024.39-1.414 0l-.707-.707-1.414 1.414c-.39.39-1.024.39-1.414 0l-1.414-1.414c-.39-.39-.39-1.024 0-1.414l1.414-1.414-.707-.707c-.39-.39-.39-1.024 0-1.414l1.414-1.414c.39-.39 1.024-.39 1.414 0l.707.707 1.414-1.414c.39-.39 1.024-.39 1.414 0l1.414 1.414c.39.39.39 1.024 0 1.414l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414z"/>
+                                            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 8.16l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414l-1.414 1.414c-.39.39-1.024.39-1.414 0l-.707-.707-1.414 1.414c-.39.39-1.024.39-1.414 0l-1.414-1.414c-.39-.39-.39-1.024 0-1.414l1.414-1.414-.707-.707c-.39-.39-.39-1.024 0-1.414l1.414-1.414c.39-.39 1.024-.39 1.414 0l.707.707 1.414-1.414c.39-.39 1.024-.39 1.414 0l1.414 1.414c.39.39.39 1.024 0 1.414l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414z" />
                                         </svg>
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -357,7 +436,7 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                                     className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm font-bold transition-all border-2 border-blue-500/40 hover:border-blue-500/60 shadow-lg hover:shadow-xl hover:scale-105"
                                 >
                                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 8.16l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414l-1.414 1.414c-.39.39-1.024.39-1.414 0l-.707-.707-1.414 1.414c-.39.39-1.024.39-1.414 0l-1.414-1.414c-.39-.39-.39-1.024 0-1.414l1.414-1.414-.707-.707c-.39-.39-.39-1.024 0-1.414l1.414-1.414c.39-.39 1.024-.39 1.414 0l.707.707 1.414-1.414c.39-.39 1.024-.39 1.414 0l1.414 1.414c.39.39.39 1.024 0 1.414l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414z"/>
+                                        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 8.16l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414l-1.414 1.414c-.39.39-1.024.39-1.414 0l-.707-.707-1.414 1.414c-.39.39-1.024.39-1.414 0l-1.414-1.414c-.39-.39-.39-1.024 0-1.414l1.414-1.414-.707-.707c-.39-.39-.39-1.024 0-1.414l1.414-1.414c.39-.39 1.024-.39 1.414 0l.707.707 1.414-1.414c.39-.39 1.024-.39 1.414 0l1.414 1.414c.39.39.39 1.024 0 1.414l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414z" />
                                     </svg>
                                     <span>Unirse a la Reunión</span>
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -403,7 +482,7 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                                 </span>
                             </div>
                         )}
-                        
+
                         <div className="flex justify-between items-center gap-3">
                             <div className="flex gap-2">
                                 {onDelete && initialData && (
@@ -465,186 +544,186 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                         </div>
                     </div>
                 </div>
-            </div>
+            </div >
 
             {/* Attachment Picker Modal - Mejorado con opciones Drive y Upload */}
-            {isDrivePickerOpen && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsDrivePickerOpen(false)} />
-                    <div className="relative w-full max-w-2xl bg-card border border-white/10 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] z-10">
-                        <div className="p-4 border-b border-white/5 flex justify-between items-center flex-shrink-0">
-                            <h3 className="font-bold text-foreground">Adjuntar Archivo</h3>
-                            <button onClick={() => setIsDrivePickerOpen(false)} className="text-muted-foreground hover:text-foreground">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                        
-                        {/* Tabs para Drive / Upload Local */}
-                        <div className="flex border-b border-white/5 flex-shrink-0">
-                            <button
-                                onClick={() => setAttachmentMode('drive')}
-                                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                                    attachmentMode === 'drive'
+            {
+                isDrivePickerOpen && (
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsDrivePickerOpen(false)} />
+                        <div className="relative w-full max-w-2xl bg-card border border-white/10 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] z-10">
+                            <div className="p-4 border-b border-white/5 flex justify-between items-center flex-shrink-0">
+                                <h3 className="font-bold text-foreground">Adjuntar Archivo</h3>
+                                <button onClick={() => setIsDrivePickerOpen(false)} className="text-muted-foreground hover:text-foreground">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            {/* Tabs para Drive / Upload Local */}
+                            <div className="flex border-b border-white/5 flex-shrink-0">
+                                <button
+                                    onClick={() => setAttachmentMode('drive')}
+                                    className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${attachmentMode === 'drive'
                                         ? 'text-primary border-b-2 border-primary bg-primary/5'
                                         : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
-                                }`}
-                            >
-                                <div className="flex items-center justify-center gap-2">
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                                    </svg>
-                                    Google Drive
-                                </div>
-                            </button>
-                            <button
-                                onClick={() => setAttachmentMode('local')}
-                                className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-                                    attachmentMode === 'local'
+                                        }`}
+                                >
+                                    <div className="flex items-center justify-center gap-2">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                        </svg>
+                                        Google Drive
+                                    </div>
+                                </button>
+                                <button
+                                    onClick={() => setAttachmentMode('local')}
+                                    className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${attachmentMode === 'local'
                                         ? 'text-primary border-b-2 border-primary bg-primary/5'
                                         : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
-                                }`}
-                            >
-                                <div className="flex items-center justify-center gap-2">
-                                    <Upload className="w-4 h-4" />
-                                    Subir Archivo
-                                </div>
-                            </button>
-                        </div>
+                                        }`}
+                                >
+                                    <div className="flex items-center justify-center gap-2">
+                                        <Upload className="w-4 h-4" />
+                                        Subir Archivo
+                                    </div>
+                                </button>
+                            </div>
 
-                        <div className="flex-1 overflow-hidden">
-                            {attachmentMode === 'drive' ? (
-                                <div className="h-full overflow-auto">
-                                    <DrivePicker
-                                        area={formData.area}
-                                        onSelect={(link, id, name) => {
-                                            const newAttachment: Attachment = {
-                                                id: crypto.randomUUID(),
-                                                name: name,
-                                                type: 'file',
-                                                url: link,
-                                                addedBy: 'me',
-                                                addedAt: new Date().toISOString()
-                                            };
-                                            // Asegurar que preservamos los attachments existentes
-                                            const currentAttachments = formData.attachments || [];
-                                            setFormData({
-                                                ...formData,
-                                                attachments: [...currentAttachments, newAttachment]
-                                            });
-                                            setIsDrivePickerOpen(false);
-                                        }}
-                                        onCancel={() => setIsDrivePickerOpen(false)}
-                                    />
-                                </div>
-                            ) : (
-                                <div className="p-6 h-full flex flex-col items-center justify-center">
-                                    <Upload className="w-12 h-12 text-muted-foreground mb-4" />
-                                    <p className="text-sm text-muted-foreground mb-4 text-center">
-                                        Selecciona un archivo desde tu computadora
-                                    </p>
-                                    <input
-                                        type="file"
-                                        id="file-upload"
-                                        className="hidden"
-                                        onChange={async (e) => {
-                                            const file = e.target.files?.[0];
-                                            if (!file) return;
-
-                                            // Mostrar indicador de carga
-                                            const uploadButton = document.getElementById('file-upload-label');
-                                            const uploadText = document.getElementById('file-upload-text');
-                                            if (uploadButton) {
-                                                uploadButton.textContent = 'Subiendo...';
-                                                (uploadButton as HTMLElement).style.opacity = '0.5';
-                                                (uploadButton as HTMLElement).style.cursor = 'not-allowed';
-                                            }
-                                            if (uploadText) {
-                                                uploadText.textContent = 'Subiendo archivo a Google Drive...';
-                                            }
-
-                                            try {
-                                                // Subir archivo a Drive en la carpeta de attachments de tasks
-                                                const formDataToUpload = new FormData();
-                                                formDataToUpload.append('file', file);
-
-                                                const uploadResponse = await fetch('/api/drive/upload-task-file', {
-                                                    method: 'POST',
-                                                    body: formDataToUpload
-                                                });
-
-                                                if (!uploadResponse.ok) {
-                                                    const errorData = await uploadResponse.json().catch(() => ({}));
-                                                    throw new Error(errorData.error || 'Error al subir archivo');
-                                                }
-
-                                                const uploadData = await uploadResponse.json();
-                                                
-                                                if (!uploadData.file || !uploadData.file.webViewLink) {
-                                                    throw new Error('No se recibió el link del archivo subido');
-                                                }
-                                                
-                                                // Crear attachment con el link de Drive
+                            <div className="flex-1 overflow-hidden">
+                                {attachmentMode === 'drive' ? (
+                                    <div className="h-full overflow-auto">
+                                        <DrivePicker
+                                            area={formData.area}
+                                            onSelect={(link, id, name) => {
                                                 const newAttachment: Attachment = {
                                                     id: crypto.randomUUID(),
-                                                    name: file.name,
+                                                    name: name,
                                                     type: 'file',
-                                                    url: uploadData.file.webViewLink,
+                                                    url: link,
                                                     addedBy: 'me',
-                                                    addedAt: new Date().toISOString(),
-                                                    size: file.size
+                                                    addedAt: new Date().toISOString()
                                                 };
-
                                                 // Asegurar que preservamos los attachments existentes
                                                 const currentAttachments = formData.attachments || [];
                                                 setFormData({
                                                     ...formData,
                                                     attachments: [...currentAttachments, newAttachment]
                                                 });
-                                                
                                                 setIsDrivePickerOpen(false);
-                                                
-                                                // Resetear el input
-                                                e.target.value = '';
-                                                
+                                            }}
+                                            onCancel={() => setIsDrivePickerOpen(false)}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="p-6 h-full flex flex-col items-center justify-center">
+                                        <Upload className="w-12 h-12 text-muted-foreground mb-4" />
+                                        <p className="text-sm text-muted-foreground mb-4 text-center">
+                                            Selecciona un archivo desde tu computadora
+                                        </p>
+                                        <input
+                                            type="file"
+                                            id="file-upload"
+                                            className="hidden"
+                                            onChange={async (e) => {
+                                                const file = e.target.files?.[0];
+                                                if (!file) return;
+
+                                                // Mostrar indicador de carga
+                                                const uploadButton = document.getElementById('file-upload-label');
+                                                const uploadText = document.getElementById('file-upload-text');
                                                 if (uploadButton) {
-                                                    uploadButton.textContent = 'Seleccionar Archivo';
-                                                    (uploadButton as HTMLElement).style.opacity = '1';
-                                                    (uploadButton as HTMLElement).style.cursor = 'pointer';
+                                                    uploadButton.textContent = 'Subiendo...';
+                                                    (uploadButton as HTMLElement).style.opacity = '0.5';
+                                                    (uploadButton as HTMLElement).style.cursor = 'not-allowed';
                                                 }
                                                 if (uploadText) {
-                                                    uploadText.textContent = 'El archivo se subió correctamente a Google Drive';
+                                                    uploadText.textContent = 'Subiendo archivo a Google Drive...';
                                                 }
-                                            } catch (error) {
-                                                console.error('Error uploading file:', error);
-                                                alert(`Error al subir archivo: ${error instanceof Error ? error.message : 'Error desconocido'}`);
-                                                
-                                                if (uploadButton) {
-                                                    uploadButton.textContent = 'Seleccionar Archivo';
-                                                    (uploadButton as HTMLElement).style.opacity = '1';
-                                                    (uploadButton as HTMLElement).style.cursor = 'pointer';
+
+                                                try {
+                                                    // Subir archivo a Drive en la carpeta de attachments de tasks
+                                                    const formDataToUpload = new FormData();
+                                                    formDataToUpload.append('file', file);
+
+                                                    const uploadResponse = await fetch('/api/drive/upload-task-file', {
+                                                        method: 'POST',
+                                                        body: formDataToUpload
+                                                    });
+
+                                                    if (!uploadResponse.ok) {
+                                                        const errorData = await uploadResponse.json().catch(() => ({}));
+                                                        throw new Error(errorData.error || 'Error al subir archivo');
+                                                    }
+
+                                                    const uploadData = await uploadResponse.json();
+
+                                                    if (!uploadData.file || !uploadData.file.webViewLink) {
+                                                        throw new Error('No se recibió el link del archivo subido');
+                                                    }
+
+                                                    // Crear attachment con el link de Drive
+                                                    const newAttachment: Attachment = {
+                                                        id: crypto.randomUUID(),
+                                                        name: file.name,
+                                                        type: 'file',
+                                                        url: uploadData.file.webViewLink,
+                                                        addedBy: 'me',
+                                                        addedAt: new Date().toISOString(),
+                                                        size: file.size
+                                                    };
+
+                                                    // Asegurar que preservamos los attachments existentes
+                                                    const currentAttachments = formData.attachments || [];
+                                                    setFormData({
+                                                        ...formData,
+                                                        attachments: [...currentAttachments, newAttachment]
+                                                    });
+
+                                                    setIsDrivePickerOpen(false);
+
+                                                    // Resetear el input
+                                                    e.target.value = '';
+
+                                                    if (uploadButton) {
+                                                        uploadButton.textContent = 'Seleccionar Archivo';
+                                                        (uploadButton as HTMLElement).style.opacity = '1';
+                                                        (uploadButton as HTMLElement).style.cursor = 'pointer';
+                                                    }
+                                                    if (uploadText) {
+                                                        uploadText.textContent = 'El archivo se subió correctamente a Google Drive';
+                                                    }
+                                                } catch (error) {
+                                                    console.error('Error uploading file:', error);
+                                                    alert(`Error al subir archivo: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+
+                                                    if (uploadButton) {
+                                                        uploadButton.textContent = 'Seleccionar Archivo';
+                                                        (uploadButton as HTMLElement).style.opacity = '1';
+                                                        (uploadButton as HTMLElement).style.cursor = 'pointer';
+                                                    }
+                                                    if (uploadText) {
+                                                        uploadText.textContent = 'El archivo se subirá automáticamente a Google Drive en la carpeta "Task_Attachments"';
+                                                    }
                                                 }
-                                                if (uploadText) {
-                                                    uploadText.textContent = 'El archivo se subirá automáticamente a Google Drive en la carpeta "Task_Attachments"';
-                                                }
-                                            }
-                                        }}
-                                    />
-                                    <label
-                                        id="file-upload-label"
-                                        htmlFor="file-upload"
-                                        className="px-4 py-2 bg-primary text-primary-foreground rounded-lg cursor-pointer hover:bg-primary/90 transition-colors"
-                                    >
-                                        Seleccionar Archivo
-                                    </label>
-                                    <p id="file-upload-text" className="text-xs text-muted-foreground mt-4 text-center max-w-sm">
-                                        El archivo se subirá automáticamente a Google Drive en la carpeta "Task_Attachments"
-                                    </p>
-                                </div>
-                            )}
+                                            }}
+                                        />
+                                        <label
+                                            id="file-upload-label"
+                                            htmlFor="file-upload"
+                                            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg cursor-pointer hover:bg-primary/90 transition-colors"
+                                        >
+                                            Seleccionar Archivo
+                                        </label>
+                                        <p id="file-upload-text" className="text-xs text-muted-foreground mt-4 text-center max-w-sm">
+                                            El archivo se subirá automáticamente a Google Drive en la carpeta "Task_Attachments"
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Compose Modal for Notifications */}
             <ComposeModal
@@ -660,18 +739,18 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                     // Mapear responsables (IDs o emails) a lista de emails
                     to: formData.responsible
                         ? formData.responsible
-                              .map((resp: string) => {
-                                  // Si ya es un email, usarlo directamente
-                                  if (resp.includes('@')) {
-                                      return resp;
-                                  }
-                                  // Si es un ID, buscar el email en el team
-                                  const member = team.find(m => m.id === resp);
-                                  return member?.email || null;
-                              })
-                              .filter((email: string | null): email is string => !!email)
+                            .map((resp: string) => {
+                                // Si ya es un email, usarlo directamente
+                                if (resp.includes('@')) {
+                                    return resp;
+                                }
+                                // Si es un ID, buscar el email en el team
+                                const member = team.find(m => m.id === resp);
+                                return member?.email || null;
+                            })
+                            .filter((email: string | null): email is string => !!email)
                         : [],
-                    subject: initialData 
+                    subject: initialData
                         ? `Actualización: ${formData.title || 'Tarea'}`
                         : `Nueva Tarea: ${formData.title || 'Sin título'}`,
                     body: `
@@ -717,6 +796,6 @@ Compartido desde Archipiélago Production OS
                     attachments: initialData?.attachments || formData.attachments || []
                 }}
             />
-        </div>
+        </div >
     );
 }

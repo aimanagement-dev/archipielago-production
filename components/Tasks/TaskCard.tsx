@@ -41,7 +41,7 @@ export default function TaskCard({ task, onEdit, onDelete }: Props) {
               <span className="text-[10px] text-muted-foreground font-bold uppercase">{task.week}</span>
               <span className="text-[10px] text-muted-foreground font-bold uppercase">• {task.month}</span>
             </div>
-            
+
             {/* Meet Link - MUY VISIBLE siempre que exista */}
             {task.meetLink && (
               <div className="mt-3">
@@ -53,7 +53,7 @@ export default function TaskCard({ task, onEdit, onDelete }: Props) {
                   className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm font-bold transition-all border-2 border-blue-500/40 hover:border-blue-500/60 shadow-lg hover:shadow-xl hover:scale-105"
                 >
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 8.16l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414l-1.414 1.414c-.39.39-1.024.39-1.414 0l-.707-.707-1.414 1.414c-.39.39-1.024.39-1.414 0l-1.414-1.414c-.39-.39-.39-1.024 0-1.414l1.414-1.414-.707-.707c-.39-.39-.39-1.024 0-1.414l1.414-1.414c.39-.39 1.024-.39 1.414 0l.707.707 1.414-1.414c.39-.39 1.024-.39 1.414 0l1.414 1.414c.39.39.39 1.024 0 1.414l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414z"/>
+                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 8.16l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414l-1.414 1.414c-.39.39-1.024.39-1.414 0l-.707-.707-1.414 1.414c-.39.39-1.024.39-1.414 0l-1.414-1.414c-.39-.39-.39-1.024 0-1.414l1.414-1.414-.707-.707c-.39-.39-.39-1.024 0-1.414l1.414-1.414c.39-.39 1.024-.39 1.414 0l.707.707 1.414-1.414c.39-.39 1.024-.39 1.414 0l1.414 1.414c.39.39.39 1.024 0 1.414l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414z" />
                   </svg>
                   <span>Unirse a Google Meet</span>
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,7 +95,7 @@ export default function TaskCard({ task, onEdit, onDelete }: Props) {
                       onClick={(e) => e.stopPropagation()}
                     >
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 8.16l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414l-1.414 1.414c-.39.39-1.024.39-1.414 0l-.707-.707-1.414 1.414c-.39.39-1.024.39-1.414 0l-1.414-1.414c-.39-.39-.39-1.024 0-1.414l1.414-1.414-.707-.707c-.39-.39-.39-1.024 0-1.414l1.414-1.414c.39-.39 1.024-.39 1.414 0l.707.707 1.414-1.414c.39-.39 1.024-.39 1.414 0l1.414 1.414c.39.39.39 1.024 0 1.414l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414z"/>
+                        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 8.16l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414l-1.414 1.414c-.39.39-1.024.39-1.414 0l-.707-.707-1.414 1.414c-.39.39-1.024.39-1.414 0l-1.414-1.414c-.39-.39-.39-1.024 0-1.414l1.414-1.414-.707-.707c-.39-.39-.39-1.024 0-1.414l1.414-1.414c.39-.39 1.024-.39 1.414 0l.707.707 1.414-1.414c.39-.39 1.024-.39 1.414 0l1.414 1.414c.39.39.39 1.024 0 1.414l-1.414 1.414.707.707c.39.39.39 1.024 0 1.414z" />
                       </svg>
                       Unirse a Google Meet
                     </a>
@@ -105,6 +105,28 @@ export default function TaskCard({ task, onEdit, onDelete }: Props) {
                 <AttendeeList task={task} />
                 {task.notes && (
                   <p className="text-sm text-foreground/80 leading-relaxed font-medium bg-muted/30 p-3 rounded-lg border border-border/50">{task.notes}</p>
+                )}
+                {(task.startDate || task.endDate) && (
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2 bg-white/5 p-2 rounded-lg border border-white/10">
+                    {task.startDate && (
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase font-bold text-primary/70">Inicio</span>
+                        <span className="font-mono text-foreground">{task.startDate}</span>
+                      </div>
+                    )}
+                    {task.endDate && (
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase font-bold text-primary/70">Fin</span>
+                        <span className="font-mono text-foreground">{task.endDate}</span>
+                      </div>
+                    )}
+                    {task.scheduledDate && (
+                      <div className="flex flex-col border-l border-white/10 pl-4 ml-2">
+                        <span className="text-[10px] uppercase font-bold text-primary/70">Agendado</span>
+                        <span className="font-mono text-foreground">{task.scheduledDate} {task.scheduledTime ? `@ ${task.scheduledTime}` : ''}</span>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
