@@ -21,6 +21,12 @@ export class GoogleSheetsService {
      * Finds the Archipielago DB spreadsheet. Returns null if not found.
      */
     async findDatabase(): Promise<string | null> {
+        // PRIORIDAD 1: Usar ID configurado en variables de entorno (para unificar DB entre usuarios)
+        if (process.env.GOOGLE_SPREADSHEET_ID) {
+            console.log(`[GoogleSheets] Usando DB centralizada: ${process.env.GOOGLE_SPREADSHEET_ID}`);
+            return process.env.GOOGLE_SPREADSHEET_ID;
+        }
+
         try {
             const search = await this.drive.files.list({
                 q: "name = 'Archipielago_DB' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false",
@@ -61,6 +67,9 @@ export class GoogleSheetsService {
             // but ensureSchema can handle the rest.
         }
 
+        // Si estamos usando la DB centralizada, verificamos que tengamos acceso
+        // Si no tenemos acceso (ej. usuario nuevo), podría fallar aquí si no se ha compartido
+        // pero es mejor que falle a que cree una DB nueva aislada.
         await this.ensureSchema(spreadsheetId);
         return spreadsheetId;
     }
@@ -127,11 +136,11 @@ export class GoogleSheetsService {
 
             const headers = headerResponse.data.values?.[0] || [];
             const requiredHeaders = ['ID', 'Title', 'Status', 'Area', 'Month', 'Week', 'Responsible', 'Notes', 'ScheduledDate', 'ScheduledTime', 'Attachments', 'Visibility', 'VisibleTo', 'MeetLink', 'AttendeeResponses', 'CalendarId'];
-            
+
             // Verificar si falta CalendarId (columna P)
             if (headers.length < 16 || headers[15] !== 'CalendarId') {
                 console.log('[GoogleSheets] Actualizando headers de Tasks para incluir CalendarId');
-                
+
                 // Actualizar solo la columna P si falta
                 if (headers.length < 16) {
                     // Agregar CalendarId al final
@@ -206,7 +215,7 @@ export class GoogleSheetsService {
 
                 // Parse meetLink (column N, if it exists)
                 const meetLink = row[13] ? String(row[13]).trim() : undefined;
-                
+
                 // Debug logging para meetLink
                 if (meetLink) {
                     console.log(`[GoogleSheets] Task ${row[0]} tiene meetLink: ${meetLink.substring(0, 50)}...`);
@@ -220,7 +229,7 @@ export class GoogleSheetsService {
                 if (notesString.includes('Meet:') || meetLink) {
                     hasMeet = true;
                 }
-                
+
                 // Si tiene meetLink, asegurar que hasMeet sea true
                 if (meetLink && !hasMeet) {
                     hasMeet = true;
@@ -233,7 +242,7 @@ export class GoogleSheetsService {
                         const responsesString = String(row[14]).trim();
                         const parsed = JSON.parse(responsesString);
                         if (Array.isArray(parsed)) {
-                            attendeeResponses = parsed.filter((r: any) => 
+                            attendeeResponses = parsed.filter((r: any) =>
                                 r.email && ['accepted', 'declined', 'tentative'].includes(r.response)
                             );
                         }
@@ -294,16 +303,16 @@ export class GoogleSheetsService {
         // Asegurar que attachments sea un array válido antes de stringify
         const attachmentsToSave = Array.isArray(task.attachments) ? task.attachments : [];
         const attachmentsJson = attachmentsToSave.length > 0 ? JSON.stringify(attachmentsToSave) : '';
-        
+
         // Asegurar que responsible sea un array válido
         const responsibleArray = Array.isArray(task.responsible) ? task.responsible : [];
         const responsibleString = responsibleArray.length > 0 ? responsibleArray.join(', ') : '';
-        
+
         // Guardar visibility y visibleTo
         const visibility = task.visibility || 'all';
         const visibleToArray = Array.isArray(task.visibleTo) ? task.visibleTo : [];
         const visibleToJson = visibleToArray.length > 0 ? JSON.stringify(visibleToArray) : '';
-        
+
         const values = [
             [
                 task.id,
@@ -320,8 +329,8 @@ export class GoogleSheetsService {
                 visibility,
                 visibleToJson,
                 task.meetLink || '', // Column N for meetLink
-                task.attendeeResponses && task.attendeeResponses.length > 0 
-                    ? JSON.stringify(task.attendeeResponses) 
+                task.attendeeResponses && task.attendeeResponses.length > 0
+                    ? JSON.stringify(task.attendeeResponses)
                     : '', // Column O for attendeeResponses
                 task.calendarId || '' // Column P for calendarId
             ],
@@ -350,7 +359,7 @@ export class GoogleSheetsService {
         // Asegurar que responsible sea un array válido
         const responsibleArray = Array.isArray(task.responsible) ? task.responsible : [];
         const responsibleString = responsibleArray.length > 0 ? responsibleArray.join(', ') : '';
-        
+
         // Guardar visibility y visibleTo
         const visibility = task.visibility || 'all';
         const visibleToArray = Array.isArray(task.visibleTo) ? task.visibleTo : [];
@@ -372,8 +381,8 @@ export class GoogleSheetsService {
                 visibility,
                 visibleToJson,
                 task.meetLink || '', // Column N for meetLink
-                task.attendeeResponses && task.attendeeResponses.length > 0 
-                    ? JSON.stringify(task.attendeeResponses) 
+                task.attendeeResponses && task.attendeeResponses.length > 0
+                    ? JSON.stringify(task.attendeeResponses)
                     : '', // Column O for attendeeResponses
                 task.calendarId || '' // Column P for calendarId
             ],
@@ -623,7 +632,7 @@ export class GoogleSheetsService {
         await this.ensurePushSubscriptionsSheet(spreadsheetId);
 
         const rowIndex = await this.findPushSubscriptionRowIndex(spreadsheetId, data.userEmail);
-        
+
         const values = [[
             data.userEmail,
             data.subscription,
