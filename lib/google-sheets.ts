@@ -23,8 +23,15 @@ export class GoogleSheetsService {
     async findDatabase(): Promise<string | null> {
         // PRIORIDAD 1: Usar ID configurado en variables de entorno (para unificar DB entre usuarios)
         if (process.env.GOOGLE_SPREADSHEET_ID) {
-            console.log(`[GoogleSheets] Usando DB centralizada: ${process.env.GOOGLE_SPREADSHEET_ID}`);
+            console.log(`[GoogleSheets] Usando DB centralizada (Env): ${process.env.GOOGLE_SPREADSHEET_ID}`);
             return process.env.GOOGLE_SPREADSHEET_ID;
+        }
+
+        // PRIORIDAD 2: Usar ID hardcodeado si no hay variable de entorno (Fix de emergencia)
+        const HARDCODED_SPREADSHEET_ID = '1kjkubASRFTpWzGyARVm7VmeOGUlnUYH-cu2tV7ToQgY';
+        if (HARDCODED_SPREADSHEET_ID) {
+            console.log(`[GoogleSheets] Usando DB centralizada (Hardcoded): ${HARDCODED_SPREADSHEET_ID}`);
+            return HARDCODED_SPREADSHEET_ID;
         }
 
         try {
