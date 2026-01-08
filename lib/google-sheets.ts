@@ -65,7 +65,7 @@ export class GoogleSheetsService {
         return spreadsheetId;
     }
 
-    private async ensureSchema(spreadsheetId: string) {
+    async ensureSchema(spreadsheetId: string) {
         const meta = await this.sheets.spreadsheets.get({ spreadsheetId });
         const existingTitles = meta.data.sheets?.map(s => s.properties?.title) || [];
 
