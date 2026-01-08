@@ -30,15 +30,15 @@ export async function GET() {
     // Los admins siempre tienen acceso completo
     const userEmail = session.user.email || '';
     const isAdmin = isUserAdmin(userEmail);
-    
+
     // Si no es admin, verificar que el usuario tenga accessGranted = true
     if (!isAdmin) {
         const { verifyCurrentUserAccess } = await import('@/lib/check-user-access');
         const accessCheck = await verifyCurrentUserAccess(session.accessToken, userEmail);
-        
+
         if (!accessCheck.hasAccess) {
-            return NextResponse.json({ 
-                error: "Access Denied", 
+            return NextResponse.json({
+                error: "Access Denied",
                 details: accessCheck.reason || "Tu cuenta no tiene acceso a la aplicación. Contacta al administrador para obtener acceso.",
             }, { status: 403 });
         }
@@ -46,7 +46,7 @@ export async function GET() {
 
     try {
         const service = new GoogleSheetsService(session.accessToken);
-        
+
         // Intentar obtener el DB - si falla, loguear el error pero continuar
         let spreadsheetId: string;
         try {
@@ -59,8 +59,8 @@ export async function GET() {
                 spreadsheetId = await service.findDatabase() || '';
                 if (!spreadsheetId) {
                     console.error(`[GET /api/tasks] Admin no puede acceder al DB`);
-                    return NextResponse.json({ 
-                        error: "Database Access Error", 
+                    return NextResponse.json({
+                        error: "Database Access Error",
                         details: "No se pudo acceder a la base de datos. Verifica los permisos.",
                     }, { status: 500 });
                 }
@@ -70,8 +70,43 @@ export async function GET() {
         }
 
         // PASO 1: Leer tareas de Sheets
-        const sheetsTasks = await service.getTasks(spreadsheetId);
+        let sheetsTasks = await service.getTasks(spreadsheetId);
         console.log(`[GET /api/tasks] Tareas leídas de Sheets: ${sheetsTasks.length} (Admin: ${isAdmin})`);
+
+        // SEEDING AUTOMÁTICO:
+        // Si el Sheet está vacío, poblarlo con los datos iniciales de data/tasks.json
+        // Esto soluciona el problema de que el Admin vea una lista vacía al conectarse a una DB nueva.
+        if (sheetsTasks.length === 0) {
+            console.log('[GET /api/tasks] DB vacía detectada. Iniciando sembrado automático desde tasks.json...');
+            try {
+                const initialData = await import('@/data/tasks.json');
+                const tasksToSeed = initialData.default || initialData;
+
+                if (Array.isArray(tasksToSeed) && tasksToSeed.length > 0) {
+                    console.log(`[GET /api/tasks] Insertando ${tasksToSeed.length} tareas iniciales...`);
+
+                    // Insertar una por una (idealmente sería batch, pero reutilizamos addTask por seguridad)
+                    // Usamos Promise.all para paralelizar y hacerlo rápido
+                    await Promise.all(tasksToSeed.map(task =>
+                        service.addTask(spreadsheetId, {
+                            ...task,
+                            // Asegurar tipos compatibles
+                            status: task.status as any || 'Pendiente',
+                            area: task.area as any || 'Planificación',
+                            month: task.month as any || 'Ene',
+                            isScheduled: false, // El JSON inicial no tiene fechas exactas parseables como YYYY-MM-DD
+                        })
+                    ));
+
+                    // Re-leer para asegurar consistencia
+                    sheetsTasks = await service.getTasks(spreadsheetId);
+                    console.log(`[GET /api/tasks] Sembrado completado. Tareas actuales: ${sheetsTasks.length}`);
+                }
+            } catch (seedError) {
+                console.error('[GET /api/tasks] Error durante el sembrado:', seedError);
+                // Continuar sin fallar, retornará lista vacía
+            }
+        }
 
         // PASO 2: Leer eventos de Calendar (últimos 3 meses, próximos 6 meses)
         const now = new Date();
@@ -138,7 +173,7 @@ export async function GET() {
 
             // Calendar tiene prioridad si existe en ambos
             tasksMap.set(task.id, task);
-            
+
             // Log para debugging
             if (task.meetLink) {
                 console.log(`[GET /api/tasks] Tarea ${task.id} tiene meetLink: ${task.meetLink.substring(0, 50)}...`);
@@ -149,7 +184,7 @@ export async function GET() {
         const combinedTasks = Array.from(tasksMap.values());
 
         console.log(`[GET /api/tasks] Total tareas combinadas: ${combinedTasks.length} (${sheetsTasks.length} de Sheets, ${calendarTasks.length} de Calendar) - Admin: ${isAdmin}, User: ${userEmail}`);
-        
+
         // Log detallado para debugging del admin
         if (isAdmin) {
             console.log(`[GET /api/tasks] Admin Debug - Sheets tasks:`, sheetsTasks.map(t => ({ id: t.id, title: t.title, isScheduled: t.isScheduled, scheduledDate: t.scheduledDate })));
@@ -197,12 +232,12 @@ export async function POST(req: Request) {
 
         const service = new GoogleSheetsService(session.accessToken);
         const spreadsheetId = await service.getOrCreateDatabase();
-        
+
         // Asegurar que el schema esté actualizado (incluyendo CalendarId)
         await service.ensureSchema(spreadsheetId);
 
         // Asegurar que los campos requeridos tengan valores por defecto
-            const taskToSave: Task = {
+        const taskToSave: Task = {
             id: task.id,
             title: task.title,
             status: task.status || 'Pendiente',
@@ -247,7 +282,7 @@ export async function POST(req: Request) {
                 const targetCalendarId = task.calendarId || process.env.GOOGLE_CALENDAR_ID || 'ai.management@archipielagofilm.com';
                 const syncResult = await syncTasksToCalendar([calendarTask], accessToken, { calendarId: targetCalendarId });
                 console.log(`[POST /api/tasks] Sincronización a Calendar exitosa:`, syncResult);
-                
+
                 // syncTasksToCalendar modifica el calendarTask directamente con el meetLink
                 // Verificar si se obtuvo el meetLink
                 if (task.hasMeet && (syncResult.created > 0 || syncResult.updated > 0)) {
@@ -266,15 +301,15 @@ export async function POST(req: Request) {
                             const calendar = getCalendarClient(accessToken);
                             const eventCalendarId = targetCalendarId; // Usar el mismo calendario donde se creó el evento
                             const eventId = task.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
-                            
+
                             // Esperar un momento para que Google Calendar procese el evento
                             await new Promise(resolve => setTimeout(resolve, 2000));
-                            
+
                             const event = await calendar.events.get({
                                 calendarId: eventCalendarId,
                                 eventId,
                             });
-                            
+
                             if (event.data.conferenceData?.entryPoints) {
                                 const meetEntry = event.data.conferenceData.entryPoints.find(
                                     (ep: any) => ep.entryPointType === 'video' || ep.uri?.includes('meet.google.com')
@@ -323,13 +358,13 @@ export async function POST(req: Request) {
 
                 if (recipientEmails.length > 0) {
                     // Construir contenido del email
-                    const scheduledInfo = taskToSave.scheduledDate 
+                    const scheduledInfo = taskToSave.scheduledDate
                         ? `\n📅 Fecha: ${new Date(taskToSave.scheduledDate).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}${taskToSave.scheduledTime ? ` a las ${taskToSave.scheduledTime}` : ''}`
                         : '';
-                    
+
                     const areaInfo = taskToSave.area ? `\n📋 Área: ${taskToSave.area}` : '';
                     const notesInfo = taskToSave.notes ? `\n\n📝 Notas:\n${taskToSave.notes}` : '';
-                    
+
                     const emailSubject = `Nueva Tarea Asignada: ${taskToSave.title}`;
                     const emailHtml = `
                         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -415,7 +450,7 @@ export async function PUT(req: Request) {
 
         const service = new GoogleSheetsService(session.accessToken);
         const spreadsheetId = await service.getOrCreateDatabase();
-        
+
         // Asegurar que el schema esté actualizado (incluyendo CalendarId)
         await service.ensureSchema(spreadsheetId);
 
@@ -444,7 +479,7 @@ export async function PUT(req: Request) {
         console.log(`[PUT /api/tasks] Tarea ${task.id} actualizada en Sheets`);
 
         // Detectar cambios relevantes para notificaciones
-        const responsibleChanged = existingTask && 
+        const responsibleChanged = existingTask &&
             JSON.stringify(existingTask.responsible?.sort()) !== JSON.stringify(taskToUpdate.responsible?.sort());
         const dateChanged = existingTask && existingTask.scheduledDate !== taskToUpdate.scheduledDate;
         const statusChanged = existingTask && existingTask.status !== taskToUpdate.status;
@@ -457,15 +492,15 @@ export async function PUT(req: Request) {
                 console.log(`[PUT /api/tasks] Sincronizando tarea ${task.id} a Calendar...`);
                 // Usar el calendarId de la tarea si está disponible, sino usar el default
                 const targetCalendarId = taskToUpdate.calendarId || process.env.GOOGLE_CALENDAR_ID || 'ai.management@archipielagofilm.com';
-                const previousCalendarId = existingTask?.calendarId && existingTask.calendarId !== targetCalendarId 
-                    ? existingTask.calendarId 
+                const previousCalendarId = existingTask?.calendarId && existingTask.calendarId !== targetCalendarId
+                    ? existingTask.calendarId
                     : undefined;
-                
+
                 // Si cambió el calendario, mover el evento
                 if (previousCalendarId) {
                     console.log(`[PUT /api/tasks] Moviendo evento de ${previousCalendarId} a ${targetCalendarId}`);
                 }
-                
+
                 await syncTasksToCalendar([{
                     id: task.id,
                     title: taskToUpdate.title || existingTask?.title || '',
@@ -477,9 +512,9 @@ export async function PUT(req: Request) {
                     notes: taskToUpdate.notes,
                     hasMeet: task.hasMeet !== undefined ? task.hasMeet : (existingTask?.hasMeet || false),
                     visibleTo: taskToUpdate.visibleTo || [],
-                }], accessToken, { 
+                }], accessToken, {
                     calendarId: targetCalendarId,
-                    previousCalendarId 
+                    previousCalendarId
                 });
                 console.log(`[PUT /api/tasks] Sincronización a Calendar exitosa`);
             } catch (calendarError) {
@@ -526,10 +561,10 @@ export async function PUT(req: Request) {
                     if (dateChanged) changeMessages.push('fecha programada');
                     if (statusChanged && taskToUpdate.status === 'Completado') changeMessages.push('estado completado');
 
-                    const scheduledInfo = taskToUpdate.scheduledDate 
+                    const scheduledInfo = taskToUpdate.scheduledDate
                         ? `\n📅 Fecha: ${new Date(taskToUpdate.scheduledDate).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}${taskToUpdate.scheduledTime ? ` a las ${taskToUpdate.scheduledTime}` : ''}`
                         : '';
-                    
+
                     const emailSubject = `Tarea Actualizada: ${taskToUpdate.title || existingTask?.title || 'Sin título'}`;
                     const emailHtml = `
                         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
