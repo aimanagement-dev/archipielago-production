@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '@/lib/store';
 import { TeamMember } from '@/lib/types';
 import { Plus, Mail, Users, Pencil, Trash2, Search, Send } from 'lucide-react';
@@ -16,8 +16,13 @@ export default function TeamPage() {
   const [editingMember, setEditingMember] = useState<TeamMember | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const { team, addMember, updateMember, deleteMember } = useStore();
+  const { team, addMember, updateMember, deleteMember, fetchTeam } = useStore();
   const { user } = useAuth();
+
+  // Siempre hacer fetch del equipo desde Google Sheets cuando se monta la página
+  useEffect(() => {
+    fetchTeam();
+  }, [fetchTeam]);
 
   const filteredTeam = team.filter(member =>
     member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

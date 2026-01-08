@@ -72,7 +72,7 @@ export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
       tasks: [], // Start empty, fetch from API
-      team: teamData as TeamMember[],
+      team: [], // Start empty, fetch from API (no usar teamData para evitar datos obsoletos)
       gates: gatesData as Gate[],
       events: [],
       finance: {
@@ -215,24 +215,23 @@ export const useStore = create<AppState>()(
           if (response.ok) {
             const data = await response.json();
             if (data.team && Array.isArray(data.team)) {
-              // Avoid unnecessary updates if data is identical
-              const currentTeam = get().team;
-              if (JSON.stringify(currentTeam) !== JSON.stringify(data.team)) {
-                console.log("[Store] Team updated from API:", data.team.length);
-                set({ team: data.team, isLoading: false, error: null });
-              } else {
-                set({ isLoading: false, error: null });
-              }
+              // Siempre actualizar con los datos de la API (no comparar para evitar datos obsoletos)
+              console.log("[Store] Team updated from API:", data.team.length);
+              set({ team: data.team, isLoading: false, error: null });
             } else {
               set({ team: [], isLoading: false, error: null });
             }
           } else {
             console.warn('Failed to fetch team from API');
             set({ isLoading: false, error: 'Error sincronizando equipo.' });
+            // No mantener datos antiguos si falla el fetch
+            set({ team: [] });
           }
         } catch (error) {
           console.error('Error fetching team:', error);
           set({ isLoading: false, error: 'Error de conexión (Equipo).' });
+          // No mantener datos antiguos si falla el fetch
+          set({ team: [] });
         }
       },
 
@@ -269,9 +268,13 @@ export const useStore = create<AppState>()(
             body: JSON.stringify(fullUpdated),
           });
           if (!response.ok) throw new Error('Failed to update member');
+          // Refrescar desde la API para asegurar sincronización
+          get().fetchTeam();
         } catch (e) {
           console.error(e);
           set({ error: 'Error al actualizar miembro.' });
+          // Refrescar desde la API incluso si hay error para obtener estado actual
+          get().fetchTeam();
         }
       },
 
@@ -282,9 +285,13 @@ export const useStore = create<AppState>()(
         try {
           const response = await fetch(`/api/team?id=${id}`, { method: 'DELETE' });
           if (!response.ok) throw new Error('Failed to delete member');
+          // Refrescar desde la API para asegurar sincronización
+          get().fetchTeam();
         } catch (e) {
           console.error(e);
-          set({ team: prevTeam, error: 'Error al eliminar miembro.' });
+          set({ error: 'Error al eliminar miembro.' });
+          // Refrescar desde la API incluso si hay error para obtener estado actual
+          get().fetchTeam();
         }
       },
 
@@ -614,7 +621,8 @@ export const useStore = create<AppState>()(
     {
       name: 'arch-pm-storage',
       partialize: (state) => ({
-        team: state.team,
+        // NO persistir team - siempre debe venir de Google Sheets
+        // team: state.team, // REMOVIDO: Los datos del equipo deben venir siempre de la API
         gates: state.gates,
         events: state.events,
         finance: state.finance, // Persist Finance Data
