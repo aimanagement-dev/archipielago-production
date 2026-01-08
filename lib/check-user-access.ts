@@ -41,7 +41,7 @@ export async function verifyCurrentUserAccess(userAccessToken: string, userEmail
   const superAdmins = [
     'ai.management@archipielagofilm.com',
     'ai.lantica@lanticastudios.com',
-    'federico.beron@lanticastudios.com',
+    // Federico Berón removido de admins - ahora es user regular
     // Cindy Toribio removida de admins - ahora es user regular
   ];
   

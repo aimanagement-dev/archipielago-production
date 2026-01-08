@@ -25,7 +25,7 @@ export const useAuth = () => {
         const superAdmins = [
             'ai.management@archipielagofilm.com',
             'ai.lantica@lanticastudios.com',
-            'federico.beron@lanticastudios.com',
+            // Federico Berón removido de admins - ahora es user regular
             // Cindy Toribio removida de admins - ahora es user regular
         ];
         if (superAdmins.includes(email.toLowerCase())) return 'admin';
@@ -38,15 +38,15 @@ export const useAuth = () => {
             );
 
             if (member) {
-                // Check if member name matches admin names (Federico Berón)
-                const adminNames = ['Federico Beron', 'Federico Berón', 'Archipielago AI Management'];
+                // Check if member name matches admin names
+                const adminNames = ['Archipielago AI Management'];
                 const isNamedAdmin = adminNames.some(n => member.name.toLowerCase().includes(n.toLowerCase()));
 
                 if (isNamedAdmin) return 'admin';
                 
                 // Check if email matches admin emails from team member data
-                const adminEmails = [
-                    'federico.beron@lanticastudios.com',
+                const adminEmails: string[] = [
+                    // Federico Berón removido de admins - ahora es user regular
                     // Cindy Toribio removida de admins - ahora es user regular
                 ];
                 if (member.email && adminEmails.includes(member.email.toLowerCase())) return 'admin';
