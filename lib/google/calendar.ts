@@ -120,7 +120,7 @@ async function upsertEvent(
 ): Promise<{ action: 'created' | 'updated' | 'moved'; meetLink?: string }> {
   const eventId = sanitizeEventId(task.id);
   const body = buildEventBody(task, timezone);
-  
+
   // Si hay un previousCalendarId diferente, eliminar el evento del calendario anterior
   if (previousCalendarId && previousCalendarId !== calendarId) {
     try {
@@ -150,7 +150,7 @@ async function upsertEvent(
       }
     });
   }
-  
+
   if (attendees.length > 0 && body.start?.dateTime) {
     body.attendees = attendees.map(email => ({ email: email.trim() }));
   }
@@ -159,14 +159,14 @@ async function upsertEvent(
     // Si tiene Meet, asegurar que se cree con conferenceData
     const patchBody = task.hasMeet && !body.conferenceData
       ? {
-          ...body,
-          conferenceData: {
-            createRequest: {
-              requestId: `meet-${task.id}-${Date.now()}`,
-              conferenceSolutionKey: { type: 'hangoutsMeet' },
-            },
+        ...body,
+        conferenceData: {
+          createRequest: {
+            requestId: `meet-${task.id}-${Date.now()}`,
+            conferenceSolutionKey: { type: 'hangoutsMeet' },
           },
-        }
+        },
+      }
       : body;
 
     const response = await calendar.events.patch({
@@ -176,7 +176,7 @@ async function upsertEvent(
       sendUpdates: attendees.length > 0 ? 'all' : 'none',
       conferenceDataVersion: 1,
     });
-    
+
     // Extraer meetLink de la respuesta
     let meetLink: string | undefined;
     if (response.data.conferenceData?.entryPoints) {
@@ -187,7 +187,7 @@ async function upsertEvent(
         meetLink = meetEntry.uri;
       }
     }
-    
+
     return { action: 'updated', meetLink };
   } catch (error) {
     const isNotFound =
@@ -198,19 +198,19 @@ async function upsertEvent(
       // Si tiene Meet, asegurar que se cree con conferenceData
       const insertBody = task.hasMeet && !body.conferenceData
         ? {
-            ...body,
-            id: eventId,
-            conferenceData: {
-              createRequest: {
-                requestId: `meet-${task.id}-${Date.now()}`,
-                conferenceSolutionKey: { type: 'hangoutsMeet' },
-              },
+          ...body,
+          id: eventId,
+          conferenceData: {
+            createRequest: {
+              requestId: `meet-${task.id}-${Date.now()}`,
+              conferenceSolutionKey: { type: 'hangoutsMeet' },
             },
-          }
+          },
+        }
         : {
-            ...body,
-            id: eventId,
-          };
+          ...body,
+          id: eventId,
+        };
 
       const response = await calendar.events.insert({
         calendarId,
@@ -218,7 +218,7 @@ async function upsertEvent(
         sendUpdates: attendees.length > 0 ? 'all' : 'none',
         conferenceDataVersion: 1,
       });
-      
+
       // Extraer meetLink de la respuesta
       let meetLink: string | undefined;
       if (response.data.conferenceData?.entryPoints) {
@@ -229,7 +229,7 @@ async function upsertEvent(
           meetLink = meetEntry.uri;
         }
       }
-      
+
       return { action: previousCalendarId && previousCalendarId !== calendarId ? 'moved' : 'created', meetLink };
     }
     throw error;
@@ -301,7 +301,7 @@ export async function syncTasksToCalendar(
       if (eventResult.action === 'created') result.created += 1;
       if (eventResult.action === 'updated') result.updated += 1;
       if (eventResult.action === 'moved') result.moved += 1;
-      
+
       // Si se creó un meetLink, guardarlo en el task
       if (eventResult.meetLink) {
         (task as any).meetLink = eventResult.meetLink;
@@ -393,16 +393,24 @@ export async function syncCalendarToTasks(
 
       // Si el usuario NO es admin, solo mostrar ARCH-Producción (naranja)
       // Los admins ven ambos calendarios
-      if (!options?.isAdmin) {
+      // UNIFICACIÓN DE VISTA (FIX):
+      // Forzar que el Admin vea exactamente lo mismo que el User.
+      // Antes: Admin veía TODOS los calendarios ("Archipiélago Master" + "ARCH-Producción").
+      // Antes: User solo veía "ARCH-Producción".
+      // Ahora: Ambos ven SOLO lo que coincida con la lógica de producción, para evitar duplicados o eventos "basura" del Master.
+
+      const forceUnifiedView = true;
+
+      if (!options?.isAdmin || forceUnifiedView) {
         targetCalendars = targetCalendars.filter(c => {
           const summary = c.summary?.toLowerCase() || '';
           return (
-            summary.includes('producción') || 
+            summary.includes('producción') ||
             summary.includes('produccion') ||
             c.id === DEFAULT_CALENDAR_ID // Fallback al default si no encuentra Producción
           );
         });
-        console.log('[syncCalendarToTasks] Usuario regular - solo mostrando ARCH-Producción');
+        console.log('[syncCalendarToTasks] Vista Unificada: filtrando calendarios para mostrar solo Producción/Master');
       } else {
         console.log('[syncCalendarToTasks] Usuario admin - mostrando todos los calendarios del proyecto');
       }
@@ -578,8 +586,8 @@ export async function syncCalendarToTasks(
           event.attendees.forEach((attendee: any) => {
             if (attendee.email && attendee.responseStatus) {
               const response = attendee.responseStatus === 'accepted' ? 'accepted' :
-                             attendee.responseStatus === 'declined' ? 'declined' :
-                             attendee.responseStatus === 'tentative' ? 'tentative' : undefined;
+                attendee.responseStatus === 'declined' ? 'declined' :
+                  attendee.responseStatus === 'tentative' ? 'tentative' : undefined;
               if (response) {
                 attendeeResponses.push({ email: attendee.email, response });
               }
@@ -730,7 +738,7 @@ export async function getCalendarEvents(
       targetCalendars = targetCalendars.filter(c => {
         const summary = c.summary?.toLowerCase() || '';
         return (
-          summary.includes('producción') || 
+          summary.includes('producción') ||
           summary.includes('produccion') ||
           c.id === DEFAULT_CALENDAR_ID // Fallback al default si no encuentra Producción
         );
