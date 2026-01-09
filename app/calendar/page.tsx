@@ -7,6 +7,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOf
 import { es } from 'date-fns/locale';
 import { cn, statusColors, areaColors } from '@/lib/utils';
 import TaskModal from '@/components/Tasks/TaskModal';
+import EventModal from '@/components/Calendar/EventModal';
 import { useAuth } from '@/lib/auth';
 import { Task, TaskArea } from '@/lib/types';
 
@@ -20,6 +21,7 @@ export default function CalendarPage() {
   const [contentType, setContentType] = useState<ContentType>('all');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [syncingFromCalendar, setSyncingFromCalendar] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
@@ -32,8 +34,19 @@ export default function CalendarPage() {
 
   const openTaskModal = (task: Task | null) => {
     if (!isAdmin) return;
+    if (task?.isGoogleEvent) return;
     setSelectedTask(task);
     setIsModalOpen(true);
+  };
+
+  const openEventModal = () => {
+    if (!isAdmin) return;
+    setIsEventModalOpen(true);
+  };
+
+  const handleTaskClick = (task: Task) => {
+    if (task.isGoogleEvent) return;
+    openTaskModal(task);
   };
 
   useEffect(() => {
@@ -48,11 +61,10 @@ export default function CalendarPage() {
     // 2. Map Google Events to Task-like structure for display
     const googleEvents = events.map(event => {
       const description = event.description || '';
-      const hasPropSource = event.extendedProperties?.private?.source === 'arch-pm';
       const hasTaskIdProp = !!event.extendedProperties?.private?.taskId;
       const hasTaskIdDesc = /TaskID:\s*(.+)/.test(description);
 
-      const isInternal = hasPropSource || hasTaskIdProp || hasTaskIdDesc;
+      const isInternal = hasTaskIdProp || hasTaskIdDesc;
 
       if (isInternal) return null;
 
@@ -357,12 +369,12 @@ export default function CalendarPage() {
                 {dayTasks.map((task) => (
                   <div
                     key={task.id}
-                    onClick={() => openTaskModal(task)}
+                    onClick={() => handleTaskClick(task)}
                     className={cn(
-                      "p-3 border shadow-sm hover:shadow-md cursor-pointer transition-all group",
+                      "p-3 border shadow-sm hover:shadow-md transition-all group",
                       task.isGoogleEvent
-                        ? "rounded-2xl border-blue-200 bg-blue-50 hover:border-blue-300"
-                        : "rounded-xl bg-card border-border hover:border-primary/40"
+                        ? "rounded-2xl border-blue-200 bg-blue-50 hover:border-blue-300 cursor-default"
+                        : "rounded-xl bg-card border-border hover:border-primary/40 cursor-pointer"
                     )}
                   >
                     {task.scheduledTime && (
@@ -427,12 +439,12 @@ export default function CalendarPage() {
                     {tasksInHour.map(task => (
                       <div
                         key={task.id}
-                        onClick={() => openTaskModal(task)}
+                        onClick={() => handleTaskClick(task)}
                         className={cn(
-                          'mb-3 p-3 border cursor-pointer shadow-sm transition-all group',
+                          'mb-3 p-3 border shadow-sm transition-all group',
                           task.isGoogleEvent
-                            ? "rounded-2xl border-blue-200 bg-blue-50 hover:border-blue-300"
-                            : "rounded-xl bg-card border-border hover:border-primary/40 hover:shadow-md"
+                            ? "rounded-2xl border-blue-200 bg-blue-50 hover:border-blue-300 cursor-default"
+                            : "rounded-xl bg-card border-border hover:border-primary/40 hover:shadow-md cursor-pointer"
                         )}
                       >
                         <div className="flex items-center gap-2 mb-1.5">
@@ -462,12 +474,12 @@ export default function CalendarPage() {
             {dayTasks.map((task) => (
               <div
                 key={task.id}
-                onClick={() => openTaskModal(task)}
+                onClick={() => handleTaskClick(task)}
                 className={cn(
-                  "p-4 border rounded-xl hover:shadow-md transition-all cursor-pointer group",
+                  "p-4 border rounded-xl hover:shadow-md transition-all group",
                   task.isGoogleEvent
-                    ? "border-blue-200 bg-blue-50/50 hover:border-blue-300"
-                    : "bg-card border-border hover:border-primary/40"
+                    ? "border-blue-200 bg-blue-50/50 hover:border-blue-300 cursor-default"
+                    : "bg-card border-border hover:border-primary/40 cursor-pointer"
                 )}
               >
                 {task.scheduledTime && (
@@ -617,7 +629,7 @@ export default function CalendarPage() {
                 </span>
               </button>
               <button
-                onClick={() => openTaskModal(null)}
+                onClick={openEventModal}
                 className="flex items-center gap-2 px-5 py-2 bg-primary text-primary-foreground rounded-xl font-bold text-xs hover:bg-primary/90 transition-all shadow-lg active:scale-95 uppercase tracking-wider"
               >
                 <Plus className="w-4 h-4" />
@@ -751,6 +763,28 @@ export default function CalendarPage() {
         } : undefined}
         initialData={selectedTask || undefined}
         defaultDate={currentDate.toISOString().split('T')[0]}
+      />
+      <EventModal
+        isOpen={isEventModalOpen}
+        onClose={() => setIsEventModalOpen(false)}
+        defaultDate={currentDate.toISOString().split('T')[0]}
+        onSave={async (payload) => {
+          setSyncMessage(null);
+          setSyncError(null);
+          const response = await fetch('/api/google/calendar/events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || 'No se pudo crear el evento.');
+          }
+
+          setSyncMessage('✅ Evento creado en calendario.');
+          await fetchCalendarEvents();
+        }}
       />
     </div>
   );

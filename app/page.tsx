@@ -24,12 +24,26 @@ import Link from 'next/link';
 import { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+const normalizePersonName = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const getNameTokens = (value: string) => normalizePersonName(value).split(' ').filter(Boolean);
+
 export default function Dashboard() {
   const { user } = useAuth();
-  const { tasks, gates, team, getStats } = useStore();
+  const { tasks, gates, team, getStats, fetchTasks, fetchTeam } = useStore();
   const stats = getStats();
   const router = useRouter();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const isAdmin = user?.role === 'admin';
+  const userEmail = user?.email?.toLowerCase() || '';
 
   // Update time every minute for countdown
   useEffect(() => {
@@ -38,6 +52,35 @@ export default function Dashboard() {
     }, 1000); // Update every second for real-time countdown
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    fetchTasks();
+    fetchTeam();
+  }, [fetchTasks, fetchTeam]);
+
+  const matchedMember = useMemo(() => {
+    if (!userEmail) return undefined;
+    return team.find(
+      (member) =>
+        member.email?.toLowerCase() === userEmail ||
+        member.secondaryEmail?.toLowerCase() === userEmail
+    );
+  }, [team, userEmail]);
+
+  const userIdentity = useMemo(() => {
+    const emailHandle = userEmail ? userEmail.split('@')[0].replace(/[._-]+/g, ' ') : '';
+    const candidates = [user?.name, matchedMember?.name, emailHandle]
+      .filter((value): value is string => !!value && value.trim().length > 0);
+    const normalizedCandidates = candidates.map(normalizePersonName).filter(Boolean);
+    const tokens = normalizedCandidates.map(getNameTokens).filter((entry) => entry.length > 0);
+    return {
+      email: userEmail,
+      normalizedCandidates,
+      tokens,
+      department: matchedMember?.department ? normalizePersonName(matchedMember.department) : '',
+      role: matchedMember?.role ? normalizePersonName(matchedMember.role) : '',
+    };
+  }, [user?.name, matchedMember?.name, matchedMember?.department, matchedMember?.role, userEmail]);
 
   // Get current time and date
   const now = currentTime;
@@ -52,9 +95,62 @@ export default function Dashboard() {
     return '¡Buenas noches';
   };
 
+  const dashboardTasks = useMemo(() => {
+    if (isAdmin) return tasks;
+
+    if (
+      userIdentity.normalizedCandidates.length === 0 &&
+      !userIdentity.email &&
+      !userIdentity.department &&
+      !userIdentity.role
+    ) {
+      return [];
+    }
+
+    const matchesIdentity = (value: string) => {
+      if (!value) return false;
+      const normalizedValue = normalizePersonName(value);
+      if (!normalizedValue) return false;
+
+      if (userIdentity.email && value.toLowerCase().includes(userIdentity.email)) return true;
+
+      if (userIdentity.normalizedCandidates.some((candidate) => normalizedValue === candidate)) return true;
+
+      if (userIdentity.normalizedCandidates.some((candidate) => candidate && normalizedValue.includes(candidate))) {
+        return true;
+      }
+
+      return userIdentity.tokens.some((tokens) =>
+        tokens.every((token) => normalizedValue.includes(token))
+      );
+    };
+
+    return tasks.filter((task) => {
+      if (task.responsible?.length) {
+        return task.responsible.some(matchesIdentity);
+      }
+
+      if (task.visibility === 'individual' && task.visibleTo?.length) {
+        return task.visibleTo.some(matchesIdentity);
+      }
+
+      if (task.visibility === 'department' && task.visibleTo?.length) {
+        return task.visibleTo.some((entry) => {
+          const normalized = normalizePersonName(entry);
+          if (!normalized) return false;
+          if (userIdentity.department && normalized.includes(userIdentity.department)) return true;
+          if (userIdentity.role && normalized.includes(userIdentity.role)) return true;
+          return false;
+        });
+      }
+
+      return false;
+    });
+  }, [isAdmin, tasks, userIdentity]);
+
   // Get today's scheduled tasks
   const todaysTasks = useMemo(() => {
-    return tasks.filter(t => {
+    return dashboardTasks.filter(t => {
       if (!t.isScheduled || !t.scheduledDate) return false;
       try {
         const taskDate = parseISO(t.scheduledDate);
@@ -68,13 +164,24 @@ export default function Dashboard() {
       }
       return 0;
     });
-  }, [tasks]);
+  }, [dashboardTasks]);
 
   // Get active tasks (in progress or pending)
-  const activeTasks = tasks.filter(t => t.status === 'En Progreso' || t.status === 'Pendiente').slice(0, 5);
+  const activeTasks = useMemo(() => {
+    return dashboardTasks
+      .filter((t) => t.status === 'En Progreso' || t.status === 'Pendiente')
+      .slice(0, 5);
+  }, [dashboardTasks]);
 
   // Get upcoming gates
   const upcomingGates = gates.filter(g => g.status === 'Pendiente').slice(0, 3);
+
+  const taskProgress = stats.totalTasks > 0 ? Math.round((stats.completed / stats.totalTasks) * 100) : 0;
+  const gateProgress = stats.totalGates > 0 ? Math.round((stats.gatesCompleted / stats.totalGates) * 100) : 0;
+  const totalItems = stats.totalTasks + stats.totalGates;
+  const overallProgress = totalItems > 0
+    ? Math.round(((stats.completed + stats.gatesCompleted) / totalItems) * 100)
+    : 0;
 
 
 
@@ -198,7 +305,6 @@ export default function Dashboard() {
 
                 const timeUntil = getTimeUntilMeeting();
                 const hasMeeting = !!task.meetLink;
-                const isAdmin = user?.role === 'admin';
 
                 return (
                   <div
@@ -287,8 +393,12 @@ export default function Dashboard() {
           ) : (
             <div className="text-center py-16 bg-muted/10 rounded-xl border border-dashed border-border">
               <Sparkles className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-              <p className="text-muted-foreground font-bold text-lg">No hay eventos programados para hoy</p>
-              <p className="text-sm text-muted-foreground/70 mt-1 font-medium">¡Aprovecha para avanzar en tareas pendientes!</p>
+              <p className="text-muted-foreground font-bold text-lg">
+                {isAdmin ? 'No hay eventos programados para hoy' : 'No tienes tareas programadas para hoy'}
+              </p>
+              <p className="text-sm text-muted-foreground/70 mt-1 font-medium">
+                {isAdmin ? '¡Aprovecha para avanzar en tareas pendientes!' : '¡Revisa tus tareas activas para seguir avanzando!'}
+              </p>
             </div>
           )}
         </div>
@@ -368,7 +478,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
               <Activity className="w-5 h-5 text-amber-600" />
-              Tareas Activas
+              {isAdmin ? 'Tareas Activas' : 'Mis Tareas Activas'}
             </h2>
             <Link
               href="/tasks"
@@ -402,7 +512,9 @@ export default function Dashboard() {
               ))
             ) : (
               <div className="text-center py-10 bg-muted/10 rounded-xl border border-dashed border-border">
-                <p className="text-muted-foreground font-medium">No hay tareas en progreso</p>
+                <p className="text-muted-foreground font-medium">
+                  {isAdmin ? 'No hay tareas en progreso' : 'No tienes tareas en progreso'}
+                </p>
               </div>
             )}
           </div>
@@ -468,16 +580,48 @@ export default function Dashboard() {
         <div className="space-y-6">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-muted-foreground font-bold uppercase tracking-wider">Estado de Completitud</span>
-              <span className="text-lg font-black text-primary">
-                {Math.round((stats.completed / (stats.totalTasks || 1)) * 100)}%
+              <span className="text-sm text-muted-foreground font-bold uppercase tracking-wider">
+                Progreso total (tareas + gates)
               </span>
+              <span className="text-lg font-black text-primary">{overallProgress}%</span>
             </div>
             <div className="w-full h-3 bg-muted rounded-full overflow-hidden border border-border p-0.5">
               <div
                 className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(16,185,129,0.3)]"
-                style={{ width: `${(stats.completed / (stats.totalTasks || 1)) * 100}%` }}
+                style={{ width: `${overallProgress}%` }}
               />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 bg-muted/20 border border-border rounded-xl">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Tareas completadas</span>
+                <span className="text-sm font-black text-emerald-600">{taskProgress}%</span>
+              </div>
+              <div className="w-full h-2 bg-muted rounded-full overflow-hidden border border-border p-0.5">
+                <div
+                  className="h-full bg-emerald-500 rounded-full transition-all duration-1000 ease-out"
+                  style={{ width: `${taskProgress}%` }}
+                />
+              </div>
+              <div className="text-xs text-muted-foreground font-medium mt-2">
+                {stats.completed} / {stats.totalTasks} completadas
+              </div>
+            </div>
+            <div className="p-4 bg-muted/20 border border-border rounded-xl">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Gates aprobados</span>
+                <span className="text-sm font-black text-violet-600">{gateProgress}%</span>
+              </div>
+              <div className="w-full h-2 bg-muted rounded-full overflow-hidden border border-border p-0.5">
+                <div
+                  className="h-full bg-violet-500 rounded-full transition-all duration-1000 ease-out"
+                  style={{ width: `${gateProgress}%` }}
+                />
+              </div>
+              <div className="text-xs text-muted-foreground font-medium mt-2">
+                {stats.gatesCompleted} / {stats.totalGates} aprobados
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">

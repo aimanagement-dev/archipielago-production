@@ -644,6 +644,8 @@ export async function createCalendarEventWithAttendees(
     attendees?: string[]; // Array de emails
     calendarId?: string;
     timezone?: string;
+    source?: string;
+    createdBy?: string;
   }
 ): Promise<{ success: boolean; eventId?: string; eventLink?: string; error?: string }> {
   const calendarId = options.calendarId || process.env.GOOGLE_CALENDAR_ID || DEFAULT_CALENDAR_ID;
@@ -669,8 +671,8 @@ export async function createCalendarEventWithAttendees(
       },
       extendedProperties: {
         private: {
-          source: 'arch-pm',
-          createdBy: 'gemini-ai',
+          source: options.source || 'arch-event',
+          createdBy: options.createdBy || 'arch-ui',
         },
       },
     };

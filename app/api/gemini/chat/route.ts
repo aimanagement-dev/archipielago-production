@@ -312,6 +312,8 @@ ASISTENTE:`;
             startDateTime: args.startDateTime,
             endDateTime: args.endDateTime,
             attendees: attendeeEmails.length > 0 ? attendeeEmails : undefined,
+            source: 'arch-event',
+            createdBy: 'gemini-ai',
           }
         );
 
@@ -383,4 +385,3 @@ ASISTENTE:`;
     );
   }
 }
-

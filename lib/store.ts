@@ -87,6 +87,7 @@ export const useStore = create<AppState>()(
 
       fetchTasks: async () => {
         set({ isLoading: true });
+        const previousTasks = get().tasks;
         try {
           const response = await fetch('/api/tasks');
           if (response.ok) {
@@ -95,12 +96,16 @@ export const useStore = create<AppState>()(
             if (data.tasks && Array.isArray(data.tasks)) {
               set({ tasks: data.tasks, isLoading: false, error: null });
             } else {
-              set({ tasks: [], isLoading: false, error: null });
+              set({
+                tasks: previousTasks,
+                isLoading: false,
+                error: 'Respuesta inválida al sincronizar tareas.'
+              });
             }
           } else {
             console.warn('Failed to fetch from API');
             set({
-              tasks: [], // Siempre vacío si falla la API - USER y ADMIN verán lo mismo
+              tasks: previousTasks,
               isLoading: false,
               error: 'No se pudo sincronizar con Google Sheets. Verifica tu conexión.'
             });
@@ -108,7 +113,7 @@ export const useStore = create<AppState>()(
         } catch (error) {
           console.error('Error fetching tasks:', error);
           set({
-            tasks: [], // Siempre vacío si hay error - USER y ADMIN verán lo mismo
+            tasks: previousTasks,
             isLoading: false,
             error: 'Error de conexión. Verifica tu conexión.'
           });

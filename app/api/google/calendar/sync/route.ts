@@ -219,35 +219,8 @@ export async function GET(request: Request) {
       }
     }
 
-    // Limpieza: eliminar en Sheets las tareas programadas que ya no existen en Calendar
-    try {
-      const calendarIds = new Set(calendarResult.tasks.map((t) => t.id));
-      const sheetsService = new GoogleSheetsService(session.accessToken);
-      const spreadsheetId = await sheetsService.getOrCreateDatabase();
-      const existingTasks = await sheetsService.getTasks(spreadsheetId);
-      const toDelete = existingTasks.filter(
-        (t) => t.isScheduled && t.scheduledDate && !calendarIds.has(t.id)
-      );
-
-      for (const t of toDelete) {
-        try {
-          await sheetsService.deleteTask(spreadsheetId, t.id);
-          result.updated += 0; // no-op, solo limpieza
-        } catch (err) {
-          console.error(`[GC Sync] Error borrando tarea huérfana ${t.id}:`, err);
-          result.errors.push({
-            id: t.id,
-            message: `No se pudo borrar tarea ausente en Calendar`,
-          });
-        }
-      }
-    } catch (cleanupError) {
-      console.error('[GC Sync] Error en limpieza de tareas ausentes:', cleanupError);
-      result.errors.push({
-        id: 'cleanup',
-        message: 'Error limpiando tareas ausentes vs Calendar',
-      });
-    }
+    // Nota: No eliminamos tareas en Sheets aunque no existan en Calendar.
+    // Sheets es la fuente de verdad y Calendar solo refleja programación.
 
     return NextResponse.json(result);
   } catch (error) {
