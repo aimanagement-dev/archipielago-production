@@ -106,24 +106,56 @@ export async function GET() {
                 }
 
                 if (Array.isArray(tasksToSeed) && tasksToSeed.length > 0) {
-                    console.log(`[GET /api/tasks] Insertando ${tasksToSeed.length} tareas iniciales...`);
+                    console.log(`[GET /api/tasks] Importando ${tasksToSeed.length} tareas desde Excel...`);
 
-                    // Insertar una por una (idealmente sería batch, pero reutilizamos addTask por seguridad)
-                    // Usamos Promise.all para paralelizar y hacerlo rápido
-                    await Promise.all(tasksToSeed.map(task =>
-                        service.addTask(spreadsheetId, {
-                            ...task,
-                            // Asegurar tipos compatibles
-                            status: task.status as any || 'Pendiente',
-                            area: task.area as any || 'Planificación',
-                            month: task.month as any || 'Ene',
-                            isScheduled: false, // El JSON inicial no tiene fechas exactas parseables como YYYY-MM-DD
-                        })
-                    ));
+                    // Verificar tareas existentes para evitar duplicados
+                    const existingTasks = await service.getTasks(spreadsheetId);
+                    const existingTaskMap = new Map<string, Task>();
+                    existingTasks.forEach(task => {
+                        const key = `${task.title?.toLowerCase().trim()}-${task.month}-${task.area?.toLowerCase().trim()}`;
+                        existingTaskMap.set(key, task);
+                    });
+
+                    const { generateId } = await import('@/lib/utils');
+                    let imported = 0;
+                    let skipped = 0;
+
+                    // Insertar tareas evitando duplicados
+                    for (const taskPartial of tasksToSeed) {
+                        const key = `${taskPartial.title?.toLowerCase().trim()}-${taskPartial.month}-${taskPartial.area?.toLowerCase().trim()}`;
+                        
+                        if (existingTaskMap.has(key)) {
+                            skipped++;
+                            continue;
+                        }
+
+                        const taskId = generateId();
+                        const task: Task = {
+                            ...taskPartial,
+                            id: taskId,
+                            title: taskPartial.title || 'Sin título',
+                            status: taskPartial.status as any || 'Pendiente',
+                            area: taskPartial.area as any || 'Planificación',
+                            month: taskPartial.month as any || 'Ene',
+                            week: taskPartial.week || 'Week 1',
+                            responsible: taskPartial.responsible || [],
+                            notes: taskPartial.notes || '',
+                            scheduledDate: taskPartial.scheduledDate || '',
+                            scheduledTime: taskPartial.scheduledTime || '',
+                            isScheduled: taskPartial.isScheduled || false,
+                            attachments: [],
+                            visibility: 'all',
+                            visibleTo: [],
+                        } as Task;
+
+                        await service.addTask(spreadsheetId, task);
+                        imported++;
+                        existingTaskMap.set(key, task);
+                    }
 
                     // Re-leer para asegurar consistencia
                     sheetsTasks = await service.getTasks(spreadsheetId);
-                    console.log(`[GET /api/tasks] Sembrado completado. Tareas actuales: ${sheetsTasks.length}`);
+                    console.log(`[GET /api/tasks] Importación completada: ${imported} importadas, ${skipped} omitidas (duplicados). Total: ${sheetsTasks.length}`);
                 }
             } catch (seedError) {
                 console.error('[GET /api/tasks] Error durante el sembrado:', seedError);
@@ -155,52 +187,43 @@ export async function GET() {
         }
 
         // PASO 3: Combinar tareas de Sheets y Calendar
-        // Crear un mapa de tareas por ID, dando prioridad a Calendar si hay conflictos
+        // IMPORTANTE: Sheets tiene PRIORIDAD - las tareas se gestionan desde Tasks, no desde Calendar
+        // Calendar solo muestra las fechas de cumplimiento de las tareas que ya existen en Sheets
         const tasksMap = new Map<string, Task>();
 
-        // Primero agregar todas las tareas de Sheets
+        // Primero agregar TODAS las tareas de Sheets (fuente de verdad)
         for (const task of sheetsTasks) {
             tasksMap.set(task.id, task);
         }
 
-        // Luego actualizar/agregar tareas de Calendar (Calendar tiene prioridad)
+        // Luego actualizar SOLO las fechas de Calendar para tareas que ya existen en Sheets
+        // NO crear nuevas tareas desde Calendar - solo actualizar scheduledDate si existe en Calendar
         for (const calendarTask of calendarTasks) {
             if (!calendarTask.id || !calendarTask.title || !calendarTask.scheduledDate) {
                 continue;
             }
 
-            // Obtener tarea existente de Sheets para preservar datos como meetLink, attachments, etc.
+            // Solo actualizar si la tarea YA EXISTE en Sheets
             const existingSheetTask = tasksMap.get(calendarTask.id);
+            if (!existingSheetTask) {
+                // NO crear nuevas tareas desde Calendar - las tareas se gestionan desde Tasks
+                continue;
+            }
 
-            const task: Task = {
-                id: calendarTask.id,
-                title: calendarTask.title,
-                status: (calendarTask.status as Task['status']) || existingSheetTask?.status || 'Pendiente',
-                area: (calendarTask.area as Task['area']) || existingSheetTask?.area || 'Planificación',
-                month: monthFromDate(calendarTask.scheduledDate),
-                week: weekOfMonth(calendarTask.scheduledDate),
-                responsible: Array.isArray(calendarTask.responsible) ? calendarTask.responsible : (existingSheetTask?.responsible || []),
-                notes: calendarTask.notes || existingSheetTask?.notes || '',
-                scheduledDate: calendarTask.scheduledDate,
-                scheduledTime: calendarTask.scheduledTime || existingSheetTask?.scheduledTime,
+            // Actualizar solo la fecha de cumplimiento y meetLink si existe en Calendar
+            const updatedTask: Task = {
+                ...existingSheetTask, // Mantener todos los datos de Sheets
+                scheduledDate: calendarTask.scheduledDate, // Actualizar fecha desde Calendar
+                scheduledTime: calendarTask.scheduledTime || existingSheetTask.scheduledTime,
                 isScheduled: !!calendarTask.scheduledDate,
-                // PRESERVAR meetLink de Sheets si existe (tiene prioridad), o usar el de Calendar
-                hasMeet: existingSheetTask?.hasMeet || (calendarTask as any).hasMeet || false,
-                meetLink: existingSheetTask?.meetLink || (calendarTask as any).meetLink,
-                // Preservar otros campos de Sheets
-                attachments: existingSheetTask?.attachments || [],
-                visibility: existingSheetTask?.visibility || 'all',
-                visibleTo: existingSheetTask?.visibleTo || [],
-                attendeeResponses: (calendarTask as any).attendeeResponses || existingSheetTask?.attendeeResponses || [],
+                // Actualizar meetLink si existe en Calendar y no en Sheets
+                meetLink: existingSheetTask.meetLink || (calendarTask as any).meetLink,
+                hasMeet: existingSheetTask.hasMeet || (calendarTask as any).hasMeet || false,
+                // Actualizar attendeeResponses si existen en Calendar
+                attendeeResponses: (calendarTask as any).attendeeResponses || existingSheetTask.attendeeResponses || [],
             };
 
-            // Calendar tiene prioridad si existe en ambos
-            tasksMap.set(task.id, task);
-
-            // Log para debugging
-            if (task.meetLink) {
-                console.log(`[GET /api/tasks] Tarea ${task.id} tiene meetLink: ${task.meetLink.substring(0, 50)}...`);
-            }
+            tasksMap.set(updatedTask.id, updatedTask);
         }
 
         // Convertir mapa a array

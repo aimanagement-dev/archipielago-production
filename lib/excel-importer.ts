@@ -97,6 +97,55 @@ export function parseExcelTasks(filePath: string): Partial<Task>[] {
                 'Julio': 'Jul', 'Agosto': 'Ago'
             };
 
+            // Intentar convertir semanas a fecha de cumplimiento (scheduledDate)
+            // Formato esperado: "Semanas 23-24", "Semana 25", "Week 1", etc.
+            let scheduledDate: string | undefined = undefined;
+            let isScheduled = false;
+
+            if (week) {
+                const weekStr = week.toString().trim();
+                // Buscar números de semana en el formato "Semanas X-Y" o "Semana X"
+                const weekMatch = weekStr.match(/(?:semana|week)\s*(\d+)(?:\s*[-–]\s*(\d+))?/i);
+                
+                if (weekMatch) {
+                    const startWeek = parseInt(weekMatch[1]);
+                    const endWeek = weekMatch[2] ? parseInt(weekMatch[2]) : startWeek;
+                    
+                    // Calcular fecha basada en el mes y semana del proyecto
+                    // Proyecto inicia: Nov 10 (Semana 1)
+                    const monthName = month;
+                    const currentYear = new Date().getFullYear();
+                    
+                    // Mapear mes del Excel a número de mes (0-11)
+                    const monthNumMap: Record<string, number> = {
+                        'Noviembre': 10, 'Diciembre': 11, 'Enero': 0, 'Febrero': 1,
+                        'Marzo': 2, 'Abril': 3, 'Mayo': 4, 'Junio': 5,
+                        'Julio': 6, 'Agosto': 7
+                    };
+                    
+                    const monthNum = monthNumMap[monthName];
+                    if (monthNum !== undefined) {
+                        // Calcular fecha aproximada: usar la semana media del rango
+                        const avgWeek = Math.floor((startWeek + endWeek) / 2);
+                        // Semana 1 = Nov 10, cada semana = 7 días
+                        const projectStartDate = new Date(currentYear, 10, 10); // Nov 10
+                        const daysFromStart = (avgWeek - 1) * 7;
+                        const targetDate = new Date(projectStartDate);
+                        targetDate.setDate(targetDate.getDate() + daysFromStart);
+                        
+                        // Ajustar al mes correcto si es necesario
+                        if (targetDate.getMonth() !== monthNum) {
+                            // Si la fecha calculada no coincide con el mes, usar el primer día del mes
+                            targetDate.setMonth(monthNum);
+                            targetDate.setDate(1);
+                        }
+                        
+                        scheduledDate = targetDate.toISOString().split('T')[0];
+                        isScheduled = true;
+                    }
+                }
+            }
+
             const task: Partial<Task> = {
                 title,
                 area: area as TaskArea,
@@ -105,7 +154,10 @@ export function parseExcelTasks(filePath: string): Partial<Task>[] {
                 week,
                 month: monthMap[month] || 'Nov',
                 responsible,
-                isScheduled: false
+                scheduledDate,
+                isScheduled,
+                // Generar ID único basado en título + mes + área para evitar duplicados
+                id: undefined // Se generará al insertar
             };
             tasksToImport.push(task);
         }
