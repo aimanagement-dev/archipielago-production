@@ -113,7 +113,7 @@ export default function TaskCard({ task, onEdit, onDelete, canEdit = true }: Pro
                 {task.notes && (
                   <p className="text-sm text-foreground/80 leading-relaxed font-medium bg-muted/30 p-3 rounded-lg border border-border/50">{task.notes}</p>
                 )}
-                {(task.startDate || task.endDate) && (
+                {(task.startDate || task.scheduledDate) && (
                   <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2 bg-white/5 p-2 rounded-lg border border-white/10">
                     {task.startDate && (
                       <div className="flex flex-col">
@@ -121,15 +121,9 @@ export default function TaskCard({ task, onEdit, onDelete, canEdit = true }: Pro
                         <span className="font-mono text-foreground">{task.startDate}</span>
                       </div>
                     )}
-                    {task.endDate && (
-                      <div className="flex flex-col">
-                        <span className="text-[10px] uppercase font-bold text-primary/70">Fin</span>
-                        <span className="font-mono text-foreground">{task.endDate}</span>
-                      </div>
-                    )}
                     {task.scheduledDate && (
-                      <div className="flex flex-col border-l border-white/10 pl-4 ml-2">
-                        <span className="text-[10px] uppercase font-bold text-primary/70">Agendado</span>
+                      <div className={cn('flex flex-col', task.startDate ? 'border-l border-white/10 pl-4 ml-2' : '')}>
+                        <span className="text-[10px] uppercase font-bold text-primary/70">Vencimiento</span>
                         <span className="font-mono text-foreground">{task.scheduledDate} {task.scheduledTime ? `@ ${task.scheduledTime}` : ''}</span>
                       </div>
                     )}

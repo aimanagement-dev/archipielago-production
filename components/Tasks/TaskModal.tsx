@@ -165,21 +165,8 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
-        // Guardar la tarea primero
-        onSave(formData as Omit<Task, 'id'>);
-
-        // Si hay responsables asignados Y es una nueva tarea, mostrar modal de notificación
-        // NO cerrar el modal todavía - esperar a que se muestre la notificación
-        if (!initialData && formData.responsible && formData.responsible.length > 0) {
-            // Esperar un momento para que se guarde la tarea antes de mostrar notificación
-            setTimeout(() => {
-                setIsComposeOpen(true);
-            }, 500);
-        } else {
-            // Si es edición o no hay responsables, cerrar normalmente
-            onClose();
-        }
+        await onSave(formData as Omit<Task, 'id'>);
+        onClose();
     };
 
     return (
@@ -288,7 +275,6 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                     {/* Date Selection */}
                     <div className="space-y-4 border-t border-white/10 pt-4">
                         <div className="grid grid-cols-2 gap-4">
-                            {/* Start & End Dates - New Requirements */}
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-muted-foreground">Fecha Inicio</label>
                                 <input
@@ -299,18 +285,6 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                                 />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-muted-foreground">Fecha Fin</label>
-                                <input
-                                    type="date"
-                                    value={formData.endDate || ''}
-                                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary/50"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
                                 <label className="text-sm font-medium text-muted-foreground">Fecha de Vencimiento (Deadline)</label>
                                 <input
                                     type="date"
@@ -320,12 +294,12 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                                 />
                                 <p className="text-[10px] text-muted-foreground">Fecha limite para completar la tarea.</p>
                             </div>
-                            <div className="space-y-2">
-                                {/* Auto-calculated Info Display */}
-                                <label className="text-sm font-medium text-muted-foreground">Periodo</label>
-                                <div className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-muted-foreground cursor-not-allowed">
-                                    {formData.month} - {formData.week}
-                                </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-muted-foreground">Periodo</label>
+                            <div className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-muted-foreground cursor-not-allowed">
+                                {formData.month} - {formData.week}
                             </div>
                         </div>
                     </div>
@@ -471,18 +445,6 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
                 {/* Footer buttons */}
                 <div className="p-6 border-t border-white/5 bg-black/20 flex-shrink-0">
                     <div className="flex flex-col gap-3">
-                        {/* Info sobre notificaciones automáticas */}
-                        {formData.responsible && formData.responsible.length > 0 && (
-                            <div className="flex items-center gap-2 text-xs text-blue-400/80 bg-blue-500/10 px-3 py-2 rounded-lg border border-blue-500/20">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <span>
-                                    Las notificaciones se enviarán automáticamente a {formData.responsible.length} responsable{formData.responsible.length > 1 ? 's' : ''} al guardar
-                                </span>
-                            </div>
-                        )}
-
                         <div className="flex justify-between items-center gap-3">
                             <div className="flex gap-2">
                                 {onDelete && initialData && (

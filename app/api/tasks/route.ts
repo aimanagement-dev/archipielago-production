@@ -297,8 +297,10 @@ export async function POST(req: Request) {
             }
         }
 
-        // Enviar notificaciones automáticas a responsables
-        if (taskToSave.responsible && taskToSave.responsible.length > 0 && accessToken) {
+        const shouldNotify = Boolean(task.notifyResponsible);
+
+        // Enviar notificaciones solo cuando se solicita explícitamente
+        if (shouldNotify && taskToSave.responsible && taskToSave.responsible.length > 0 && accessToken) {
             try {
                 // Obtener team members para mapear IDs a emails
                 const teamMembers = await service.getTeam(spreadsheetId);
@@ -453,7 +455,8 @@ export async function PUT(req: Request) {
             JSON.stringify(existingTask.responsible?.sort()) !== JSON.stringify(taskToUpdate.responsible?.sort());
         const dateChanged = existingTask && existingTask.scheduledDate !== taskToUpdate.scheduledDate;
         const statusChanged = existingTask && existingTask.status !== taskToUpdate.status;
-        const shouldNotify = responsibleChanged || dateChanged || (statusChanged && taskToUpdate.status === 'Completado');
+        const hasRelevantChanges = responsibleChanged || dateChanged || (statusChanged && taskToUpdate.status === 'Completado');
+        const notifyRequested = Boolean(task.notifyResponsible);
 
         // Sincronizar con Calendar - ESPERAR para asegurar que se actualice correctamente
         const accessToken = session.accessToken;
@@ -511,8 +514,8 @@ export async function PUT(req: Request) {
             });
         }
 
-        // Enviar notificaciones si hay cambios relevantes
-        if (shouldNotify && taskToUpdate.responsible && taskToUpdate.responsible.length > 0 && accessToken) {
+        // Enviar notificaciones solo cuando se solicita explícitamente
+        if (notifyRequested && hasRelevantChanges && taskToUpdate.responsible && taskToUpdate.responsible.length > 0 && accessToken) {
             try {
                 const teamMembers = await service.getTeam(spreadsheetId);
                 const teamMap = new Map<string, string>(

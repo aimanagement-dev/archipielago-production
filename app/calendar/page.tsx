@@ -92,16 +92,14 @@ export default function CalendarPage() {
     return result;
   }, [tasks, events, contentType]);
 
-  const ongoingTasks = useMemo(() =>
-    tasks.filter(t => !t.isScheduled || !t.scheduledDate),
+  const ongoingTasks = useMemo(
+    () => tasks.filter(t => t.status !== 'Completado'),
     [tasks]
   );
 
   const ongoingByArea = useMemo(() => {
     const groups: Partial<Record<TaskArea, Task[]>> = {};
-    const tasksToShow = ongoingTasks.filter(task => {
-      return (!task.isScheduled || !task.scheduledDate) && task.status !== 'Completado';
-    });
+    const tasksToShow = ongoingTasks;
 
     tasksToShow.forEach(task => {
       if (!groups[task.area]) {
