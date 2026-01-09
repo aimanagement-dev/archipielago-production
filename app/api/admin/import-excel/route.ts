@@ -2,10 +2,76 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import { GoogleSheetsService } from '@/lib/google-sheets';
-import { parseExcelTasks } from '@/lib/excel-importer';
-import { Task } from '@/lib/types';
+import { Task, TaskArea, TaskStatus, Month } from '@/lib/types';
 import { isUserAdmin } from '@/lib/constants';
 import { generateId } from '@/lib/utils';
+
+const TASKS_RANGE = 'A8:F20';
+const MONTH_TAB_MAP: Record<string, Month> = {
+    noviembre: 'Nov',
+    diciembre: 'Dic',
+    enero: 'Ene',
+    febrero: 'Feb',
+    marzo: 'Mar',
+    abril: 'Abr',
+    mayo: 'May',
+    junio: 'Jun',
+    julio: 'Jul',
+    agosto: 'Ago',
+};
+
+const AREA_MAP: Record<string, TaskArea> = {
+    guion: 'Guión',
+    tecnico: 'Técnico',
+    casting: 'Casting',
+    reporting: 'Reporting',
+    pipeline: 'Pipeline',
+    postproduccion: 'Post-producción',
+    investigacion: 'Investigación',
+    previsualizacion: 'Pre-visualización',
+    produccion: 'Producción',
+    planificacion: 'Planificación',
+    crew: 'Crew',
+};
+
+const normalizeText = (value: string) =>
+    value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+
+const getMonthFromTab = (title: string): Month | null => {
+    const key = normalizeText(title);
+    for (const [monthName, code] of Object.entries(MONTH_TAB_MAP)) {
+        if (key.includes(monthName)) {
+            return code;
+        }
+    }
+    return null;
+};
+
+const normalizeArea = (raw?: string): TaskArea => {
+    const key = raw ? normalizeText(raw) : '';
+    return AREA_MAP[key] || 'Planificación';
+};
+
+const normalizeStatus = (raw?: string): TaskStatus => {
+    const value = raw ? normalizeText(raw) : '';
+    if (value.includes('progreso') || value.includes('curso')) return 'En Progreso';
+    if (value.includes('complet')) return 'Completado';
+    if (value.includes('bloque')) return 'Bloqueado';
+    return 'Pendiente';
+};
+
+const parseResponsible = (raw?: string): string[] => {
+    if (!raw) return [];
+    const normalized = raw.replace(/\s+y\s+/gi, ',').replace(/&/g, ',');
+    return normalized
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+};
 
 export async function POST() {
     const session = await getServerSession(authOptions);
@@ -20,23 +86,6 @@ export async function POST() {
     }
 
     try {
-        const filePath = require('path').join(process.cwd(), 'ARCH_PROJECT_MANAGEMENT.xlsx');
-        const fs = require('fs');
-        
-        if (!fs.existsSync(filePath)) {
-            return NextResponse.json({ error: "Excel file not found" }, { status: 404 });
-        }
-
-        // Usar la función parseExcelTasks mejorada que limita a filas 8-20
-        const tasksToImport = parseExcelTasks(filePath);
-        
-        if (tasksToImport.length === 0) {
-            return NextResponse.json({ 
-                error: "No se encontraron tareas para importar. Verifica que el Excel tenga la sección 'B. LISTA COMPLETA' en cada tab mensual." 
-            }, { status: 400 });
-        }
-
-        // Import to Sheets - Usar findDatabase() para el spreadsheet centralizado
         const service = new GoogleSheetsService(session.accessToken as string);
         const spreadsheetId = await service.findDatabase();
         
@@ -46,69 +95,73 @@ export async function POST() {
             }, { status: 500 });
         }
 
-        // Verificar tareas existentes para evitar duplicados
-        const existingTasks = await service.getTasks(spreadsheetId);
-        const existingTaskMap = new Map<string, Task>();
-        
-        // Crear clave única basada en título + mes + área
-        existingTasks.forEach(task => {
-            const key = `${task.title?.toLowerCase().trim()}-${task.month}-${task.area?.toLowerCase().trim()}`;
-            existingTaskMap.set(key, task);
-        });
+        await service.ensureSchema(spreadsheetId);
 
-        let imported = 0;
-        let skipped = 0;
-        const errors: string[] = [];
+        const sheetTitles = await service.listSheetTitles(spreadsheetId);
+        const monthTabs = sheetTitles
+            .map((title) => ({ title, month: getMonthFromTab(title) }))
+            .filter((entry): entry is { title: string; month: Month } => Boolean(entry.month));
 
-        // Insertar tareas evitando duplicados
-        for (const taskPartial of tasksToImport) {
-            try {
-                // Crear clave única para esta tarea
-                const key = `${taskPartial.title?.toLowerCase().trim()}-${taskPartial.month}-${taskPartial.area?.toLowerCase().trim()}`;
-                
-                // Verificar si ya existe
-                if (existingTaskMap.has(key)) {
-                    skipped++;
-                    continue;
-                }
-                
-                // Generar ID único para la nueva tarea
-                const taskId = generateId();
-                const task: Task = {
-                    ...taskPartial,
-                    id: taskId,
-                    // Asegurar campos requeridos
-                    title: taskPartial.title || 'Sin título',
-                    status: taskPartial.status || 'Pendiente',
-                    area: taskPartial.area || 'Planificación',
-                    month: taskPartial.month || 'Ene',
-                    week: taskPartial.week || 'Week 1',
-                    responsible: taskPartial.responsible || [],
-                    notes: taskPartial.notes || '',
-                    isScheduled: taskPartial.isScheduled || false,
+        if (monthTabs.length === 0) {
+            return NextResponse.json({
+                error: "No se encontraron tabs mensuales (Noviembre, Diciembre, Enero, etc.) en el Google Sheet."
+            }, { status: 400 });
+        }
+
+        const tasksToImport: Task[] = [];
+
+        for (const { title, month } of monthTabs) {
+            const rows = await service.getRangeValues(spreadsheetId, `${title}!${TASKS_RANGE}`);
+
+            for (const row of rows) {
+                if (!row || row.length === 0) continue;
+
+                const titleRaw = row[2] ? String(row[2]).trim() : '';
+                if (!titleRaw) continue;
+
+                const titleKey = normalizeText(titleRaw);
+                if (titleKey.includes('descripcion')) continue;
+
+                const weekRaw = row[0] ? String(row[0]).trim() : '';
+                const areaRaw = row[1] ? String(row[1]).trim() : '';
+                const responsibleRaw = row[3] ? String(row[3]).trim() : '';
+                const statusRaw = row[4] ? String(row[4]).trim() : '';
+                const notesRaw = row[5] ? String(row[5]).trim() : '';
+
+                tasksToImport.push({
+                    id: generateId(),
+                    title: titleRaw,
+                    area: normalizeArea(areaRaw),
+                    status: normalizeStatus(statusRaw),
+                    month,
+                    week: weekRaw || 'Week 1',
+                    responsible: parseResponsible(responsibleRaw),
+                    notes: notesRaw,
+                    isScheduled: false,
                     attachments: [],
                     visibility: 'all',
                     visibleTo: [],
-                } as Task;
-                
-                await service.addTask(spreadsheetId, task);
-                imported++;
-                
-                // Agregar a existingTaskMap para evitar duplicados en la misma importación
-                existingTaskMap.set(key, task);
-            } catch (error) {
-                const errorMsg = `Error importando tarea "${taskPartial.title}": ${error instanceof Error ? error.message : 'Error desconocido'}`;
-                console.error(errorMsg, error);
-                errors.push(errorMsg);
+                });
             }
         }
 
-        return NextResponse.json({ 
-            success: true, 
-            imported, 
-            skipped, 
-            total: tasksToImport.length,
-            errors: errors.length > 0 ? errors : undefined
+        if (tasksToImport.length === 0) {
+            return NextResponse.json({
+                error: "No se encontraron tareas para importar. Verifica que las tabs mensuales tengan datos entre A8:F20."
+            }, { status: 400 });
+        }
+
+        await service.clearTasks(spreadsheetId);
+
+        for (const task of tasksToImport) {
+            await service.addTask(spreadsheetId, task);
+        }
+
+        return NextResponse.json({
+            success: true,
+            imported: tasksToImport.length,
+            count: tasksToImport.length,
+            tabs: monthTabs.map((entry) => entry.title),
         });
 
     } catch (error: any) {

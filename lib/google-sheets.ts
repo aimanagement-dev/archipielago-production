@@ -130,6 +130,31 @@ export class GoogleSheetsService {
         await this.ensureTasksHeaders(spreadsheetId);
     }
 
+    async listSheetTitles(spreadsheetId: string): Promise<string[]> {
+        const meta = await this.sheets.spreadsheets.get({
+            spreadsheetId,
+            fields: 'sheets(properties(title))',
+        });
+        return (meta.data.sheets || [])
+            .map((sheet) => sheet.properties?.title)
+            .filter((title): title is string => Boolean(title));
+    }
+
+    async getRangeValues(spreadsheetId: string, range: string): Promise<string[][]> {
+        const response = await this.sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range,
+        });
+        return (response.data.values || []) as string[][];
+    }
+
+    async clearTasks(spreadsheetId: string) {
+        await this.sheets.spreadsheets.values.clear({
+            spreadsheetId,
+            range: 'Tasks!A2:R',
+        });
+    }
+
     /**
      * Asegura que la hoja Tasks tenga todas las columnas necesarias, incluyendo CalendarId
      */
