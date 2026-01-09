@@ -8,6 +8,27 @@ import { isUserAdmin } from "@/lib/constants";
 // Seed data from database as fallback or initial population
 import initialTeamData from "@/data/team.json";
 
+async function getServiceAccountAccessToken(): Promise<string | null> {
+    const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+    if (!clientEmail || !privateKey) {
+        return null;
+    }
+
+    const { google } = await import('googleapis');
+    const jwt = new google.auth.JWT({
+        email: clientEmail,
+        key: privateKey.replace(/\\n/g, '\n'),
+        scopes: [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive',
+        ],
+    });
+
+    const tokens = await jwt.authorize();
+    return tokens.access_token || null;
+}
+
 export async function GET() {
     const session = await getServerSession(authOptions);
 
@@ -15,9 +36,49 @@ export async function GET() {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const userEmail = session.user?.email || '';
+    const isAdmin = isUserAdmin(userEmail);
+
     try {
-        const service = new GoogleSheetsService(session.accessToken);
-        const spreadsheetId = await service.getOrCreateDatabase();
+        let service = new GoogleSheetsService(session.accessToken);
+        let spreadsheetId: string | null = null;
+
+        if (!isAdmin) {
+            const serviceAccountToken = await getServiceAccountAccessToken();
+            if (serviceAccountToken) {
+                const adminService = new GoogleSheetsService(serviceAccountToken);
+                spreadsheetId = await adminService.findDatabase();
+                if (!spreadsheetId) {
+                    return NextResponse.json({ error: "Database Access Error" }, { status: 500 });
+                }
+
+                await adminService.ensureSchema(spreadsheetId);
+                const team = await adminService.getTeam(spreadsheetId);
+                const member = team.find((m: any) => m.email?.toLowerCase() === userEmail.toLowerCase());
+
+                if (!member || member.accessGranted !== true) {
+                    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+                }
+
+                service = adminService;
+            } else {
+                const { verifyCurrentUserAccess } = await import('@/lib/check-user-access');
+                const accessCheck = await verifyCurrentUserAccess(session.accessToken, userEmail);
+                if (!accessCheck.hasAccess) {
+                    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+                }
+            }
+        }
+
+        if (!spreadsheetId) {
+            spreadsheetId = isAdmin
+                ? await service.getOrCreateDatabase()
+                : await service.findDatabase();
+        }
+
+        if (!spreadsheetId) {
+            return NextResponse.json({ error: "Database Access Error" }, { status: 500 });
+        }
 
         // Ensure "Team" sheet exists and get members
         // If empty, we could populate it with initialTeamData? 
