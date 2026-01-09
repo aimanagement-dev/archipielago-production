@@ -13,7 +13,6 @@ interface Props {
 
 export default function MeetingInvitation({ task, onResponse }: Props) {
   const { user } = useAuth();
-  const { updateTask } = useStore();
   const [isResponding, setIsResponding] = useState(false);
   
   if (!task.hasMeet || !task.meetLink) {
@@ -52,8 +51,10 @@ export default function MeetingInvitation({ task, onResponse }: Props) {
         throw new Error('Error al guardar respuesta');
       }
 
-      // Actualizar en el store local
-      updateTask(task.id, { attendeeResponses: updatedResponses });
+      // Actualizar en el store local sin tocar la API de tareas
+      useStore.setState((state) => ({
+        tasks: state.tasks.map(t => t.id === task.id ? { ...t, attendeeResponses: updatedResponses } : t),
+      }));
       
       if (onResponse) {
         onResponse();

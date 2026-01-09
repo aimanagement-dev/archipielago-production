@@ -4,6 +4,7 @@ import { syncTasksToCalendar, syncCalendarToTasks, CalendarTaskPayload } from '@
 import { authOptions } from '@/lib/auth-config';
 import { GoogleSheetsService } from '@/lib/google-sheets';
 import { Task } from '@/lib/types';
+import { isUserAdmin } from '@/lib/constants';
 
 function monthFromDate(date: string): Task['month'] {
   const month = new Date(date).getMonth();
@@ -28,6 +29,12 @@ export async function POST(request: Request) {
 
   if (!session || !session.accessToken) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const userEmail = session.user?.email || '';
+  const isAdmin = isUserAdmin(userEmail);
+  if (!isAdmin) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   try {
@@ -69,6 +76,12 @@ export async function GET(request: Request) {
 
   if (!session || !session.accessToken) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const userEmail = session.user?.email || '';
+  const isAdmin = isUserAdmin(userEmail);
+  if (!isAdmin) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   try {

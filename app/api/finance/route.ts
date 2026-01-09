@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth-config';
 import { GoogleSheetsService } from '@/lib/google-sheets';
 import { Subscription, Transaction } from '@/lib/types';
+import { isUserAdmin } from '@/lib/constants';
 import crypto from 'crypto';
 
 export async function GET() {
@@ -135,6 +136,12 @@ export async function GET() {
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const userEmail = session.user?.email || '';
+    const isAdmin = isUserAdmin(userEmail);
+    if (!isAdmin) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const accessToken = (session as any).accessToken;
     const sheetsService = new GoogleSheetsService(accessToken);
@@ -558,6 +565,12 @@ export async function PUT(req: Request) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const userEmail = session.user?.email || '';
+    const isAdmin = isUserAdmin(userEmail);
+    if (!isAdmin) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const accessToken = (session as any).accessToken;
     const sheetsService = new GoogleSheetsService(accessToken);
     const spreadsheetId = await sheetsService.getOrCreateDatabase();
@@ -642,6 +655,12 @@ export async function PUT(req: Request) {
 export async function DELETE(req: Request) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const userEmail = session.user?.email || '';
+    const isAdmin = isUserAdmin(userEmail);
+    if (!isAdmin) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const accessToken = (session as any).accessToken;
     const sheetsService = new GoogleSheetsService(accessToken);

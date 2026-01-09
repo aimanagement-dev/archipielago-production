@@ -19,9 +19,10 @@ interface DrivePickerProps {
     onCancel: () => void;
     initialFolderId?: string;
     area?: string;
+    readOnly?: boolean;
 }
 
-export default function DrivePicker({ onSelect, onCancel, initialFolderId = 'root', area, className }: DrivePickerProps & { className?: string }) {
+export default function DrivePicker({ onSelect, onCancel, initialFolderId = 'root', area, readOnly = false, className }: DrivePickerProps & { className?: string }) {
     const [currentFolder, setCurrentFolder] = useState<string>(initialFolderId);
     const [path, setPath] = useState<{ id: string, name: string }[]>([{ id: 'root', name: 'Home' }]);
     const [files, setFiles] = useState<DriveFile[]>([]);
@@ -171,36 +172,40 @@ export default function DrivePicker({ onSelect, onCancel, initialFolderId = 'roo
                 </div>
 
                 <div className="ml-auto flex gap-2">
-                    <button
-                        onClick={() => {
-                            setCurrentFolder('user_root');
-                            setPath([{ id: 'user_root', name: 'My Drive' }]);
-                        }}
-                        className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
-                        title="Ir a Mi Unidad"
-                    >
-                        <Cloud className="w-4 h-4" />
-                    </button>
-                    <button
-                        onClick={handleCreateFolder}
-                        className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
-                        title="Nueva Carpeta"
-                    >
-                        <Folder className="w-4 h-4" />
-                    </button>
-                    <label className={`p-2 rounded-lg transition-colors cursor-pointer flex items-center gap-2
-                        ${uploading ? 'bg-white/10 text-white/40 cursor-not-allowed' : 'hover:bg-white/10 text-primary hover:text-white'}
-                    `}>
-                        {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                        <span className="text-xs font-bold">{uploading ? 'Subiendo...' : 'Subir'}</span>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            className="hidden"
-                            onChange={handleUpload}
-                            disabled={uploading}
-                        />
-                    </label>
+                    {!readOnly && (
+                        <>
+                            <button
+                                onClick={() => {
+                                    setCurrentFolder('user_root');
+                                    setPath([{ id: 'user_root', name: 'My Drive' }]);
+                                }}
+                                className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
+                                title="Ir a Mi Unidad"
+                            >
+                                <Cloud className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={handleCreateFolder}
+                                className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
+                                title="Nueva Carpeta"
+                            >
+                                <Folder className="w-4 h-4" />
+                            </button>
+                            <label className={`p-2 rounded-lg transition-colors cursor-pointer flex items-center gap-2
+                                ${uploading ? 'bg-white/10 text-white/40 cursor-not-allowed' : 'hover:bg-white/10 text-primary hover:text-white'}
+                            `}>
+                                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                <span className="text-xs font-bold">{uploading ? 'Subiendo...' : 'Subir'}</span>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    className="hidden"
+                                    onChange={handleUpload}
+                                    disabled={uploading}
+                                />
+                            </label>
+                        </>
+                    )}
                 </div>
             </div>
 

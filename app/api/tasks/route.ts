@@ -47,36 +47,40 @@ export async function GET() {
     try {
         const service = new GoogleSheetsService(session.accessToken);
 
-        // Intentar obtener el DB - si falla, loguear el error pero continuar
-        let spreadsheetId: string;
+        // IMPORTANTE: Tanto ADMIN como USER deben usar el MISMO spreadsheetId centralizado
+        // Usar findDatabase() directamente para asegurar que todos usen la misma fuente de verdad
+        let spreadsheetId: string | null;
         try {
-            spreadsheetId = await service.getOrCreateDatabase();
-            console.log(`[GET /api/tasks] Database ID obtenido: ${spreadsheetId.substring(0, 20)}... (Admin: ${isAdmin})`);
-        } catch (dbError) {
-            console.error(`[GET /api/tasks] Error obteniendo DB:`, dbError);
-            // Si es admin y falla, intentar solo encontrar (no crear)
-            if (isAdmin) {
-                spreadsheetId = await service.findDatabase() || '';
-                if (!spreadsheetId) {
-                    console.error(`[GET /api/tasks] Admin no puede acceder al DB`);
-                    return NextResponse.json({
-                        error: "Database Access Error",
-                        details: "No se pudo acceder a la base de datos. Verifica los permisos.",
-                    }, { status: 500 });
-                }
-            } else {
-                throw dbError;
+            spreadsheetId = await service.findDatabase();
+            if (!spreadsheetId) {
+                console.error(`[GET /api/tasks] No se encontró el DB centralizado (Admin: ${isAdmin}, User: ${userEmail})`);
+                return NextResponse.json({
+                    error: "Database Access Error",
+                    details: "No se pudo acceder a la base de datos centralizada. Verifica que el spreadsheet esté compartido con tu cuenta.",
+                }, { status: 500 });
             }
+            console.log(`[GET /api/tasks] Database ID obtenido: ${spreadsheetId.substring(0, 20)}... (Admin: ${isAdmin}, User: ${userEmail})`);
+            
+            // Verificar que el schema esté actualizado (sin crear nuevo spreadsheet)
+            await service.ensureSchema(spreadsheetId);
+        } catch (dbError) {
+            console.error(`[GET /api/tasks] Error obteniendo/accediendo al DB:`, dbError);
+            return NextResponse.json({
+                error: "Database Access Error",
+                details: `No se pudo acceder a la base de datos: ${dbError instanceof Error ? dbError.message : 'Error desconocido'}. Verifica los permisos.`,
+            }, { status: 500 });
         }
 
         // PASO 1: Leer tareas de Sheets
         let sheetsTasks = await service.getTasks(spreadsheetId);
-        console.log(`[GET /api/tasks] Tareas leídas de Sheets: ${sheetsTasks.length} (Admin: ${isAdmin})`);
+        console.log(`[GET /api/tasks] Tareas leídas de Sheets: ${sheetsTasks.length} (Admin: ${isAdmin}, User: ${userEmail}, SpreadsheetID: ${spreadsheetId.substring(0, 20)}...)`);
 
         // SEEDING AUTOMÁTICO:
-        // Si el Sheet está vacío, poblarlo con los datos iniciales de data/tasks.json
+        // Si el Sheet está vacío o casi vacío, poblarlo con los datos iniciales del Excel
         // Esto soluciona el problema de que el Admin vea una lista vacía al conectarse a una DB nueva.
+        // IMPORTANTE: Solo hacer seeding si realmente hay muy pocas tareas (<= 1) para evitar duplicados
         if (sheetsTasks.length <= 1) {
+            console.log(`[GET /api/tasks] DB casi vacía (${sheetsTasks.length} tareas). Intentando sembrado desde Excel...`);
             console.log(`[GET /api/tasks] DB casi vacía (${sheetsTasks.length} tareas). Intentando sembrado/merge automático...`);
             try {
                 let tasksToSeed: any[] = [];
@@ -223,6 +227,12 @@ export async function POST(req: Request) {
 
     if (!session || !session.accessToken) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userEmail = session.user?.email || '';
+    const isAdmin = isUserAdmin(userEmail);
+    if (!isAdmin) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     try {
@@ -443,6 +453,12 @@ export async function PUT(req: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const userEmail = session.user?.email || '';
+    const isAdmin = isUserAdmin(userEmail);
+    if (!isAdmin) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     try {
         const task = await req.json();
         if (!task.id) {
@@ -641,6 +657,12 @@ export async function DELETE(req: Request) {
 
     if (!session || !session.accessToken) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userEmail = session.user?.email || '';
+    const isAdmin = isUserAdmin(userEmail);
+    if (!isAdmin) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     try {

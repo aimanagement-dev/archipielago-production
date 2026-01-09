@@ -1,5 +1,6 @@
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useStore } from "@/lib/store";
+import { ADMIN_EMAILS } from "@/lib/constants";
 
 export type UserRole = 'admin' | 'user' | 'viewer';
 
@@ -22,13 +23,8 @@ export const useAuth = () => {
         if (!email) return 'viewer';
 
         // 1. Check Hardcoded Super Admins (by email)
-        const superAdmins = [
-            'ai.management@archipielagofilm.com',
-            'ai.lantica@lanticastudios.com',
-            // Federico Berón removido de admins - ahora es user regular
-            // Cindy Toribio removida de admins - ahora es user regular
-        ];
-        if (superAdmins.includes(email.toLowerCase())) return 'admin';
+        const adminEmails = ADMIN_EMAILS.map((adminEmail) => adminEmail.toLowerCase());
+        if (adminEmails.includes(email.toLowerCase())) return 'admin';
 
         // 2. Check Team Data for Role or Name Match
         if (team && team.length > 0) {

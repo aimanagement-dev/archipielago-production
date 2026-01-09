@@ -9,12 +9,13 @@ import TransactionModal from './TransactionModal';
 
 interface TransactionsTableProps {
     onEdit?: (transaction: Transaction) => void;
+    canEdit?: boolean;
 }
 
 const KINDS: Transaction['kind'][] = ['fixed', 'extra', 'one_off', 'trial'];
 const STATUSES: Transaction['status'][] = ['pending', 'approved', 'paid'];
 
-export default function TransactionsTable({ onEdit }: TransactionsTableProps) {
+export default function TransactionsTable({ onEdit, canEdit = true }: TransactionsTableProps) {
     const { finance, team, deleteTransaction, updateTransaction } = useStore();
     const [searchTerm, setSearchTerm] = useState('');
     const [filterKind, setFilterKind] = useState<Transaction['kind'] | 'all'>('all');
@@ -90,6 +91,7 @@ export default function TransactionsTable({ onEdit }: TransactionsTableProps) {
     }, [finance.transactions, searchTerm, filterKind, filterStatus, filterCategory, filterMonth]);
 
     const handleDelete = async (id: string, vendor: string) => {
+        if (!canEdit) return;
         if (!confirm(`¿Estás seguro de eliminar la transacción "${vendor}"?`)) return;
         try {
             await deleteTransaction(id);
@@ -100,6 +102,7 @@ export default function TransactionsTable({ onEdit }: TransactionsTableProps) {
     };
 
     const handleEdit = (trans: Transaction) => {
+        if (!canEdit) return;
         setEditingTrans(trans);
         setIsModalOpen(true);
         if (onEdit) onEdit(trans);
@@ -375,20 +378,24 @@ export default function TransactionsTable({ onEdit }: TransactionsTableProps) {
                                                         <ExternalLink className="w-4 h-4" />
                                                     </a>
                                                 )}
-                                                <button
-                                                    onClick={() => handleEdit(trans)}
-                                                    className="p-1.5 rounded-lg bg-white/5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                                                    title="Editar"
-                                                >
-                                                    <Pencil className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(trans.id, trans.vendor)}
-                                                    className="p-1.5 rounded-lg bg-white/5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                                    title="Eliminar"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                                                {canEdit && (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleEdit(trans)}
+                                                            className="p-1.5 rounded-lg bg-white/5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                                                            title="Editar"
+                                                        >
+                                                            <Pencil className="w-4 h-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDelete(trans.id, trans.vendor)}
+                                                            className="p-1.5 rounded-lg bg-white/5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                                            title="Eliminar"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -425,7 +432,6 @@ export default function TransactionsTable({ onEdit }: TransactionsTableProps) {
         </>
     );
 }
-
 
 
 

@@ -7,9 +7,10 @@ interface Props {
   tasks: Task[];
   onEdit?: (task: Task) => void;
   onDelete?: (id: string) => void;
+  canEdit?: boolean;
 }
 
-export default function TaskList({ tasks, onEdit, onDelete }: Props) {
+export default function TaskList({ tasks, onEdit, onDelete, canEdit = true }: Props) {
   if (tasks.length === 0) {
     return (
       <div className="bg-card rounded-xl border border-border shadow-sm p-8 text-center">
@@ -26,6 +27,7 @@ export default function TaskList({ tasks, onEdit, onDelete }: Props) {
           task={task}
           onEdit={onEdit}
           onDelete={onDelete}
+          canEdit={canEdit}
         />
       ))}
     </div>

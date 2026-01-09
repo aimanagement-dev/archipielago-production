@@ -6,11 +6,18 @@ import * as XLSX from 'xlsx';
 import path from 'path';
 import fs from 'fs';
 import { Task, TaskStatus, TaskArea } from '@/lib/types';
+import { isUserAdmin } from '@/lib/constants';
 
 export async function POST() {
     const session = await getServerSession(authOptions);
     if (!session || !session.user?.email) { // Simple auth check
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userEmail = session.user?.email || '';
+    const isAdmin = isUserAdmin(userEmail);
+    if (!isAdmin) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     try {

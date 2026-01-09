@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import { getCalendarClient } from '@/lib/google/calendar';
+import { isUserAdmin } from '@/lib/constants';
 
 /**
  * Endpoint para obtener la lista de calendarios disponibles
@@ -12,6 +13,12 @@ export async function GET() {
 
   if (!session || !session.accessToken) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const userEmail = session.user?.email || '';
+  const isAdmin = isUserAdmin(userEmail);
+  if (!isAdmin) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   try {

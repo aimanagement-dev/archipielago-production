@@ -311,14 +311,14 @@ export default function TaskModal({ isOpen, onClose, onSave, onDelete, initialDa
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-muted-foreground">Fecha Agendada (Hito)</label>
+                                <label className="text-sm font-medium text-muted-foreground">Fecha de Vencimiento (Deadline)</label>
                                 <input
                                     type="date"
                                     value={formData.scheduledDate || ''}
                                     onChange={(e) => setFormData({ ...formData, scheduledDate: e.target.value })}
                                     className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary/50"
                                 />
-                                <p className="text-[10px] text-muted-foreground">Fecha para el calendario y cálculo de semana.</p>
+                                <p className="text-[10px] text-muted-foreground">Fecha limite para completar la tarea.</p>
                             </div>
                             <div className="space-y-2">
                                 {/* Auto-calculated Info Display */}

@@ -150,4 +150,29 @@ export class GoogleDriveService {
         const newFolder = await this.createFolder(name, parentId);
         return newFolder.id;
     }
+
+    /**
+     * Checks whether a folder/file is inside a given ancestor folder.
+     */
+    async isDescendant(childId: string, ancestorId: string, maxDepth = 10): Promise<boolean> {
+        if (childId === ancestorId) return true;
+
+        let currentId = childId;
+        for (let depth = 0; depth < maxDepth; depth += 1) {
+            const res = await this.drive.files.get({
+                fileId: currentId,
+                fields: 'id, parents',
+                supportsAllDrives: true,
+            });
+
+            const parents = res.data.parents || [];
+            if (parents.includes(ancestorId)) return true;
+            if (parents.length === 0) return false;
+
+            // Assume single-parent structure for project folders.
+            currentId = parents[0];
+        }
+
+        return false;
+    }
 }

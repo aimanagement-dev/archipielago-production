@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import { GoogleDriveService } from '@/lib/google-drive';
-import { TASKS_ATTACHMENTS_FOLDER_NAME } from '@/lib/constants';
+import { TASKS_ATTACHMENTS_FOLDER_NAME, isUserAdmin } from '@/lib/constants';
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -10,6 +10,12 @@ export async function POST(req: NextRequest) {
     
     const accessToken = (session as any).accessToken;
     if (!accessToken) return NextResponse.json({ error: 'No access token' }, { status: 401 });
+
+    const userEmail = session.user?.email || '';
+    const isAdmin = isUserAdmin(userEmail);
+    if (!isAdmin) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const drive = new GoogleDriveService(accessToken);
 

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { GoogleSheetsService } from "@/lib/google-sheets";
 import { authOptions } from "@/lib/auth-config";
 import { TeamMember } from "@/lib/types";
+import { isUserAdmin } from "@/lib/constants";
 
 // Seed data from database as fallback or initial population
 import initialTeamData from "@/data/team.json";
@@ -51,6 +52,12 @@ export async function POST(req: Request) {
 
     if (!session || !session.accessToken) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userEmail = session.user?.email || '';
+    const isAdmin = isUserAdmin(userEmail);
+    if (!isAdmin) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     try {
@@ -107,6 +114,12 @@ export async function PUT(req: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const userEmail = session.user?.email || '';
+    const isAdmin = isUserAdmin(userEmail);
+    if (!isAdmin) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     try {
         const member = await req.json();
         if (!member.id) {
@@ -131,6 +144,12 @@ export async function DELETE(req: Request) {
 
     if (!session || !session.accessToken) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userEmail = session.user?.email || '';
+    const isAdmin = isUserAdmin(userEmail);
+    if (!isAdmin) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     try {

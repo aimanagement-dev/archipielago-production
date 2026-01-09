@@ -12,14 +12,16 @@ interface Props {
   task: Task;
   onEdit?: (task: Task) => void;
   onDelete?: (id: string) => void;
+  canEdit?: boolean;
 }
 
-export default function TaskCard({ task, onEdit, onDelete }: Props) {
+export default function TaskCard({ task, onEdit, onDelete, canEdit = true }: Props) {
   const [expanded, setExpanded] = useState(false);
   const updateTask = useStore((state) => state.updateTask);
 
   const cycleStatus = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!canEdit) return;
     const statuses: TaskStatus[] = ['Pendiente', 'En Progreso', 'Completado', 'Bloqueado'];
     const currentIndex = statuses.indexOf(task.status);
     const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % statuses.length : 0;
@@ -67,7 +69,12 @@ export default function TaskCard({ task, onEdit, onDelete }: Props) {
           <div className="flex items-center gap-2">
             <button
               onClick={cycleStatus}
-              className={cn('px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all hover:scale-105 active:scale-95 border border-border/20', statusColors[task.status])}
+              disabled={!canEdit}
+              className={cn(
+                'px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all border border-border/20',
+                canEdit ? 'hover:scale-105 active:scale-95' : 'opacity-70 cursor-not-allowed',
+                statusColors[task.status]
+              )}
             >
               {task.status}
             </button>

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import { GoogleDriveService } from '@/lib/google-drive';
+import { FINANCE_DRIVE_FOLDER_ID, isUserAdmin } from '@/lib/constants';
 
 export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions);
@@ -19,9 +20,29 @@ export async function GET(req: NextRequest) {
     const action = searchParams.get('action'); // 'list' | 'root_id'
     const area = searchParams.get('area');
 
+    const userEmail = session.user?.email || '';
+    const isAdmin = isUserAdmin(userEmail);
+
     const drive = new GoogleDriveService(accessToken);
 
     try {
+        if (!isAdmin) {
+            if (action === 'root_id') {
+                return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            }
+            if (!folderId || folderId === 'root' || folderId === 'user_root') {
+                return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            }
+
+            const allowed = await drive.isDescendant(folderId, FINANCE_DRIVE_FOLDER_ID);
+            if (!allowed) {
+                return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            }
+
+            const files = await drive.listFiles(folderId);
+            return NextResponse.json({ files, parentId: folderId });
+        }
+
         if (action === 'root_id') {
             const rootId = await drive.ensureRootFolder();
             return NextResponse.json({ rootId });
@@ -55,6 +76,12 @@ export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const accessToken = (session as any).accessToken;
+    const userEmail = session.user?.email || '';
+    const isAdmin = isUserAdmin(userEmail);
+
+    if (!isAdmin) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const drive = new GoogleDriveService(accessToken);
 

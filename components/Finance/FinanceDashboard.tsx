@@ -11,11 +11,14 @@ import TransactionModal from './TransactionModal';
 import TransactionsTable from './TransactionsTable';
 import MonthlyFinanceView from './MonthlyFinanceView';
 import DrivePicker from '@/components/Drive/DrivePicker';
+import { useAuth } from '@/lib/auth';
 
 type Tab = 'month' | 'subscriptions' | 'history';
 
 export default function FinanceDashboard() {
     const { finance, team, fetchFinance, fetchTeam, addSubscription, addTransaction } = useStore();
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin';
     const [isLoaded, setIsLoaded] = useState(false);
     const [isSubModalOpen, setIsSubModalOpen] = useState(false);
     const [isTransModalOpen, setIsTransModalOpen] = useState(false);
@@ -295,30 +298,34 @@ export default function FinanceDashboard() {
 
                     {/* Action Buttons */}
                     <div className="flex gap-3 w-full md:w-auto flex-wrap">
-                        <button
-                            onClick={() => {
-                                setEditingSub(undefined);
-                                setIsSubModalOpen(true);
-                            }}
-                            className="flex-1 md:flex-none px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
-                            <Plus className="w-4 h-4" />
-                            Nueva Suscripción
-                        </button>
-                        <button
-                            onClick={() => {
-                                setEditingTrans(undefined);
-                                setIsTransModalOpen(true);
-                            }}
-                            className="flex-1 md:flex-none px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
-                            <Plus className="w-4 h-4" />
-                            Nueva Transacción
-                        </button>
+                        {isAdmin && (
+                            <>
+                                <button
+                                    onClick={() => {
+                                        setEditingSub(undefined);
+                                        setIsSubModalOpen(true);
+                                    }}
+                                    className="flex-1 md:flex-none px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
+                                    <Plus className="w-4 h-4" />
+                                    Nueva Suscripción
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setEditingTrans(undefined);
+                                        setIsTransModalOpen(true);
+                                    }}
+                                    className="flex-1 md:flex-none px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-emerald-500/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
+                                    <Plus className="w-4 h-4" />
+                                    Nueva Transacción
+                                </button>
+                            </>
+                        )}
                         <button
                             onClick={handleExportReport}
                             className="flex-1 md:flex-none px-4 py-2.5 bg-secondary hover:bg-muted text-secondary-foreground text-xs font-bold rounded-lg border border-border transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
                             📄 Exportar
                         </button>
-                        {activeTab === 'month' && (
+                        {isAdmin && activeTab === 'month' && (
                             <button
                                 onClick={handleImportMonthlyExpenses}
                                 className="flex-1 md:flex-none px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg border border-transparent shadow-lg shadow-purple-500/20 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
@@ -444,22 +451,24 @@ export default function FinanceDashboard() {
                                                 <p className="font-bold text-emerald-600 text-xl tracking-tight">${sub.amount || sub.cost || 0}</p>
                                                 <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">{sub.currency} / MES</p>
                                             </div>
-                                            <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button
-                                                    onClick={() => handleEditSub(sub)}
-                                                    className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                                                    title="Editar"
-                                                >
-                                                    <Pencil className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteSub(sub.id, sub.platform)}
-                                                    className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                                    title="Eliminar"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
+                                            {isAdmin && (
+                                                <div className="flex items-center gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={() => handleEditSub(sub)}
+                                                        className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                                                        title="Editar"
+                                                    >
+                                                        <Pencil className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteSub(sub.id, sub.platform)}
+                                                        className="p-2 rounded-lg bg-muted text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                                        title="Eliminar"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -507,7 +516,7 @@ export default function FinanceDashboard() {
                 )}
 
                 {activeTab === 'history' && (
-                    <TransactionsTable />
+                    <TransactionsTable canEdit={isAdmin} />
                 )}
             </div>
 
@@ -549,9 +558,14 @@ export default function FinanceDashboard() {
                         <div className="flex-1 overflow-hidden relative">
                             <DrivePicker
                                 initialFolderId={FINANCE_DRIVE_FOLDER_ID}
-                                onSelect={() => { }} // No action needed on select for this view
+                                onSelect={(link) => {
+                                    if (link) {
+                                        window.open(link, '_blank');
+                                    }
+                                }}
                                 onCancel={() => setIsDriveModalOpen(false)}
                                 className="h-full"
+                                readOnly={!isAdmin}
                             />
                         </div>
                     </div>

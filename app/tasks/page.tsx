@@ -8,6 +8,7 @@ import TaskFilters from '@/components/Tasks/TaskFilters';
 import TaskModal from '@/components/Tasks/TaskModal';
 import { Plus, LayoutGrid, Calendar, ArrowUp, ArrowDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/auth';
 
 type GroupBy = 'none' | 'month' | 'week' | 'area' | 'status';
 
@@ -22,6 +23,8 @@ export default function TasksPage() {
   const [syncError, setSyncError] = useState<string | null>(null);
 
   const { tasks, addTask, updateTask, deleteTask, fetchTasks } = useStore();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   useEffect(() => {
     fetchTasks();
@@ -199,36 +202,38 @@ export default function TasksPage() {
           <p className="text-muted-foreground">Organiza y monitorea todas las tareas del proyecto</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleSyncToCalendar}
-              disabled={syncing}
-              className={cn(
-                'flex items-center gap-2 px-3 py-2 rounded-lg font-medium border border-border transition-colors',
-                syncing
-                  ? 'bg-muted text-muted-foreground cursor-not-allowed font-bold'
-                  : 'bg-muted/50 hover:bg-muted text-foreground'
-              )}
-              title="Sincronizar hacia Google Calendar (App → Calendar)"
-            >
-              <ArrowUp className="w-4 h-4" />
-              {syncing ? 'Sincronizando...' : '→ Calendar'}
-            </button>
-            <button
-              onClick={handleSyncFromCalendar}
-              disabled={syncingFromCalendar}
-              className={cn(
-                'flex items-center gap-2 px-3 py-2 rounded-lg font-medium border border-border transition-colors',
-                syncingFromCalendar
-                  ? 'bg-muted text-muted-foreground cursor-not-allowed font-bold'
-                  : 'bg-muted/50 hover:bg-muted text-foreground'
-              )}
-              title="Sincronizar desde Google Calendar (Calendar → App)"
-            >
-              <ArrowDown className="w-4 h-4" />
-              {syncingFromCalendar ? 'Sincronizando...' : '← Calendar'}
-            </button>
-          </div>
+          {isAdmin && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSyncToCalendar}
+                disabled={syncing}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2 rounded-lg font-medium border border-border transition-colors',
+                  syncing
+                    ? 'bg-muted text-muted-foreground cursor-not-allowed font-bold'
+                    : 'bg-muted/50 hover:bg-muted text-foreground'
+                )}
+                title="Sincronizar hacia Google Calendar (App → Calendar)"
+              >
+                <ArrowUp className="w-4 h-4" />
+                {syncing ? 'Sincronizando...' : '→ Calendar'}
+              </button>
+              <button
+                onClick={handleSyncFromCalendar}
+                disabled={syncingFromCalendar}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2 rounded-lg font-medium border border-border transition-colors',
+                  syncingFromCalendar
+                    ? 'bg-muted text-muted-foreground cursor-not-allowed font-bold'
+                    : 'bg-muted/50 hover:bg-muted text-foreground'
+                )}
+                title="Sincronizar desde Google Calendar (Calendar → App)"
+              >
+                <ArrowDown className="w-4 h-4" />
+                {syncingFromCalendar ? 'Sincronizando...' : '← Calendar'}
+              </button>
+            </div>
+          )}
           {syncMessage && (
             <div className="text-sm text-green-700 bg-emerald-500/10 px-3 py-1 rounded-lg font-semibold border border-emerald-500/20">
               {syncMessage}
@@ -240,16 +245,18 @@ export default function TasksPage() {
             </div>
           )}
 
-          <button
-            onClick={() => {
-              setEditingTask(undefined);
-              setIsModalOpen(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-[0_0_20px_rgba(245,158,11,0.3)]"
-          >
-            <Plus className="w-5 h-5" />
-            Nueva Tarea
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => {
+                setEditingTask(undefined);
+                setIsModalOpen(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-[0_0_20px_rgba(245,158,11,0.3)]"
+            >
+              <Plus className="w-5 h-5" />
+              Nueva Tarea
+            </button>
+          )}
         </div>
       </div>
 
@@ -352,8 +359,9 @@ export default function TasksPage() {
 
             <TaskList
               tasks={groupTasks}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
+              onEdit={isAdmin ? handleEdit : undefined}
+              onDelete={isAdmin ? handleDelete : undefined}
+              canEdit={isAdmin}
             />
           </div>
         ))}
@@ -366,12 +374,14 @@ export default function TasksPage() {
         )}
       </div>
 
-      <TaskModal
-        isOpen={isModalOpen}
-        onClose={handleClose}
-        onSave={handleSave}
-        initialData={editingTask}
-      />
+      {isAdmin && (
+        <TaskModal
+          isOpen={isModalOpen}
+          onClose={handleClose}
+          onSave={handleSave}
+          initialData={editingTask}
+        />
+      )}
     </div>
   );
 }
