@@ -7,6 +7,27 @@ import { Task } from "@/lib/types";
 import { sendEmailDirect } from "@/lib/notify";
 import { isUserAdmin } from "@/lib/constants";
 
+async function getServiceAccountAccessToken(): Promise<string | null> {
+    const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    const privateKey = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+    if (!clientEmail || !privateKey) {
+        return null;
+    }
+
+    const { google } = await import('googleapis');
+    const jwt = new google.auth.JWT({
+        email: clientEmail,
+        key: privateKey.replace(/\\n/g, '\n'),
+        scopes: [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive',
+        ],
+    });
+
+    const tokens = await jwt.authorize();
+    return tokens.access_token || null;
+}
+
 function monthFromDate(date: string): Task['month'] {
     const month = new Date(date).getMonth();
     const map: Task['month'][] = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'] as any;
@@ -27,31 +48,63 @@ export async function GET() {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Los admins siempre tienen acceso completo
     const userEmail = session.user.email || '';
     const isAdmin = isUserAdmin(userEmail);
 
-    // Si no es admin, verificar que el usuario tenga accessGranted = true
-    if (!isAdmin) {
-        const { verifyCurrentUserAccess } = await import('@/lib/check-user-access');
-        const accessCheck = await verifyCurrentUserAccess(session.accessToken, userEmail);
-
-        if (!accessCheck.hasAccess) {
-            return NextResponse.json({
-                error: "Access Denied",
-                details: accessCheck.reason || "Tu cuenta no tiene acceso a la aplicación. Contacta al administrador para obtener acceso.",
-            }, { status: 403 });
-        }
-    }
-
     try {
-        const service = new GoogleSheetsService(session.accessToken);
+        let service = new GoogleSheetsService(session.accessToken);
+        let spreadsheetId: string | null = null;
+
+        if (!isAdmin) {
+            const serviceAccountToken = await getServiceAccountAccessToken();
+            if (serviceAccountToken) {
+                const adminService = new GoogleSheetsService(serviceAccountToken);
+                try {
+                    spreadsheetId = await adminService.findDatabase();
+                    if (!spreadsheetId) {
+                        console.error(`[GET /api/tasks] No se encontró el DB centralizado (ServiceAccount, User: ${userEmail})`);
+                        return NextResponse.json({
+                            error: "Database Access Error",
+                            details: "No se pudo acceder a la base de datos centralizada. Verifica la configuración.",
+                        }, { status: 500 });
+                    }
+
+                    await adminService.ensureSchema(spreadsheetId);
+                    const team = await adminService.getTeam(spreadsheetId);
+                    const member = team.find((m: any) => m.email?.toLowerCase() === userEmail.toLowerCase());
+
+                    if (!member || member.accessGranted !== true) {
+                        return NextResponse.json({
+                            error: "Access Denied",
+                            details: "Tu cuenta no tiene acceso habilitado. Contacta al administrador.",
+                        }, { status: 403 });
+                    }
+
+                    service = adminService;
+                } catch (serviceError) {
+                    console.error(`[GET /api/tasks] Error usando service account:`, serviceError);
+                    return NextResponse.json({
+                        error: "Database Access Error",
+                        details: "No se pudo validar el acceso con la cuenta del sistema.",
+                    }, { status: 500 });
+                }
+            } else {
+                const { verifyCurrentUserAccess } = await import('@/lib/check-user-access');
+                const accessCheck = await verifyCurrentUserAccess(session.accessToken, userEmail);
+
+                if (!accessCheck.hasAccess) {
+                    return NextResponse.json({
+                        error: "Access Denied",
+                        details: accessCheck.reason || "Tu cuenta no tiene acceso a la aplicación. Contacta al administrador para obtener acceso.",
+                    }, { status: 403 });
+                }
+            }
+        }
 
         // IMPORTANTE: Tanto ADMIN como USER deben usar el MISMO spreadsheetId centralizado
         // Usar findDatabase() directamente para asegurar que todos usen la misma fuente de verdad
-        let spreadsheetId: string | null;
         try {
-            spreadsheetId = await service.findDatabase();
+            spreadsheetId = spreadsheetId || await service.findDatabase();
             if (!spreadsheetId) {
                 console.error(`[GET /api/tasks] No se encontró el DB centralizado (Admin: ${isAdmin}, User: ${userEmail})`);
                 return NextResponse.json({

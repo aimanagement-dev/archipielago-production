@@ -251,27 +251,6 @@ export default function CalendarPage() {
     }
   };
 
-  const handleImportExcel = async () => {
-    if (!confirm('¿Estás seguro de que deseas importar las tareas del Excel? Esto podría duplicar tareas si ya existen.')) return;
-
-    setSyncingFromCalendar(true);
-    setSyncMessage(null);
-    try {
-      const res = await fetch('/api/admin/import-excel', { method: 'POST' });
-      const data = await res.json();
-      if (res.ok) {
-        setSyncMessage(`✅ Importación completada: ${data.count} tareas importadas.`);
-        await fetchTasks();
-      } else {
-        setSyncError(`Error: ${data.error}`);
-      }
-    } catch (e) {
-      setSyncError('Error de conexión al importar Excel.');
-    } finally {
-      setSyncingFromCalendar(false);
-    }
-  };
-
   const renderMonthView = () => {
     const monthStart = startOfMonth(currentDate);
     const firstDayOfWeek = monthStart.getDay();
@@ -609,17 +588,6 @@ export default function CalendarPage() {
               </button>
             </div>
 
-            {user?.role === 'admin' && (
-              <button
-                onClick={handleImportExcel}
-                disabled={syncingFromCalendar}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-600 border border-emerald-600/20 rounded-xl transition-all text-xs font-bold uppercase tracking-wider shrink-0"
-                title="Importar Excel de Proyecto"
-              >
-                <RefreshCw className={cn("w-4 h-4", syncingFromCalendar && "animate-spin")} />
-                Importar Excel
-              </button>
-            )}
           </div>
         </div>
 
