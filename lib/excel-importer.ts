@@ -24,6 +24,7 @@ export function parseExcelTasks(filePath: string): Partial<Task>[] {
         for (let i = 0; i < data.length; i++) {
             if (data[i][0] && typeof data[i][0] === 'string' && data[i][0].includes('B. LISTA COMPLETA')) {
                 startRow = i + 2; // Data usually starts 2 rows after title (Title -> Header -> Data)
+                // startRow ahora apunta a la fila 8 del Excel (índice 7 en array 0-based)
                 break;
             }
         }
@@ -46,9 +47,32 @@ export function parseExcelTasks(filePath: string): Partial<Task>[] {
             if (lower.includes('nota')) colMap.notes = idx;
         });
 
-        for (let i = startRow; i < data.length; i++) {
+        // IMPORTANTE: Leer EXACTAMENTE filas 8-20 del Excel
+        // startRow = índice 7 (fila 8), END_ROW = índice 19 (fila 20)
+        const END_ROW = 20; // Fila final del Excel (índice 19 en array 0-based)
+
+        for (let i = startRow; i < data.length && i < END_ROW; i++) {
             const row = data[i];
-            if (!row || row.length === 0 || !row[colMap.title]) continue;
+            
+            // Detener inmediatamente si encontramos una fila completamente vacía
+            if (!row || row.length === 0) {
+                break;
+            }
+            
+            // Detener si encontramos un título de nueva sección (por seguridad)
+            if (row[0] && typeof row[0] === 'string') {
+                const firstCell = row[0].toString().toUpperCase();
+                if (firstCell.includes('CALENDARIO') || 
+                    firstCell.includes('TIMELINE') || 
+                    firstCell.includes('MILESTONE') ||
+                    firstCell.includes('RIESGO') ||
+                    firstCell.includes('VISTA')) {
+                    break;
+                }
+            }
+            
+            // Si no hay título en esta fila, saltarla
+            if (!row[colMap.title]) continue;
 
             const title = row[colMap.title];
             const area = (colMap.area !== undefined && row[colMap.area]) ? row[colMap.area] : 'Planificación';

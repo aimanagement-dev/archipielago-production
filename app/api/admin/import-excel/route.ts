@@ -2,11 +2,10 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-config';
 import { GoogleSheetsService } from '@/lib/google-sheets';
-import * as XLSX from 'xlsx';
-import path from 'path';
-import fs from 'fs';
-import { Task, TaskStatus, TaskArea } from '@/lib/types';
+import { parseExcelTasks } from '@/lib/excel-importer';
+import { Task } from '@/lib/types';
 import { isUserAdmin } from '@/lib/constants';
+import { generateId } from '@/lib/utils';
 
 export async function POST() {
     const session = await getServerSession(authOptions);
@@ -21,100 +20,96 @@ export async function POST() {
     }
 
     try {
-        const filePath = path.join(process.cwd(), 'ARCH_PROJECT_MANAGEMENT.xlsx');
+        const filePath = require('path').join(process.cwd(), 'ARCH_PROJECT_MANAGEMENT.xlsx');
+        const fs = require('fs');
+        
         if (!fs.existsSync(filePath)) {
             return NextResponse.json({ error: "Excel file not found" }, { status: 404 });
         }
 
-        const workbook = XLSX.readFile(filePath);
-        const tasksToImport: Partial<Task>[] = [];
-        const months = ['Noviembre', 'Diciembre', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto'];
-
-        months.forEach(month => {
-            const sheet = workbook.Sheets[month];
-            if (!sheet) return;
-
-            const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
-            let startRow = -1;
-
-            // Find section "B. LISTA COMPLETA..."
-            for (let i = 0; i < data.length; i++) {
-                if (data[i][0] && typeof data[i][0] === 'string' && data[i][0].includes('B. LISTA COMPLETA')) {
-                    startRow = i + 2; // Data usually starts 2 rows after title (Title -> Header -> Data)
-                    break;
-                }
-            }
-
-            if (startRow === -1 || startRow >= data.length) return;
-
-            // Headers are usually at startRow - 1
-            const headerRow = data[startRow - 1];
-            // Simple mapping based on index if headers match expected
-            // Expected: ["Semanas","Área","Descripción completa","Responsable(s)","Estado","Notas"]
-
-            // Map headers to indices
-            const colMap: any = {};
-            headerRow.forEach((h: string, idx: number) => {
-                if (!h) return;
-                const lower = h.toLowerCase();
-                if (lower.includes('semana')) colMap.week = idx;
-                if (lower.includes('área') || lower.includes('area')) colMap.area = idx;
-                if (lower.includes('descripción') || lower.includes('descripcion')) colMap.title = idx;
-                if (lower.includes('responsable')) colMap.responsible = idx;
-                if (lower.includes('estado')) colMap.status = idx;
-                if (lower.includes('nota')) colMap.notes = idx;
-            });
-
-            for (let i = startRow; i < data.length; i++) {
-                const row = data[i];
-                if (!row || row.length === 0 || !row[colMap.title]) continue;
-
-                // Stop if we hit a new section (empty or title-like row that isn't data)
-                // Heuristic: if title is missing, likely end.
-
-                const title = row[colMap.title];
-                const area = (colMap.area !== undefined && row[colMap.area]) ? row[colMap.area] : 'Planificación';
-                const statusRaw = (colMap.status !== undefined && row[colMap.status]) ? row[colMap.status] : 'Pendiente';
-                const notes = (colMap.notes !== undefined && row[colMap.notes]) ? row[colMap.notes] : '';
-                const week = (colMap.week !== undefined && row[colMap.week]) ? row[colMap.week] : '';
-                const responsibleRaw = (colMap.responsible !== undefined && row[colMap.responsible]) ? row[colMap.responsible] : '';
-
-                // Normalize Status
-                let status: TaskStatus = 'Pendiente';
-                if (statusRaw.toLowerCase().includes('curso') || statusRaw.toLowerCase().includes('progreso')) status = 'En Progreso';
-                if (statusRaw.toLowerCase().includes('complet')) status = 'Completado';
-                if (statusRaw.toLowerCase().includes('bloquea')) status = 'Bloqueado';
-
-                // Normalize Responsible
-                const responsible = responsibleRaw ? responsibleRaw.toString().split(/[,&]/).map((s: string) => s.trim()) : [];
-
-                const task: Partial<Task> = {
-                    title,
-                    area: area as TaskArea, // Trusting excel or fallback
-                    status,
-                    notes,
-                    week,
-                    month: month.substring(0, 3) as any, // 'Nov', 'Dic' etc
-                    responsible,
-                    isScheduled: false // No exact dates in simple list
-                };
-                tasksToImport.push(task);
-            }
-        });
-
-        // Import to Sheets
-        const service = new GoogleSheetsService(session.accessToken as string); // Assuming we have token
-        // Use the new DB ID logic
-        const spreadsheetId = await service.getOrCreateDatabase();
-
-        // Add tasks sequentially or batch if method existed (using loop for now)
-        let count = 0;
-        for (const task of tasksToImport) {
-            await service.addTask(spreadsheetId, task as Task);
-            count++;
+        // Usar la función parseExcelTasks mejorada que limita a filas 8-20
+        const tasksToImport = parseExcelTasks(filePath);
+        
+        if (tasksToImport.length === 0) {
+            return NextResponse.json({ 
+                error: "No se encontraron tareas para importar. Verifica que el Excel tenga la sección 'B. LISTA COMPLETA' en cada tab mensual." 
+            }, { status: 400 });
         }
 
-        return NextResponse.json({ success: true, count, tasks: tasksToImport.length });
+        // Import to Sheets - Usar findDatabase() para el spreadsheet centralizado
+        const service = new GoogleSheetsService(session.accessToken as string);
+        const spreadsheetId = await service.findDatabase();
+        
+        if (!spreadsheetId) {
+            return NextResponse.json({ 
+                error: "No se encontró el spreadsheet centralizado. Verifica los permisos." 
+            }, { status: 500 });
+        }
+
+        // Verificar tareas existentes para evitar duplicados
+        const existingTasks = await service.getTasks(spreadsheetId);
+        const existingTaskMap = new Map<string, Task>();
+        
+        // Crear clave única basada en título + mes + área
+        existingTasks.forEach(task => {
+            const key = `${task.title?.toLowerCase().trim()}-${task.month}-${task.area?.toLowerCase().trim()}`;
+            existingTaskMap.set(key, task);
+        });
+
+        let imported = 0;
+        let skipped = 0;
+        const errors: string[] = [];
+
+        // Insertar tareas evitando duplicados
+        for (const taskPartial of tasksToImport) {
+            try {
+                // Crear clave única para esta tarea
+                const key = `${taskPartial.title?.toLowerCase().trim()}-${taskPartial.month}-${taskPartial.area?.toLowerCase().trim()}`;
+                
+                // Verificar si ya existe
+                if (existingTaskMap.has(key)) {
+                    skipped++;
+                    continue;
+                }
+                
+                // Generar ID único para la nueva tarea
+                const taskId = generateId();
+                const task: Task = {
+                    ...taskPartial,
+                    id: taskId,
+                    // Asegurar campos requeridos
+                    title: taskPartial.title || 'Sin título',
+                    status: taskPartial.status || 'Pendiente',
+                    area: taskPartial.area || 'Planificación',
+                    month: taskPartial.month || 'Ene',
+                    week: taskPartial.week || 'Week 1',
+                    responsible: taskPartial.responsible || [],
+                    notes: taskPartial.notes || '',
+                    isScheduled: taskPartial.isScheduled || false,
+                    attachments: [],
+                    visibility: 'all',
+                    visibleTo: [],
+                } as Task;
+                
+                await service.addTask(spreadsheetId, task);
+                imported++;
+                
+                // Agregar a existingTaskMap para evitar duplicados en la misma importación
+                existingTaskMap.set(key, task);
+            } catch (error) {
+                const errorMsg = `Error importando tarea "${taskPartial.title}": ${error instanceof Error ? error.message : 'Error desconocido'}`;
+                console.error(errorMsg, error);
+                errors.push(errorMsg);
+            }
+        }
+
+        return NextResponse.json({ 
+            success: true, 
+            imported, 
+            skipped, 
+            total: tasksToImport.length,
+            errors: errors.length > 0 ? errors : undefined
+        });
 
     } catch (error: any) {
         console.error("Import error:", error);

@@ -1,8 +1,6 @@
 import { create } from 'zustand';
 import { Task, TeamMember, Gate, CalendarEvent, Stats, Subscription, Transaction, Expense } from './types';
 import { generateId } from './utils';
-import tasksData from '@/data/tasks.json';
-import teamData from '@/data/team.json';
 import gatesData from '@/data/gates.json';
 
 interface AppState {
@@ -102,18 +100,17 @@ export const useStore = create<AppState>()(
           } else {
             console.warn('Failed to fetch from API');
             set({
+              tasks: [], // Siempre vacío si falla la API - USER y ADMIN verán lo mismo
               isLoading: false,
-              error: 'No se pudo sincronizar con Google Sheets. Mostrando datos locales.'
+              error: 'No se pudo sincronizar con Google Sheets. Verifica tu conexión.'
             });
-            if (get().tasks.length === 0) {
-              set({ tasks: tasksData as Task[] });
-            }
           }
         } catch (error) {
           console.error('Error fetching tasks:', error);
           set({
+            tasks: [], // Siempre vacío si hay error - USER y ADMIN verán lo mismo
             isLoading: false,
-            error: 'Error de conexión. Mostrando datos locales.'
+            error: 'Error de conexión. Verifica tu conexión.'
           });
         }
       },
